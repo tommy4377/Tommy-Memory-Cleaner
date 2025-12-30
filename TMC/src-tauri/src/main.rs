@@ -2109,13 +2109,10 @@ fn get_taskbar_rect() -> Option<(i32, i32, i32, i32)> {
 }
 
 fn position_tray_menu(window: &tauri::WebviewWindow) {
-    // Aspetta un po' per assicurarsi che la finestra sia pronta
-    std::thread::sleep(std::time::Duration::from_millis(100));
-    
-    // Posiziona il menu vicino alla tray icon
+    // Posiziona il menu vicino alla tray icon (sopra di default)
     let _ = window.move_window(Position::TrayBottomRight);
     
-    // Aspetta ancora un po' per il posizionamento
+    // Aspetta un po' per assicurarsi che il posizionamento iniziale sia completato
     std::thread::sleep(std::time::Duration::from_millis(50));
     
     // Usa le API Windows per ottenere la posizione esatta della taskbar
@@ -2123,55 +2120,69 @@ fn position_tray_menu(window: &tauri::WebviewWindow) {
         if let Some(monitor) = window.current_monitor().ok().flatten() {
             let monitor_size = monitor.size();
             let monitor_pos = monitor.position();
+            let screen_top = monitor_pos.y;
             let screen_bottom = monitor_pos.y + monitor_size.height as i32;
             let menu_height = size.height as i32;
+            let menu_top = pos.y;
             let menu_bottom = pos.y + menu_height;
             
-            // Prova a ottenere la posizione esatta della taskbar
-            let taskbar_top = if let Some((_taskbar_left, taskbar_top, _taskbar_right, _taskbar_bottom)) = get_taskbar_rect() {
-                // Taskbar trovata, determina se è in basso
-                if taskbar_top > monitor_pos.y + (monitor_size.height as i32 / 2) {
-                    // Taskbar in basso
-                    Some(taskbar_top)
-                } else {
-                    // Taskbar in alto, sinistra o destra - usa fallback conservativo
-                    None
-                }
-            } else {
-                None
-            };
-            
-            // Calcola safe_bottom: taskbar_top se disponibile, altrimenti margine conservativo
-            let safe_bottom = taskbar_top.unwrap_or(screen_bottom - 80); // 80px margine conservativo
-            
-            // Se il menu va sotto la taskbar (o troppo in basso), spostalo sopra con margine
-            if menu_bottom > safe_bottom {
-                let new_y = safe_bottom - menu_height - 5; // 5px margine extra sopra la taskbar
-                let final_y = new_y.max(monitor_pos.y + 5); // Almeno 5px dal top dello schermo
+            // Ottieni la posizione della taskbar
+            if let Some((taskbar_left, taskbar_top, taskbar_right, taskbar_bottom)) = get_taskbar_rect() {
+                // Determina dove si trova la taskbar
+                let taskbar_height = taskbar_bottom - taskbar_top;
+                let taskbar_width = taskbar_right - taskbar_left;
                 
-                tracing::debug!("Repositioning menu: menu_bottom={}, safe_bottom={}, new_y={}, final_y={}", 
-                    menu_bottom, safe_bottom, new_y, final_y);
+                // Se la taskbar è più larga che alta, è in alto o in basso
+                // Se è più alta che larga, è a sinistra o destra (non influisce sul posizionamento verticale)
+                let is_taskbar_vertical = taskbar_width < taskbar_height;
                 
-                let _ = window.set_position(tauri::PhysicalPosition {
-                    x: pos.x,
-                    y: final_y,
-                });
-                
-                // Verifica che il posizionamento sia andato a buon fine
-                std::thread::sleep(std::time::Duration::from_millis(50));
-                if let Ok(new_pos) = window.outer_position() {
-                    let new_menu_bottom = new_pos.y + menu_height;
-                    if new_menu_bottom > safe_bottom {
-                        tracing::warn!("Menu still below taskbar after repositioning: new_menu_bottom={}, safe_bottom={}", 
-                            new_menu_bottom, safe_bottom);
-                    } else {
-                        tracing::debug!("Menu successfully positioned above taskbar: new_menu_bottom={}, safe_bottom={}", 
-                            new_menu_bottom, safe_bottom);
+                if !is_taskbar_vertical {
+                    // Taskbar orizzontale (alto o basso)
+                    if taskbar_top <= screen_top + 10 {
+                        // Taskbar in ALTO (stile macOS/Linux con StartAllBack)
+                        // Posiziona il menu SOTTO la taskbar (quindi più in basso)
+                        let taskbar_bottom_y = taskbar_bottom;
+                        if menu_top < taskbar_bottom_y + 5 {
+                            // Il menu è troppo in alto, spostalo sotto la taskbar
+                            let new_y = taskbar_bottom_y + 5; // 5px margine sotto la taskbar
+                            
+                            tracing::debug!("Taskbar in alto: taskbar_bottom={}, menu_top={}, new_y={}", 
+                                taskbar_bottom_y, menu_top, new_y);
+                            
+                            let _ = window.set_position(tauri::PhysicalPosition {
+                                x: pos.x,
+                                y: new_y,
+                            });
+                        }
+                    } else if taskbar_top >= screen_bottom - 100 {
+                        // Taskbar in BASSO (classica Windows)
+                        // Posiziona il menu SOPRA la taskbar
+                        if menu_bottom > taskbar_top - 5 {
+                            // Il menu va sotto la taskbar, spostalo sopra
+                            let new_y = taskbar_top - menu_height - 5; // 5px margine sopra la taskbar
+                            let final_y = new_y.max(screen_top + 5); // Almeno 5px dal top
+                            
+                            tracing::debug!("Taskbar in basso: taskbar_top={}, menu_bottom={}, new_y={}, final_y={}", 
+                                taskbar_top, menu_bottom, new_y, final_y);
+                            
+                            let _ = window.set_position(tauri::PhysicalPosition {
+                                x: pos.x,
+                                y: final_y,
+                            });
+                        }
                     }
                 }
             } else {
-                tracing::debug!("Menu already above taskbar: menu_bottom={}, safe_bottom={}", 
-                    menu_bottom, safe_bottom);
+                // Fallback: se non riusciamo a trovare la taskbar, usa margine conservativo
+                // Assumiamo taskbar in basso (default Windows)
+                let safe_bottom = screen_bottom - 80;
+                if menu_bottom > safe_bottom {
+                    let new_y = safe_bottom - menu_height - 5;
+                    let _ = window.set_position(tauri::PhysicalPosition {
+                        x: pos.x,
+                        y: new_y.max(screen_top + 5),
+                    });
+                }
             }
         }
     }
@@ -2440,7 +2451,7 @@ fn main() {
                                 "tray_menu",
                                 WebviewUrl::App("tray.html".into())
                             )
-                            .inner_size(1920.0, 1080.0)  // Fullscreen per overlay click capture (verrà ridimensionata dinamicamente)
+                            .inner_size(160.0, 120.0)  // Dimensione normale del menu (160x120px)
                             .skip_taskbar(true)
                             .decorations(false)
                             .transparent(true)
