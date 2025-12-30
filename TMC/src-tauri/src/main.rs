@@ -1998,7 +1998,7 @@ fn show_or_create_window(app: &AppHandle) {
         .title("Tommy Memory Cleaner")
         .inner_size(480.0, 680.0)
         .resizable(false)
-        .shadow(false)  // Rimuove ombra e bordo rettangolare su Windows 10
+        .shadow(true)  // Abilita shadow per bordi arrotondati
         .center()
         .skip_taskbar(false)  // Mostra nella taskbar
         .visible(true)  // Assicurati che sia visibile
@@ -2569,7 +2569,7 @@ fn main() {
                     .resizable(false)
                     .decorations(false)
                     .transparent(true)
-                    .shadow(false)
+                    .shadow(true)
                     .center()
                     .skip_taskbar(false)
                     .always_on_top(true)
