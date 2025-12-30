@@ -142,12 +142,20 @@ impl Profile {
                 | Areas::REGISTRY_CACHE
             },
             Profile::Balanced => {
-                // Profilo bilanciato: aree principali + registry cache per efficienza
-                Areas::WORKING_SET
-                | Areas::MODIFIED_PAGE_LIST 
-                | Areas::STANDBY_LIST
-                | Areas::SYSTEM_FILE_CACHE
-                | Areas::REGISTRY_CACHE
+                // Profilo bilanciato: aree principali + modified file cache + registry cache per efficienza
+                let mut areas = Areas::WORKING_SET
+                    | Areas::MODIFIED_PAGE_LIST 
+                    | Areas::STANDBY_LIST
+                    | Areas::SYSTEM_FILE_CACHE
+                    | Areas::REGISTRY_CACHE;
+                
+                // Aggiungi Modified File Cache se disponibile (utile per performance)
+                if crate::os::has_modified_file_cache() {
+                    areas |= Areas::MODIFIED_FILE_CACHE;
+                    tracing::debug!("Balanced profile: MODIFIED_FILE_CACHE available");
+                }
+                
+                areas
             },
             Profile::Gaming => {
                 // FIX: Gaming profile usa TUTTE le aree disponibili per massime prestazioni

@@ -113,13 +113,35 @@ setTimeout(() => { isInitializing = false; }, 500);
 // Funzione per chiudere il menu
 function closeMenu() {
     if (isInitializing) return;
+    
+    // Cancella il timer di chiusura automatica
+    if (autoCloseTimer) {
+        clearTimeout(autoCloseTimer);
+        autoCloseTimer = null;
+    }
+    
     document.body.classList.remove('menu-open');
     win.hide().catch(() => {});
 }
 
+// Timer per chiusura automatica dopo 5 secondi
+let autoCloseTimer: ReturnType<typeof setTimeout> | null = null;
+
 // Funzione per mostrare il menu
 function showMenu() {
     document.body.classList.add('menu-open');
+    
+    // Cancella timer precedente se esiste
+    if (autoCloseTimer) {
+        clearTimeout(autoCloseTimer);
+        autoCloseTimer = null;
+    }
+    
+    // Imposta chiusura automatica dopo 5 secondi
+    autoCloseTimer = setTimeout(() => {
+        closeMenu();
+        autoCloseTimer = null;
+    }, 5000);
 }
 
 // Mostra il menu quando la finestra diventa visibile
@@ -134,8 +156,6 @@ document.addEventListener('visibilitychange', () => {
         closeMenu();
     }
 });
-
-// Rimuoviamo l'overlay - non più necessario per il click fuori
 
 // Chiudi quando si preme ESC
 document.addEventListener('keydown', (e) => {

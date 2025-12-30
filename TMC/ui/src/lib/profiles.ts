@@ -7,12 +7,13 @@ export function areasForProfile(profile: Profile): Areas {
       // Profilo leggero: aree essenziali + registry cache (molto leggero e efficace)
       return AreasFlag.WORKING_SET | AreasFlag.MODIFIED_PAGE_LIST | AreasFlag.REGISTRY_CACHE;
     case 'Balanced':
-      // Profilo bilanciato: aree principali + registry cache per efficienza
+      // Profilo bilanciato: aree principali + modified file cache + registry cache per efficienza
       return (
         AreasFlag.WORKING_SET |
         AreasFlag.MODIFIED_PAGE_LIST |
         AreasFlag.STANDBY_LIST |
         AreasFlag.SYSTEM_FILE_CACHE |
+        AreasFlag.MODIFIED_FILE_CACHE |
         AreasFlag.REGISTRY_CACHE
       );
     case 'Gaming':

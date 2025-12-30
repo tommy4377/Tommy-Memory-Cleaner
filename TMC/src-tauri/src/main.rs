@@ -2407,30 +2407,14 @@ fn main() {
                         if let Some(menu_win) = app_handle.get_webview_window("tray_menu") {
                             tracing::info!("Tray menu window exists, showing it...");
                             
-                            // Mostra il menu prima di posizionare
+                            // Posiziona prima di mostrare (evita lampeggio)
+                            position_tray_menu(&menu_win);
+                            
+                            // Mostra il menu
                             if let Err(e) = menu_win.show() { 
                                 tracing::error!("Failed to show tray menu: {:?}", e); 
                             } else {
                                 tracing::info!("Tray menu shown successfully");
-                                
-                                // Posiziona dopo lo show (importante per finestra fullscreen)
-                                std::thread::sleep(std::time::Duration::from_millis(100));
-                                position_tray_menu(&menu_win);
-                                // Riposiziona di nuovo dopo un altro breve delay per essere sicuri
-                                std::thread::sleep(std::time::Duration::from_millis(100));
-                                position_tray_menu(&menu_win);
-                                
-                                // FIX: Rimosso setup listener inline - la gestione è nel file tray.ts
-                                // Il menu si chiude solo quando si clicca fuori, non quando perde il focus
-                                
-                                // Forza always on top DOPO show e posizionamento
-                                let _ = menu_win.set_always_on_top(true);
-                                
-                                // Piccolo delay per assicurarsi che always_on_top sia applicato
-                                std::thread::sleep(std::time::Duration::from_millis(50));
-                                
-                                // Ri-applica always_on_top per sicurezza
-                                let _ = menu_win.set_always_on_top(true);
                                 
                                 // Aspetta che il DOM sia pronto prima di chiamare loadConfig
                                 std::thread::sleep(std::time::Duration::from_millis(100));
@@ -2472,21 +2456,6 @@ fn main() {
                                         tracing::error!("Failed to show newly created tray menu: {:?}", e);
                                     } else {
                                         tracing::info!("Newly created tray menu shown");
-                                        
-                                        // Riposiziona dopo lo show
-                                        position_tray_menu(&menu_win);
-                                        // Riposiziona di nuovo dopo un altro breve delay per essere sicuri
-                                        std::thread::sleep(std::time::Duration::from_millis(100));
-                                        position_tray_menu(&menu_win);
-                                        
-                                        // Forza always on top DOPO show e posizionamento
-                                        let _ = menu_win.set_always_on_top(true);
-                                        
-                                        // Piccolo delay per assicurarsi che always_on_top sia applicato
-                                        std::thread::sleep(std::time::Duration::from_millis(50));
-                                        
-                                        // Ri-applica always_on_top per sicurezza
-                                        let _ = menu_win.set_always_on_top(true);
                                         
                                         // Aspetta che il DOM sia pronto prima di chiamare loadConfig
                                         std::thread::sleep(std::time::Duration::from_millis(100));
