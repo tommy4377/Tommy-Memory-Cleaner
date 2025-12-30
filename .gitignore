@@ -83,7 +83,7 @@ desktop.ini
 
 # Inno Setup installer files
 *.iss
-TMC/src-tauri/installer/output/
+TMC/src-tauri/installer/
 *.iss.bak
 
 # Installer scripts
