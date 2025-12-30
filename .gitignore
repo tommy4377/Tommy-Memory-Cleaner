@@ -140,3 +140,6 @@ TMC/ui/.svelte-kit/
 .directory
 .Trash-*
 
+# Embedded git repositories (duplicate repos)
+TMC/Tommy-Memory-Cleaner/
+
