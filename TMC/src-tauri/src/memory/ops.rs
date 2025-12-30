@@ -261,11 +261,13 @@ fn process_list() -> Vec<(u32, String)> {
 }
 
 fn empty_ws_process(pid: u32) -> bool {
-    // FIX: Retry logic per processi che potrebbero essere temporaneamente bloccati
+    // IMPORTANTE: Questa funzione richiede SE_DEBUG_NAME per funzionare correttamente
+    // Sui processi di sistema. Assicurarsi che sia già stato acquisito PRIMA di chiamare questa funzione.
     const MAX_RETRIES: u32 = 2;
     
     for attempt in 1..=MAX_RETRIES {
         unsafe {
+            // Usa PROCESS_ALL_ACCESS se disponibile, altrimenti i permessi minimi necessari
             let h: HANDLE = OpenProcess(
                 PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION, 
                 0, 
@@ -273,14 +275,18 @@ fn empty_ws_process(pid: u32) -> bool {
             );
             
             if h.is_null() {
-                // FIX #9: Aggiungere logging per debug
                 let error = GetLastError();
+                // ERROR_ACCESS_DENIED (0x5) è comune se SE_DEBUG_NAME non è acquisito
+                if error == 5 {
+                    tracing::debug!("Access denied for process {} - SE_DEBUG_NAME privilege may be missing", pid);
+                }
+                
                 if attempt < MAX_RETRIES {
                     tracing::debug!("Failed to open process {} (attempt {}): 0x{:x}, retrying...", pid, attempt, error);
                     std::thread::sleep(std::time::Duration::from_millis(50));
                     continue;
                 } else {
-                    tracing::debug!("Failed to open process {} after {} attempts: 0x{:x}", pid, MAX_RETRIES, error);
+                    tracing::debug!("Failed to open process {} after {} attempts: 0x{:x} (ACCESS_DENIED=0x5 means SE_DEBUG_NAME missing)", pid, MAX_RETRIES, error);
                     return false;
                 }
             }
@@ -307,16 +313,17 @@ fn empty_ws_process(pid: u32) -> bool {
 }
 
 pub fn optimize_working_set(exclusions_lower: &[String]) -> Result<()> {
-    // Se non ci sono esclusioni custom E non stiamo filtrando processi critici,
-    // usa l'ottimizzazione globale veloce
+    // IMPORTANTE: Sempre acquisire SE_DEBUG_NAME per permettere l'accesso a tutti i processi
+    // Anche se usiamo il metodo globale, SE_DEBUG_NAME garantisce che funzioni su tutti i processi
+    ensure_privileges(&[SE_DEBUG_NAME, SE_PROFILE_SINGLE_PROCESS_NAME])?;
+    
+    // Se non ci sono esclusioni custom, usa l'ottimizzazione globale veloce
+    // Questo metodo richiede SE_DEBUG_NAME per funzionare correttamente su processi di sistema
     if exclusions_lower.is_empty() {
-        ensure_privileges(&[SE_PROFILE_SINGLE_PROCESS_NAME])?;
         return crate::antivirus::whitelist::safe_memory_operation(|| {
             nt_call_u32(SYS_MEMORY_LIST_INFORMATION, MEM_EMPTY_WORKING_SETS)
         });
     }
-    
-    ensure_privileges(&[SE_DEBUG_NAME])?;
     
     // Crea HashSet per esclusioni utente
     let user_exclusions: HashSet<&str> = exclusions_lower.iter()
