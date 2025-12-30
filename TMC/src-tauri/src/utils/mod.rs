@@ -9,11 +9,12 @@ pub fn is_app_elevated() -> bool {
         };
         
         #[repr(C)]
+        #[allow(non_snake_case)]
         struct TokenElevation {
-            TokenIsElevated: u32,
+            TokenIsElevated: u32, // Must match Windows API structure name
         }
         
-        const TokenElevation: u32 = 20; // TOKEN_INFORMATION_CLASS::TokenElevation
+        const TOKEN_ELEVATION: u32 = 20; // TOKEN_INFORMATION_CLASS::TokenElevation
         
         extern "system" {
             fn OpenProcessToken(
@@ -50,7 +51,7 @@ pub fn is_app_elevated() -> bool {
         
         let success = GetTokenInformation(
             token,
-            TokenElevation,
+            TOKEN_ELEVATION,
             &mut elevation as *mut _ as *mut std::ffi::c_void,
             std::mem::size_of::<TokenElevation>() as u32,
             &mut ret_len,
