@@ -120,6 +120,8 @@ function closeMenu() {
 // Funzione per mostrare il menu
 function showMenu() {
     document.body.classList.add('menu-open');
+    // Ri-setup overlay quando il menu si apre
+    setTimeout(setupClickOverlay, 50);
 }
 
 // Mostra il menu quando la finestra diventa visibile
@@ -135,30 +137,52 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-// Setup overlay per click fuori
-const clickOverlay = document.getElementById('click-overlay');
-if (clickOverlay) {
-    clickOverlay.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeMenu();
-    });
-    clickOverlay.addEventListener('mousedown', (e) => {
-        e.stopPropagation();
-        closeMenu();
-    });
+// Setup overlay per click fuori - gestione più robusta
+function setupClickOverlay() {
+    const clickOverlay = document.getElementById('click-overlay');
+    if (clickOverlay) {
+        // Rimuovi listener esistenti se ci sono
+        const newOverlay = clickOverlay.cloneNode(true);
+        clickOverlay.parentNode?.replaceChild(newOverlay, clickOverlay);
+        
+        // Aggiungi nuovi listener
+        const overlay = document.getElementById('click-overlay');
+        if (overlay) {
+            overlay.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closeMenu();
+                return false;
+            }, true); // Use capture phase
+            
+            overlay.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closeMenu();
+                return false;
+            }, true);
+            
+            overlay.addEventListener('mouseup', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closeMenu();
+                return false;
+            }, true);
+        }
+    }
+}
+
+// Setup overlay quando il DOM è pronto
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupClickOverlay);
+} else {
+    setupClickOverlay();
 }
 
 // Chiudi quando si preme ESC
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         closeMenu();
-    }
-});
-
-document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-        // Ricarica sempre la configurazione quando la finestra diventa visibile
-        loadConfig();
     }
 });
 

@@ -2109,8 +2109,14 @@ fn get_taskbar_rect() -> Option<(i32, i32, i32, i32)> {
 }
 
 fn position_tray_menu(window: &tauri::WebviewWindow) {
+    // Aspetta un po' per assicurarsi che la finestra sia pronta
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    
     // Posiziona il menu vicino alla tray icon
     let _ = window.move_window(Position::TrayBottomRight);
+    
+    // Aspetta ancora un po' per il posizionamento
+    std::thread::sleep(std::time::Duration::from_millis(50));
     
     // Usa le API Windows per ottenere la posizione esatta della taskbar
     if let (Ok(pos), Ok(size)) = (window.outer_position(), window.outer_size()) {
@@ -2118,33 +2124,54 @@ fn position_tray_menu(window: &tauri::WebviewWindow) {
             let monitor_size = monitor.size();
             let monitor_pos = monitor.position();
             let screen_bottom = monitor_pos.y + monitor_size.height as i32;
-            let menu_bottom = pos.y + size.height as i32;
+            let menu_height = size.height as i32;
+            let menu_bottom = pos.y + menu_height;
             
             // Prova a ottenere la posizione esatta della taskbar
-            let safe_bottom = if let Some((taskbar_left, taskbar_top, _taskbar_right, _taskbar_bottom)) = get_taskbar_rect() {
-                // Taskbar trovata, calcola safe_bottom in base alla posizione
+            let taskbar_top = if let Some((_taskbar_left, taskbar_top, _taskbar_right, _taskbar_bottom)) = get_taskbar_rect() {
+                // Taskbar trovata, determina se è in basso
                 if taskbar_top > monitor_pos.y + (monitor_size.height as i32 / 2) {
                     // Taskbar in basso
-                    taskbar_top - 5 // 5px margine sopra la taskbar
-                } else if taskbar_left < monitor_pos.x + (monitor_size.width as i32 / 2) {
-                    // Taskbar a sinistra - non influisce sul posizionamento verticale
-                    screen_bottom - 60 // Fallback conservativo
+                    Some(taskbar_top)
                 } else {
-                    // Taskbar a destra - non influisce sul posizionamento verticale
-                    screen_bottom - 60 // Fallback conservativo
+                    // Taskbar in alto, sinistra o destra - usa fallback conservativo
+                    None
                 }
             } else {
-                // Fallback: usa margine conservativo se non riusciamo a trovare la taskbar
-                screen_bottom - 60
+                None
             };
             
-            // Se il menu va sotto la taskbar, spostalo sopra
+            // Calcola safe_bottom: taskbar_top se disponibile, altrimenti margine conservativo
+            let safe_bottom = taskbar_top.unwrap_or(screen_bottom - 80); // 80px margine conservativo
+            
+            // Se il menu va sotto la taskbar (o troppo in basso), spostalo sopra con margine
             if menu_bottom > safe_bottom {
-                let new_y = safe_bottom - size.height as i32;
+                let new_y = safe_bottom - menu_height - 5; // 5px margine extra sopra la taskbar
+                let final_y = new_y.max(monitor_pos.y + 5); // Almeno 5px dal top dello schermo
+                
+                tracing::debug!("Repositioning menu: menu_bottom={}, safe_bottom={}, new_y={}, final_y={}", 
+                    menu_bottom, safe_bottom, new_y, final_y);
+                
                 let _ = window.set_position(tauri::PhysicalPosition {
                     x: pos.x,
-                    y: new_y.max(monitor_pos.y + 5), // Almeno 5px dal top
+                    y: final_y,
                 });
+                
+                // Verifica che il posizionamento sia andato a buon fine
+                std::thread::sleep(std::time::Duration::from_millis(50));
+                if let Ok(new_pos) = window.outer_position() {
+                    let new_menu_bottom = new_pos.y + menu_height;
+                    if new_menu_bottom > safe_bottom {
+                        tracing::warn!("Menu still below taskbar after repositioning: new_menu_bottom={}, safe_bottom={}", 
+                            new_menu_bottom, safe_bottom);
+                    } else {
+                        tracing::debug!("Menu successfully positioned above taskbar: new_menu_bottom={}, safe_bottom={}", 
+                            new_menu_bottom, safe_bottom);
+                    }
+                }
+            } else {
+                tracing::debug!("Menu already above taskbar: menu_bottom={}, safe_bottom={}", 
+                    menu_bottom, safe_bottom);
             }
         }
     }
@@ -2376,7 +2403,10 @@ fn main() {
                                 tracing::info!("Tray menu shown successfully");
                                 
                                 // Posiziona dopo lo show (importante per finestra fullscreen)
-                                std::thread::sleep(std::time::Duration::from_millis(50));
+                                std::thread::sleep(std::time::Duration::from_millis(100));
+                                position_tray_menu(&menu_win);
+                                // Riposiziona di nuovo dopo un altro breve delay per essere sicuri
+                                std::thread::sleep(std::time::Duration::from_millis(100));
                                 position_tray_menu(&menu_win);
                                 
                                 // FIX: Rimosso setup listener inline - la gestione è nel file tray.ts
@@ -2433,6 +2463,9 @@ fn main() {
                                         tracing::info!("Newly created tray menu shown");
                                         
                                         // Riposiziona dopo lo show
+                                        position_tray_menu(&menu_win);
+                                        // Riposiziona di nuovo dopo un altro breve delay per essere sicuri
+                                        std::thread::sleep(std::time::Duration::from_millis(100));
                                         position_tray_menu(&menu_win);
                                         
                                         // Forza always on top DOPO show e posizionamento
