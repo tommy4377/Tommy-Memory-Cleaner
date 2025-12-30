@@ -2085,83 +2085,28 @@ fn check_webview2() {
 
 // ============= TRAY MENU POSITIONING =============
 fn position_tray_menu(window: &tauri::WebviewWindow) {
-    // Prova diverse posizioni in ordine di priorità
-    // Nota: Position non implementa Copy, quindi chiamiamo direttamente move_window
-    let positioned = window.move_window(Position::TrayBottomRight).is_ok()
-        || window.move_window(Position::TrayRight).is_ok()
-        || window.move_window(Position::BottomRight).is_ok()
-        || window.move_window(Position::TopRight).is_ok();
+    // Posiziona il menu vicino alla tray icon
+    let _ = window.move_window(Position::TrayBottomRight);
     
-    if !positioned {
-        tracing::warn!("Could not auto-position tray menu, using manual positioning");
-        // Fallback: posiziona vicino al cursore
-        if let Ok(cursor_pos) = window.cursor_position() {
-            let offset_x = -160; // Larghezza menu (160px)
-            let offset_y = -108; // Altezza menu (108px) - posiziona sopra il cursore
-            let _ = window.set_position(tauri::PhysicalPosition {
-                x: (cursor_pos.x as i32 + offset_x).max(0),
-                y: (cursor_pos.y as i32 + offset_y).max(0),
-            });
-        }
-        return;
-    }
-    
-    // Fix dinamico per evitare che vada sotto/sopra la taskbar
-    if let Ok(pos) = window.outer_position() {
-        if let Ok(size) = window.outer_size() {
-            // Ottieni dimensioni schermo
-            if let Some(monitor) = window.current_monitor().ok().flatten() {
-                let monitor_size = monitor.size();
-                let monitor_pos = monitor.position();
-                
-                let menu_bottom = pos.y + size.height as i32;
-                let menu_top = pos.y;
-                let screen_bottom = monitor_pos.y + monitor_size.height as i32;
-                let screen_top = monitor_pos.y;
-                
-                let mut new_y = pos.y;
-                
-                // FIX: Considera la taskbar con margine più conservativo
-                // Taskbar può essere 40-48px (normale) o anche più grande (large icons)
-                // Usa un margine più grande per essere sicuri che il menu non vada sotto la taskbar
-                let taskbar_height = 60; // Margine conservativo per taskbar normale e grande
-                let safe_bottom = screen_bottom - taskbar_height;
-                
-                if menu_bottom > safe_bottom {
-                    // Sposta il menu sopra la taskbar con margine
-                    new_y = safe_bottom - size.height as i32 - 5; // 5px margine extra sopra la taskbar
-                    tracing::debug!("Menu goes below safe area (considering taskbar), moving up to y={}", new_y);
-                    
-                    // Se dopo lo spostamento il menu va sopra lo schermo, posizionalo più in alto ma sempre visibile
-                    if new_y < screen_top {
-                        new_y = screen_top + 10; // 10px margine dal top
-                        tracing::debug!("Menu would go above screen, positioning at top with margin: y={}", new_y);
-                    }
-                }
-                
-                // Se il menu va sopra lo schermo, spostalo giù
-                if menu_top < screen_top {
-                    new_y = screen_top + 10; // 10px margine
-                    tracing::debug!("Menu goes above screen, moving down to y={}", new_y);
-                }
-                
-                // Controlla anche i bordi laterali
-                let mut new_x = pos.x;
-                let menu_right = pos.x + size.width as i32;
-                let screen_right = monitor_pos.x + monitor_size.width as i32;
-                
-                if menu_right > screen_right {
-                    new_x = screen_right - size.width as i32 - 10;
-                    tracing::debug!("Menu goes off screen right, moving left to x={}", new_x);
-                }
-                
-                // Applica nuova posizione se necessario
-                if new_x != pos.x || new_y != pos.y {
-                    let _ = window.set_position(tauri::PhysicalPosition {
-                        x: new_x.max(monitor_pos.x),
-                        y: new_y.max(monitor_pos.y),
-                    });
-                }
+    // Controllo semplice: assicurati che il menu sia sempre sopra la taskbar
+    if let (Ok(pos), Ok(size)) = (window.outer_position(), window.outer_size()) {
+        if let Some(monitor) = window.current_monitor().ok().flatten() {
+            let monitor_size = monitor.size();
+            let monitor_pos = monitor.position();
+            let screen_bottom = monitor_pos.y + monitor_size.height as i32;
+            
+            // Altezza taskbar (conservativa per taskbar normale e grande)
+            let taskbar_height = 60;
+            let safe_bottom = screen_bottom - taskbar_height;
+            let menu_bottom = pos.y + size.height as i32;
+            
+            // Se il menu va sotto la taskbar, spostalo sopra
+            if menu_bottom > safe_bottom {
+                let new_y = safe_bottom - size.height as i32;
+                let _ = window.set_position(tauri::PhysicalPosition {
+                    x: pos.x,
+                    y: new_y.max(monitor_pos.y),
+                });
             }
         }
     }
