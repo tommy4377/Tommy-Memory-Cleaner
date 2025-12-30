@@ -2121,12 +2121,22 @@ fn position_tray_menu(window: &tauri::WebviewWindow) {
                 
                 let mut new_y = pos.y;
                 
-                // Se il menu va sotto lo schermo, spostalo su con più margine
-                // Considera anche l'altezza della taskbar (circa 40-48px)
-                let taskbar_height = 48;
-                if menu_bottom > screen_bottom - taskbar_height {
-                    new_y = screen_bottom - size.height as i32 - taskbar_height - 10; // 10px margine sopra la taskbar
-                    tracing::debug!("Menu goes below screen (considering taskbar), moving up to y={}", new_y);
+                // FIX: Considera la taskbar con margine più conservativo
+                // Taskbar può essere 40-48px (normale) o anche più grande (large icons)
+                // Usa un margine più grande per essere sicuri che il menu non vada sotto la taskbar
+                let taskbar_height = 60; // Margine conservativo per taskbar normale e grande
+                let safe_bottom = screen_bottom - taskbar_height;
+                
+                if menu_bottom > safe_bottom {
+                    // Sposta il menu sopra la taskbar con margine
+                    new_y = safe_bottom - size.height as i32 - 5; // 5px margine extra sopra la taskbar
+                    tracing::debug!("Menu goes below safe area (considering taskbar), moving up to y={}", new_y);
+                    
+                    // Se dopo lo spostamento il menu va sopra lo schermo, posizionalo più in alto ma sempre visibile
+                    if new_y < screen_top {
+                        new_y = screen_top + 10; // 10px margine dal top
+                        tracing::debug!("Menu would go above screen, positioning at top with margin: y={}", new_y);
+                    }
                 }
                 
                 // Se il menu va sopra lo schermo, spostalo giù
@@ -2386,38 +2396,8 @@ fn main() {
                                 std::thread::sleep(std::time::Duration::from_millis(50));
                                 position_tray_menu(&menu_win);
                                 
-                                // Setup listener per chiusura quando si clicca fuori
-                                let _ = menu_win.eval(r#"
-                                    // Listener globale per click fuori dalla finestra
-                                    (function() {
-                                        // Chiudi quando la finestra perde il focus
-                                        window.addEventListener('blur', function() {
-                                            if (typeof win !== 'undefined' && win.hide) {
-                                                win.hide();
-                                            }
-                                        }, true);
-                                        
-                                        // Chiudi quando si clicca fuori
-                                        document.addEventListener('click', function(e) {
-                                            const menuContainer = document.querySelector('.menu-container');
-                                            if (menuContainer && !menuContainer.contains(e.target)) {
-                                                if (typeof win !== 'undefined' && win.hide) {
-                                                    win.hide();
-                                                }
-                                            }
-                                        }, true);
-                                        
-                                        // Chiudi anche con mousedown
-                                        document.addEventListener('mousedown', function(e) {
-                                            const menuContainer = document.querySelector('.menu-container');
-                                            if (menuContainer && !menuContainer.contains(e.target)) {
-                                                if (typeof win !== 'undefined' && win.hide) {
-                                                    win.hide();
-                                                }
-                                            }
-                                        }, true);
-                                    })();
-                                "#);
+                                // FIX: Rimosso setup listener inline - la gestione è nel file tray.ts
+                                // Il menu si chiude solo quando si clicca fuori, non quando perde il focus
                                 
                                 // Forza always on top DOPO show e posizionamento
                                 let _ = menu_win.set_always_on_top(true);

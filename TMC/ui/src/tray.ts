@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { areasForProfile, areasToString } from './lib/profiles';
 
 const win = getCurrentWebviewWindow();
 
@@ -53,10 +54,29 @@ async function handleAction(action: string) {
         if (action === 'open') {
             await invoke('cmd_show_or_create_window');
         } else if (action === 'optimize') {
-            await invoke('cmd_optimize_async', { 
-                reason: 'Manual', 
-                areas: 'WORKING_SET|STANDBY_LIST|MODIFIED_PAGE_LIST|SYSTEM_FILE_CACHE' 
-            });
+            // FIX: Leggi il profilo corrente dalla configurazione e usa le aree corrette
+            try {
+                const config = await invoke('cmd_get_config');
+                const profile = config.profile || 'Balanced';
+                
+                // Usa la funzione areasForProfile per ottenere le aree corrette
+                const areas = areasForProfile(profile);
+                const areasString = areasToString(areas);
+                
+                await invoke('cmd_optimize_async', { 
+                    reason: 'Manual', 
+                    areas: areasString 
+                });
+            } catch (err) {
+                console.error('Failed to get config for optimization, using default balanced profile:', err);
+                // Fallback a balanced se non riesce a leggere la config
+                const defaultAreas = areasForProfile('Balanced');
+                const defaultAreasString = areasToString(defaultAreas);
+                await invoke('cmd_optimize_async', { 
+                    reason: 'Manual', 
+                    areas: defaultAreasString 
+                });
+            }
         } else if (action === 'exit') {
             await invoke('cmd_exit');
         }
@@ -96,19 +116,11 @@ function closeMenu() {
     win.hide().catch(() => {});
 }
 
-// Chiudi quando la finestra perde il focus (click fuori) - più aggressivo
-window.addEventListener('blur', () => {
-    closeMenu();
-}, true);
+// FIX: Rimosso listener blur - il menu non deve chiudersi quando la finestra perde il focus
+// (può succedere anche quando passi sopra il menu), ma solo quando si clicca fuori
 
-// Listener aggiuntivo per focusout
-window.addEventListener('focusout', () => {
-    setTimeout(() => {
-        if (!document.hasFocus()) {
-            closeMenu();
-        }
-    }, 10);
-}, true);
+// FIX: Rimosso listener focusout - il menu non deve chiudersi quando la finestra perde il focus,
+// ma solo quando si clicca fuori (gestito dai listener click/mousedown)
 
 // Chiudi quando si clicca fuori - usa click invece di mousedown
 document.addEventListener('click', (e) => {
@@ -135,15 +147,7 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Chiudi quando la finestra perde il focus (focusout)
-document.addEventListener('focusout', (e) => {
-    // Aspetta un po' per vedere se un altro elemento riceve il focus
-    setTimeout(() => {
-        if (!document.hasFocus()) {
-            closeMenu();
-        }
-    }, 100);
-}, true);
+// FIX: Rimosso listener focusout duplicato - il menu si chiude solo quando si clicca fuori
 
 // Listener per click sul body (overlay trasparente) - più aggressivo
 // Usa window invece di document.body per catturare meglio
@@ -177,19 +181,10 @@ window.addEventListener('mousedown', (e) => {
     }
 }, true);
 
-// Listener per quando il mouse esce dalla finestra
-document.addEventListener('mouseleave', () => {
-    closeMenu();
-});
+// FIX: Rimosso listener mouseleave - il menu non deve chiudersi quando il mouse esce,
+// ma solo quando si clicca fuori (gestito dai listener click/mousedown sopra)
 
-// Listener per quando la finestra perde il focus (più aggressivo)
-window.addEventListener('focusout', () => {
-    setTimeout(() => {
-        if (!document.hasFocus() && !document.activeElement) {
-            closeMenu();
-        }
-    }, 50);
-}, true);
+// FIX: Rimosso listener focusout duplicato - il menu si chiude solo quando si clicca fuori
 
 // Listener aggiuntivo per mousedown sul body
 document.body.addEventListener('mousedown', (e) => {
