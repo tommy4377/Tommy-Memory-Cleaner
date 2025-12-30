@@ -18,6 +18,17 @@ logs/
 *.txt
 !TMC/src-tauri/installer/welcome.txt
 
+# Audio/Video/Media files (non-essential)
+*.ogg
+*.mp3
+*.wav
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flac
+*.m4a
+
 # Rust
 /target/
 **/*.rs.bk
