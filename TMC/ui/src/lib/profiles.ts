@@ -4,10 +4,19 @@ import { AreasFlag } from './types';
 export function areasForProfile(profile: Profile): Areas {
   switch (profile) {
     case 'Normal':
-      // Profilo leggero: aree essenziali + registry cache (molto leggero e efficace)
+      // Light profile: Essential and safest areas only
+      // - WORKING_SET: Core optimization, high impact, safe (critical processes protected)
+      // - MODIFIED_PAGE_LIST: Very safe, clears pages waiting for disk write
+      // - REGISTRY_CACHE: Lightweight, very safe, cache rebuilds automatically
+      // Excludes aggressive areas for minimal system impact
       return AreasFlag.WORKING_SET | AreasFlag.MODIFIED_PAGE_LIST | AreasFlag.REGISTRY_CACHE;
     case 'Balanced':
-      // Profilo bilanciato: aree principali + modified file cache + registry cache per efficienza
+      // Balanced profile: Good balance between memory freed and system performance
+      // Includes all Normal areas plus:
+      // - STANDBY_LIST: High memory freed, safe, low-medium performance impact
+      // - SYSTEM_FILE_CACHE: High memory freed, safe with auto-rebuild
+      // - MODIFIED_FILE_CACHE: More aggressive cache flush, high impact
+      // Note: Backend will validate availability of MODIFIED_FILE_CACHE at runtime
       return (
         AreasFlag.WORKING_SET |
         AreasFlag.MODIFIED_PAGE_LIST |
@@ -17,7 +26,12 @@ export function areasForProfile(profile: Profile): Areas {
         AreasFlag.REGISTRY_CACHE
       );
     case 'Gaming':
-      // Tutte le aree per massime prestazioni
+      // Aggressive profile: All available areas for maximum memory freeing
+      // Suitable for gaming and resource-intensive applications
+      // Includes all areas from Balanced plus:
+      // - STANDBY_LIST_LOW: Low-priority standby memory
+      // - COMBINED_PAGE_LIST: Most aggressive optimization
+      // Note: Backend will validate availability of version-dependent areas at runtime
       return (
         AreasFlag.WORKING_SET |
         AreasFlag.MODIFIED_PAGE_LIST |
