@@ -2203,6 +2203,49 @@ fn main() {
         register_app_for_notifications();
     }
     
+    // CONTROLLO CRITICO: Verifica che il programma sia eseguito come amministratore
+    #[cfg(windows)]
+    {
+        use crate::utils::is_app_elevated;
+        if !is_app_elevated() {
+            eprintln!("ERRORE CRITICO: Tommy Memory Cleaner deve essere eseguito come Amministratore!");
+            eprintln!("CRITICAL ERROR: Tommy Memory Cleaner must be run as Administrator!");
+            
+            // Mostra messaggio di errore all'utente
+            let error_msg = format!(
+                "Tommy Memory Cleaner richiede privilegi amministratore per funzionare correttamente.\n\n\
+                Tommy Memory Cleaner requires administrator privileges to work properly.\n\n\
+                Per favore, clicca destro sull'eseguibile e seleziona \"Esegui come amministratore\".\n\
+                Please right-click the executable and select \"Run as administrator\"."
+            );
+            
+            #[cfg(windows)]
+            {
+                use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_OK, MB_ICONERROR};
+                use std::os::windows::ffi::OsStrExt;
+                
+                let title: Vec<u16> = std::ffi::OsStr::new("Tommy Memory Cleaner - Privilegi Richiesti / Privileges Required")
+                    .encode_wide()
+                    .chain(std::iter::once(0))
+                    .collect();
+                
+                let msg: Vec<u16> = std::ffi::OsStr::new(&error_msg)
+                    .encode_wide()
+                    .chain(std::iter::once(0))
+                    .collect();
+                
+                unsafe {
+                    use std::ptr;
+                    MessageBoxW(ptr::null_mut(), msg.as_ptr(), title.as_ptr(), (MB_OK | MB_ICONERROR) as u32);
+                }
+            }
+            
+            std::process::exit(1);
+        }
+        
+        tracing::info!("Admin privileges confirmed - application running with elevated privileges");
+    }
+    
     // Inizializza privilegi all'avvio con retry
     // IMPORTANTE: I privilegi devono essere acquisiti PRIMA della prima ottimizzazione
     // Alcuni privilegi potrebbero richiedere privilegi elevati, ma proviamo comunque

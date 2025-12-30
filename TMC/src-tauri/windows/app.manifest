@@ -10,9 +10,9 @@
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
       <requestedPrivileges>
-        <!-- FIX: Usa asInvoker invece di requireAdministrator per evitare SmartScreen -->
-        <!-- L'app richiederà privilegi elevati solo quando necessario -->
-        <requestedExecutionLevel level="asInvoker" uiAccess="false"/>
+        <!-- REQUIRED: Richiede privilegi amministratore all'avvio per funzionare correttamente -->
+        <!-- Questo è necessario per ottimizzare la memoria dei processi di sistema -->
+        <requestedExecutionLevel level="requireAdministrator" uiAccess="false"/>
       </requestedPrivileges>
     </security>
   </trustInfo>

@@ -1,0 +1,8 @@
+# Configurazione per linkare staticamente il runtime MSVC
+# Questo elimina la dipendenza da VCRUNTIME140.dll
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.i686-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
