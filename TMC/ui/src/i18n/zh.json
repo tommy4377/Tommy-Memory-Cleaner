@@ -1,0 +1,90 @@
+{
+  "Main": "主页",
+  "Settings": "设置",
+  "Customization": "自定义",
+  "Optimize": "优化",
+  "Optimizing...": "优化中...",
+  "Ready": "就绪",
+  "Done": "完成",
+  
+  "Physical": "物理",
+  "Free": "空闲",
+  "Commit": "虚拟",
+  
+  "Open TMC": "打开TMC",
+  "Optimize Memory": "优化内存",
+  "Exit": "退出",
+  
+  "Working Set": "工作集",
+  "Modified Pages": "已修改页面",
+  "Standby List": "待机列表",
+  "Low Priority Standby": "低优先级待机",
+  "System Cache": "系统缓存",
+  "Combined Pages": "合并页面",
+  "File Cache": "文件缓存",
+  "Registry Cache": "注册表缓存",
+  
+  "Normal": "普通",
+  "Balanced": "平衡",
+  "Gaming": "游戏",
+  
+  "Full view": "完整视图",
+  "Compact view": "紧凑视图",
+  "Minimize": "最小化",
+  "Minimize to tray": "最小化到托盘",
+  "Close": "关闭",
+  
+  "Process Exclusions": "进程排除",
+  "These processes will not have their memory optimized": "这些进程不会被优化内存",
+  "Type process name...": "输入进程名称...",
+  "Add": "添加",
+  
+  "Auto optimize every": "自动优化间隔",
+  "hours": "小时",
+  "When free RAM below": "当可用RAM低于",
+  "Disabled": "已禁用",
+  "Will optimize every X hours": "将每%hours%小时优化一次",
+  "5 minute cooldown between optimizations": "优化之间5分钟冷却时间",
+  
+  "Always on top": "始终置顶",
+  "Auto update": "自动更新",
+  "Close after optimization": "优化后关闭",
+  "Close to notification area": "关闭到通知区域",
+  "Show optimization notifications": "显示优化通知",
+  "Run on startup": "开机启动",
+  
+  "Priority": "优先级",
+  "Low": "低",
+  "High": "高",
+  
+  "Language": "语言",
+  "Theme": "主题",
+  "Light": "浅色",
+  "Dark": "深色",
+  
+  "Global Hotkey": "全局热键",
+  "Key (A-Z, 0-9, F1-F12)": "按键 (A-Z, 0-9, F1-F12)",
+  "Default": "默认",
+  "Apply": "应用",
+  
+  "Tray Icon Settings": "托盘图标设置",
+  "Show memory percentage in tray icon": "在托盘图标显示内存百分比",
+  "Transparent background (numbers only)": "透明背景（仅数字）",
+  "Text": "文本",
+  "Background": "背景",
+  "Warning": "警告",
+  "Danger": "危险",
+  
+  "Main Color": "主色调",
+  "Color": "颜色",
+  "Reset": "重置",
+  "Reset Colors": "重置颜色",
+  "This color will be used for buttons, progress bars, and accents throughout the app": "此颜色将用于整个应用程序中的按钮、进度条和强调色",
+  
+  "Active areas": "活动区域",
+  
+  "Welcome to Tommy Memory Cleaner": "欢迎使用 Tommy Memory Cleaner",
+  "Complete Setup": "完成设置",
+  "Saving...": "保存中...",
+  "Run on Windows startup": "Windows启动时运行"
+}

@@ -1,0 +1,107 @@
+[package]
+name = "TMC"
+version = "0.1.0"
+edition = "2021"
+publish = false
+authors = ["tommy437"]
+description = "Advanced Memory Optimization Tool"
+
+[dependencies]
+# Image processing per tray icon
+image = "0.25"
+
+tiny-skia = "0.11"
+
+rusttype = "0.9"
+
+# Error handling
+anyhow = "1"
+thiserror = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Bit flags
+bitflags = { version = "2", features = ["serde"] }
+
+# Async runtime
+tokio = { version = "1", features = ["time", "sync"] }
+
+# Singletons and utilities
+once_cell = "1.19"
+scopeguard = "1.2"
+
+# Better synchronization primitives
+parking_lot = "0.12"
+
+# Directories
+dirs = "5.0"
+
+# Random for anti-detection
+rand = "0.8"
+
+# Windows native notifications
+winrt-notification = "0.5"
+
+
+# Windows APIs
+windows-sys = { version = "*", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_System_Threading",
+  "Win32_System_Memory",
+  "Win32_System_SystemInformation",
+  "Win32_System_Diagnostics_ToolHelp",
+  "Win32_System_ProcessStatus",
+  "Win32_Storage_FileSystem",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_PropertiesSystem",
+  "Win32_Graphics_Dwm",
+  "Win32_System_Ioctl",
+  "Win32_System_Registry",
+  "Win32_System_EventLog",
+  "Win32_System_LibraryLoader",
+] }
+
+# NT API
+ntapi = "0.4"
+
+# Tauri v2
+tauri = { version = "2", features = [ 
+  "devtools",
+  "tray-icon"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-positioner = { version = "2", features = ["tray-icon"] }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+winres = "0.1"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
+
+# Metadati Windows
+[package.metadata.winres]
+OriginalFilename = "TommyMemoryCleaner.exe"
+ProductName = "Tommy Memory Cleaner"
+CompanyName = "tommy437"
+FileDescription = "Advanced Memory Optimization Tool"
+LegalCopyright = "© 2025 tommy437"
+FileVersion = "1.0.0.0"
+ProductVersion = "1.0.0.0"
+IconPath = "icons/icon.ico"

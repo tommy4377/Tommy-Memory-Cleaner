@@ -1,0 +1,90 @@
+{
+  "Main": "メイン",
+  "Settings": "設定",
+  "Customization": "カスタマイズ",
+  "Optimize": "最適化",
+  "Optimizing...": "最適化中...",
+  "Ready": "準備完了",
+  "Done": "完了",
+  
+  "Physical": "物理",
+  "Free": "空き",
+  "Commit": "仮想",
+  
+  "Open TMC": "TMCを開く",
+  "Optimize Memory": "メモリを最適化",
+  "Exit": "終了",
+  
+  "Working Set": "ワーキングセット",
+  "Modified Pages": "変更されたページ",
+  "Standby List": "スタンバイリスト",
+  "Low Priority Standby": "低優先度スタンバイ",
+  "System Cache": "システムキャッシュ",
+  "Combined Pages": "結合ページ",
+  "File Cache": "ファイルキャッシュ",
+  "Registry Cache": "レジストリキャッシュ",
+  
+  "Normal": "ノーマル",
+  "Balanced": "バランス",
+  "Gaming": "ゲーミング",
+  
+  "Full view": "フルビュー",
+  "Compact view": "コンパクトビュー",
+  "Minimize": "最小化",
+  "Minimize to tray": "トレイに最小化",
+  "Close": "閉じる",
+  
+  "Process Exclusions": "プロセス除外",
+  "These processes will not have their memory optimized": "これらのプロセスはメモリ最適化されません",
+  "Type process name...": "プロセス名を入力...",
+  "Add": "追加",
+  
+  "Auto optimize every": "自動最適化間隔",
+  "hours": "時間",
+  "When free RAM below": "空きRAMが以下の時",
+  "Disabled": "無効",
+  "Will optimize every X hours": "%hours%時間ごとに最適化します",
+  "5 minute cooldown between optimizations": "最適化間の5分間のクールダウン",
+  
+  "Always on top": "常に最前面",
+  "Auto update": "自動更新",
+  "Close after optimization": "最適化後に閉じる",
+  "Close to notification area": "通知領域に閉じる",
+  "Show optimization notifications": "最適化通知を表示",
+  "Run on startup": "起動時に実行",
+  
+  "Priority": "優先度",
+  "Low": "低",
+  "High": "高",
+  
+  "Language": "言語",
+  "Theme": "テーマ",
+  "Light": "ライト",
+  "Dark": "ダーク",
+  
+  "Global Hotkey": "グローバルホットキー",
+  "Key (A-Z, 0-9, F1-F12)": "キー (A-Z, 0-9, F1-F12)",
+  "Default": "デフォルト",
+  "Apply": "適用",
+  
+  "Tray Icon Settings": "トレイアイコン設定",
+  "Show memory percentage in tray icon": "トレイアイコンにメモリ使用率を表示",
+  "Transparent background (numbers only)": "透明な背景（数字のみ）",
+  "Text": "テキスト",
+  "Background": "背景",
+  "Warning": "警告",
+  "Danger": "危険",
+  
+  "Main Color": "メインカラー",
+  "Color": "色",
+  "Reset": "リセット",
+  "Reset Colors": "色をリセット",
+  "This color will be used for buttons, progress bars, and accents throughout the app": "この色は、アプリ全体のボタン、プログレスバー、アクセントに使用されます",
+  
+  "Active areas": "アクティブエリア",
+  
+  "Welcome to Tommy Memory Cleaner": "Tommy Memory Cleanerへようこそ",
+  "Complete Setup": "セットアップを完了",
+  "Saving...": "保存中...",
+  "Run on Windows startup": "Windows起動時に実行"
+}

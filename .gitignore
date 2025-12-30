@@ -1,0 +1,136 @@
+# Exclude all .md files except README.md
+*.md
+!README.md
+
+# Batch files
+*.bat
+
+# VBScript files
+*.vbs
+
+# Log files
+*.log
+*.log.*
+logs/
+*.txt
+!TMC/src-tauri/installer/welcome.txt
+
+# PowerShell scripts (optional - uncomment if you want to exclude them)
+# *.ps1
+
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+*.exe
+*.dll
+*.pdb
+*.lib
+*.obj
+*.o
+
+# Tauri
+TMC/src-tauri/target/
+TMC/src-tauri/gen/
+TMC/src-tauri/wix/
+
+# UI build outputs
+TMC/ui/dist/
+TMC/ui/.svelte-kit/
+TMC/ui/.vite/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+*.bak
+*.backup
+*.old
+*.orig
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Installer outputs
+TMC/src-tauri/installer/output/
+*.iss.bak
+
+# Test files
+*.test
+*.spec
+
+# Coverage
+coverage/
+*.lcov
+
+# Misc
+*.pid
+*.seed
+*.pid.lock
+.cache/
+
+# Vite
+TMC/ui/vite.config.ts.timestamp-*
+
+# TypeScript
+*.tsbuildinfo
+
+# Svelte
+TMC/ui/.svelte-kit/
+
+# Windows
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio
+.vs/
+*.vcxproj.user
+*.vcxproj.filters
+
+# JetBrains
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Mac
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.directory
+.Trash-*
+

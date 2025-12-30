@@ -1,0 +1,32 @@
+{
+  "name": "tmc-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "clean": "rimraf dist node_modules",
+    "rebuild": "npm run clean && npm install && npm run build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-global-shortcut": "^2.0.0",
+    "@tauri-apps/plugin-notification": "^2.0.0",
+    "@tauri-apps/plugin-process": "^2.0.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^3.0.0",
+    "@tsconfig/svelte": "^5.0.2",
+    "@types/node": "^20.10.0",
+    "rimraf": "^5.0.5",
+    "svelte": "^4.2.8",
+    "svelte-check": "^3.6.2",
+    "svelte-preprocess": "^5.1.1",
+    "tslib": "^2.6.2",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10"
+  }
+}

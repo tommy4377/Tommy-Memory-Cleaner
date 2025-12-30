@@ -1,0 +1,19 @@
+/* TMC/ui/src/theme/dark.css */
+[data-theme="dark"] {
+  --bg: #1a1a1a;
+  --fg: #e0e0e0;
+  
+  --card: #242424;
+  --border: #333333;
+  
+  --btn-bg: #0a84ff;
+  --btn-fg: white;
+  --btn-border: #0066cc;
+  
+  --bar-track: #2a2a2a;
+  --bar-fill: #0a84ff;
+  --bar-free: #0a84ff; /* Stesso colore del main */
+  
+  --input-bg: #2a2a2a;
+  --tab-active: #2a2a2a;
+}

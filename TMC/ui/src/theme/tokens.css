@@ -1,0 +1,456 @@
+/* Default light theme - Sepia/Warm tone, più saturo e appariscente */
+:root,
+[data-theme="light"] {
+  --bg: #e5d9c8;
+  --fg: #2a1f12;
+  --card: rgba(245, 235, 220, 0.98);
+  --border: rgba(50, 38, 25, 0.20);
+  --bar-track: rgba(50, 38, 25, 0.22);
+  --bar-fill: #9a8a72;
+  --bar-free: #9a8a72; /* Stesso colore del main */
+  --btn-bg: #9a8a72;
+  --btn-fg: #ffffff;
+  --btn-border: transparent;
+  --tab-active: rgba(245, 235, 220, 1);
+  
+  /* Inputs e selects */
+  --input-bg: rgba(252, 245, 230, 0.95);
+  --input-border: rgba(50, 38, 25, 0.28);
+  --input-focus: #9a8a72;
+}
+
+html[data-theme="dark"] {
+  /* Dark theme */
+  --bg: #1c1c1e;
+  --fg: #f2f2f7;
+  --card: rgba(44, 44, 46, 0.95);
+  --border: rgba(255, 255, 255, 0.08);
+  --bar-track: rgba(255, 255, 255, 0.15);
+  --bar-fill: #0a84ff;
+  --bar-free: #0a84ff; /* Stesso colore del main */
+  --btn-bg: #0a84ff;
+  --btn-fg: #ffffff;
+  --btn-border: transparent;
+  --tab-active: rgba(58, 58, 60, 1);
+  
+  /* Inputs e selects per dark mode */
+  --input-bg: rgba(58, 58, 60, 0.8);
+  --input-border: rgba(255, 255, 255, 0.12);
+  --input-focus: #0a84ff;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: url('/cursors/light/arrow.cur'), auto !important;
+}
+
+html[data-theme="dark"] body {
+  cursor: url('/cursors/dark/arrow.cur'), auto !important;
+}
+
+/* Cursore personalizzato per tutti gli elementi interattivi */
+a, [role="button"], [tabindex]:not([tabindex="-1"]) {
+  cursor: url('/cursors/light/hand.cur'), pointer !important;
+}
+
+html[data-theme="dark"] a,
+html[data-theme="dark"] [role="button"],
+html[data-theme="dark"] [tabindex]:not([tabindex="-1"]) {
+  cursor: url('/cursors/dark/hand.cur'), pointer !important;
+}
+
+/* Input e Select globali - IMPORTANTE: permettere interazioni */
+input[type="text"],
+input[type="number"],
+textarea {
+  -webkit-user-select: auto !important;
+  user-select: auto !important;
+  pointer-events: auto !important;
+  cursor: url('/cursors/light/nwpen.cur'), text !important;
+}
+
+html[data-theme="dark"] input[type="text"],
+html[data-theme="dark"] input[type="number"],
+html[data-theme="dark"] textarea {
+  cursor: url('/cursors/dark/nwpen.cur'), text !important;
+}
+
+select,
+button {
+  -webkit-user-select: auto !important;
+  user-select: auto !important;
+  pointer-events: auto !important;
+  cursor: url('/cursors/light/hand.cur'), pointer !important;
+}
+
+html[data-theme="dark"] select,
+html[data-theme="dark"] button {
+  cursor: url('/cursors/dark/hand.cur'), pointer !important;
+}
+
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+  background: var(--input-bg);
+  color: var(--fg);
+  border: 1px solid var(--input-border);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--input-focus);
+}
+
+/* Box shadow per focus - usa il colore del tema */
+[data-theme="light"] input[type="text"]:focus,
+[data-theme="light"] input[type="number"]:focus,
+[data-theme="light"] select:focus,
+[data-theme="light"] textarea:focus {
+  box-shadow: 0 0 0 3px rgba(154, 138, 114, 0.15);
+}
+
+html[data-theme="dark"] input[type="text"]:focus,
+html[data-theme="dark"] input[type="number"]:focus,
+html[data-theme="dark"] select:focus,
+html[data-theme="dark"] textarea:focus {
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.15);
+}
+
+/* Select styling per Windows - più tondeggiante e carino */
+select {
+  cursor: url('/cursors/light/hand.cur'), pointer !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 16px !important;
+  padding-right: 36px !important;
+  border-radius: 12px !important;
+  font-weight: 450 !important;
+}
+
+html[data-theme="dark"] select {
+  cursor: url('/cursors/dark/hand.cur'), pointer !important;
+}
+
+/* Styling per le option - Light theme con colore attinente al tema */
+select option {
+  background: var(--input-bg) !important;
+  color: var(--fg) !important;
+  padding: 8px 12px !important;
+}
+
+/* Light theme: colore di selezione più attinente al tema (marrone caldo) */
+[data-theme="light"] select option {
+  background: rgba(252, 245, 230, 0.95) !important;
+  color: #2a1f12 !important;
+}
+
+[data-theme="light"] select option:checked,
+[data-theme="light"] select option[selected],
+[data-theme="light"] select option:hover {
+  background: #9a8a72 !important;
+  color: white !important;
+}
+
+/* Pseudo-elementi specifici per Windows/Edge */
+[data-theme="light"] select::-ms-value {
+  background: #9a8a72 !important;
+  color: white !important;
+}
+
+[data-theme="light"] select::-ms-expand {
+  color: #9a8a72 !important;
+}
+
+/* Dark theme: mantieni lo stile esistente (blu) */
+html[data-theme="dark"] select option {
+  background: rgba(58, 58, 60, 0.8) !important;
+  color: #f2f2f7 !important;
+}
+
+html[data-theme="dark"] select option:checked,
+html[data-theme="dark"] select option[selected],
+html[data-theme="dark"] select option:hover {
+  background: #0a84ff !important;
+  color: white !important;
+}
+
+html[data-theme="dark"] select::-ms-value {
+  background: #0a84ff !important;
+  color: white !important;
+}
+
+/* Checkbox styling - Personalizzato e moderno */
+input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  background: var(--input-bg);
+  cursor: url('/cursors/light/hand.cur'), pointer !important;
+  position: relative;
+  transition: all 0.2s ease;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+html[data-theme="dark"] input[type="checkbox"] {
+  cursor: url('/cursors/dark/hand.cur'), pointer !important;
+}
+
+input[type="checkbox"]:hover,
+input[type="checkbox"]:active,
+input[type="checkbox"]:focus {
+  cursor: url('/cursors/light/hand.cur'), pointer !important;
+}
+
+html[data-theme="dark"] input[type="checkbox"]:hover,
+html[data-theme="dark"] input[type="checkbox"]:active,
+html[data-theme="dark"] input[type="checkbox"]:focus {
+  cursor: url('/cursors/dark/hand.cur'), pointer !important;
+}
+
+input[type="checkbox"]:hover {
+  border-color: var(--btn-bg);
+  background: var(--card);
+}
+
+input[type="checkbox"]:checked {
+  background: var(--btn-bg);
+  border-color: var(--btn-bg);
+  /* Nessun checkmark - solo colore */
+}
+
+input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--input-focus);
+  outline-offset: 2px;
+}
+
+/* Label con checkbox - cursore personalizzato (solo per label che contengono checkbox) */
+label:has(input[type="checkbox"]) {
+  cursor: url('/cursors/light/hand.cur'), pointer !important;
+}
+
+html[data-theme="dark"] label:has(input[type="checkbox"]) {
+  cursor: url('/cursors/dark/hand.cur'), pointer !important;
+}
+
+label:has(input[type="checkbox"]):hover,
+label:has(input[type="checkbox"]):active {
+  cursor: url('/cursors/light/hand.cur'), pointer !important;
+}
+
+html[data-theme="dark"] label:has(input[type="checkbox"]):hover,
+html[data-theme="dark"] label:has(input[type="checkbox"]):active {
+  cursor: url('/cursors/dark/hand.cur'), pointer !important;
+}
+
+/* Button base */
+button {
+  font-family: inherit;
+  font-size: 13px;
+  cursor: url('/cursors/light/hand.cur'), pointer !important;
+  transition: all 0.2s;
+  color: var(--fg);
+  background: var(--card);
+}
+
+html[data-theme="dark"] button {
+  cursor: url('/cursors/dark/hand.cur'), pointer !important;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+/* Effetto shimmer/brillantezza per tutti i bottoni con var(--btn-bg) */
+/* Applica a tutti i bottoni che hanno background: var(--btn-bg) nei loro stili */
+button.shimmer-btn::after,
+button[class*="reset"]::after,
+button[class*="btn"]:not([class*="seg"]):not([class*="active"])::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+  animation: shimmer 2s infinite;
+  pointer-events: none;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Range slider specifici - Design pulito senza pallini che escono */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--bar-track);
+  cursor: url('/cursors/light/sizewe.cur'), ew-resize !important;
+  width: 100%;
+  height: 8px;
+  border-radius: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+html[data-theme="dark"] input[type="range"] {
+  cursor: url('/cursors/dark/sizewe.cur'), ew-resize !important;
+}
+
+html[data-theme="dark"] input[type="range"] {
+  cursor: url('/cursors/dark/sizewe.cur'), ew-resize !important;
+}
+
+input[type="range"]::-webkit-slider-track {
+  background: var(--bar-track) !important;
+  height: 8px;
+  border-radius: 8px;
+  cursor: url('/cursors/light/sizewe.cur'), ew-resize !important;
+  width: 100% !important;
+}
+
+html[data-theme="dark"] input[type="range"]::-webkit-slider-track {
+  cursor: url('/cursors/dark/sizewe.cur'), ew-resize !important;
+}
+
+html[data-theme="dark"] input[type="range"]::-webkit-slider-track {
+  background: var(--bar-track) !important;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: var(--btn-bg);
+  border-radius: 50%;
+  border: 2px solid var(--card);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: url('/cursors/light/sizewe.cur'), ew-resize !important;
+  margin-top: calc((18px - 8px) / -2);
+  transition: all 0.2s ease;
+}
+
+html[data-theme="dark"] input[type="range"]::-webkit-slider-thumb {
+  cursor: url('/cursors/dark/sizewe.cur'), ew-resize !important;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(0.95);
+}
+
+input[type="range"]::-moz-range-track {
+  background: var(--bar-track) !important;
+  height: 8px;
+  border-radius: 8px;
+  cursor: url('/cursors/light/sizewe.cur'), ew-resize !important;
+  border: none;
+  width: 100% !important;
+}
+
+html[data-theme="dark"] input[type="range"]::-moz-range-track {
+  cursor: url('/cursors/dark/sizewe.cur'), ew-resize !important;
+}
+
+html[data-theme="dark"] input[type="range"]::-moz-range-track {
+  background: var(--bar-track) !important;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: var(--btn-bg);
+  border-radius: 50%;
+  border: 2px solid var(--card);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  cursor: url('/cursors/light/sizewe.cur'), ew-resize !important;
+  transition: all 0.2s ease;
+}
+
+html[data-theme="dark"] input[type="range"]::-moz-range-thumb {
+  cursor: url('/cursors/dark/sizewe.cur'), ew-resize !important;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+input[type="range"]::-moz-range-thumb:active {
+  transform: scale(0.95);
+}
+
+input[type="range"]:focus-visible {
+  outline: none;
+}
+
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2), 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Color input cursor */
+input[type="color"] {
+  cursor: url('/cursors/light/hand.cur'), pointer !important;
+}
+
+html[data-theme="dark"] input[type="color"] {
+  cursor: url('/cursors/dark/hand.cur'), pointer !important;
+}
+
+/* Disabled state */
+button:disabled,
+input:disabled,
+select:disabled {
+  opacity: 0.5;
+  cursor: url('/cursors/light/no.cur'), not-allowed !important;
+}
+
+html[data-theme="dark"] button:disabled,
+html[data-theme="dark"] input:disabled,
+html[data-theme="dark"] select:disabled {
+  cursor: url('/cursors/dark/no.cur'), not-allowed !important;
+}
+
+/* Focus visible per accessibilità */
+:focus-visible {
+  outline: 2px solid var(--input-focus);
+  outline-offset: 2px;
+}

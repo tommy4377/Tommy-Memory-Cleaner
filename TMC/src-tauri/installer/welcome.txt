@@ -1,0 +1,15 @@
+Tommy Memory Cleaner - Advanced Memory Optimization Tool
+
+Welcome to Tommy Memory Cleaner!
+
+This professional memory optimization tool will help you:
+- Clean and optimize your system memory automatically
+- Monitor memory usage in real-time
+- Choose from multiple optimization profiles
+- Schedule automatic memory cleaning
+- Protect important processes from optimization
+
+Created by tommy437
+
+For more information, visit: https://github.com/tommy437
+

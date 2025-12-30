@@ -1,0 +1,90 @@
+{
+  "Main": "Principal",
+  "Settings": "Paramètres",
+  "Customization": "Personnalisation",
+  "Optimize": "Optimiser",
+  "Optimizing...": "Optimisation...",
+  "Ready": "Prêt",
+  "Done": "Terminé",
+  
+  "Physical": "Physique",
+  "Free": "Libre",
+  "Commit": "Virtuelle",
+  
+  "Open TMC": "Ouvrir TMC",
+  "Optimize Memory": "Optimiser la Mémoire",
+  "Exit": "Quitter",
+  
+  "Working Set": "Ensemble de Travail",
+  "Modified Pages": "Pages Modifiées",
+  "Standby List": "Liste d'Attente",
+  "Low Priority Standby": "Attente Faible Priorité",
+  "System Cache": "Cache Système",
+  "Combined Pages": "Pages Combinées",
+  "File Cache": "Cache Fichiers",
+  "Registry Cache": "Cache Registre",
+  
+  "Normal": "Normal",
+  "Balanced": "Équilibré",
+  "Gaming": "Gaming",
+  
+  "Full view": "Vue complète",
+  "Compact view": "Vue compacte",
+  "Minimize": "Minimiser",
+  "Minimize to tray": "Minimiser dans la barre",
+  "Close": "Fermer",
+  
+  "Process Exclusions": "Exclusions de Processus",
+  "These processes will not have their memory optimized": "Ces processus n'auront pas leur mémoire optimisée",
+  "Type process name...": "Tapez le nom du processus...",
+  "Add": "Ajouter",
+  
+  "Auto optimize every": "Auto-optimiser toutes les",
+  "hours": "heures",
+  "When free RAM below": "Quand RAM libre sous",
+  "Disabled": "Désactivé",
+  "Will optimize every X hours": "Optimisera toutes les %hours% heures",
+  "5 minute cooldown between optimizations": "5 minutes de pause entre optimisations",
+  
+  "Always on top": "Toujours au premier plan",
+  "Auto update": "Mise à jour automatique",
+  "Close after optimization": "Fermer après optimisation",
+  "Close to notification area": "Fermer dans la zone de notification",
+  "Show optimization notifications": "Afficher les notifications d'optimisation",
+  "Run on startup": "Lancer au démarrage",
+  
+  "Priority": "Priorité",
+  "Low": "Faible",
+  "High": "Haute",
+  
+  "Language": "Langue",
+  "Theme": "Thème",
+  "Light": "Clair",
+  "Dark": "Sombre",
+  
+  "Global Hotkey": "Raccourci Global",
+  "Key (A-Z, 0-9, F1-F12)": "Touche (A-Z, 0-9, F1-F12)",
+  "Default": "Par défaut",
+  "Apply": "Appliquer",
+  
+  "Tray Icon Settings": "Paramètres de l'Icône",
+  "Show memory percentage in tray icon": "Afficher le pourcentage de mémoire dans l'icône",
+  "Transparent background (numbers only)": "Fond transparent (chiffres uniquement)",
+  "Text": "Texte",
+  "Background": "Fond",
+  "Warning": "Avertissement",
+  "Danger": "Danger",
+  
+  "Main Color": "Couleur Principale",
+  "Color": "Couleur",
+  "Reset": "Réinitialiser",
+  "Reset Colors": "Réinitialiser les Couleurs",
+  "This color will be used for buttons, progress bars, and accents throughout the app": "Cette couleur sera utilisée pour les boutons, barres de progression et accents dans toute l'application",
+  
+  "Active areas": "Zones actives",
+  
+  "Welcome to Tommy Memory Cleaner": "Bienvenue dans Tommy Memory Cleaner",
+  "Complete Setup": "Terminer la Configuration",
+  "Saving...": "Enregistrement...",
+  "Run on Windows startup": "Exécuter au démarrage de Windows"
+}

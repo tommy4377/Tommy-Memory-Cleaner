@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tommy Memory Cleaner - Setup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #1c1c1e;
+            --fg: #f2f2f7;
+            --card: rgba(44, 44, 46, 0.95);
+            --border: rgba(255, 255, 255, 0.08);
+            --btn-bg: #0a84ff;
+            --btn-fg: #ffffff;
+            --btn-hover: #007aff;
+            --input-bg: rgba(58, 58, 60, 0.8);
+            --input-border: rgba(255, 255, 255, 0.12);
+            --input-focus: #0a84ff;
+        }
+
+        html[data-theme="light"] {
+            --bg: #fafafa;
+            --fg: #1a1a1a;
+            --card: rgba(255, 255, 255, 0.95);
+            --border: rgba(0, 0, 0, 0.08);
+            --btn-bg: #007aff;
+            --btn-hover: #0051d5;
+            --input-bg: rgba(255, 255, 255, 0.8);
+            --input-border: rgba(0, 0, 0, 0.15);
+            --input-focus: #007aff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Segoe UI Variable", 
+                         Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            padding: 40px;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: var(--card);
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 20px;
+            background: var(--btn-bg);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--fg);
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+        }
+
+        html[data-theme="light"] .subtitle {
+            color: rgba(0, 0, 0, 0.6);
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--btn-bg);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            border-left: 3px solid var(--btn-bg);
+            display: flex;
+            align-items: start;
+            gap: 12px;
+        }
+
+        html[data-theme="light"] .feature-item {
+            background: rgba(0, 0, 0, 0.02);
+        }
+
+        .feature-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .feature-content {
+            flex: 1;
+        }
+
+        .feature-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .feature-desc {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        html[data-theme="light"] .feature-desc {
+            color: rgba(0, 0, 0, 0.6);
+        }
+
+        .language-selector {
+            margin-top: 20px;
+        }
+
+        .language-selector label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--input-bg);
+            color: var(--fg);
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--input-focus);
+            box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.1);
+        }
+
+        .creator {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid var(--border);
+        }
+
+        .creator-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--btn-bg);
+            margin-bottom: 8px;
+        }
+
+        .creator-desc {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        html[data-theme="light"] .creator-desc {
+            color: rgba(0, 0, 0, 0.5);
+        }
+
+        .buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            background: var(--btn-bg);
+            color: var(--btn-fg);
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: var(--btn-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.secondary {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--fg);
+        }
+
+        button.secondary:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        html[data-theme="light"] button.secondary:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .container {
+            animation: fadeIn 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🧠</div>
+            <h1>Tommy Memory Cleaner</h1>
+            <p class="subtitle">Advanced Memory Optimization Tool</p>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">
+                <span>✨</span>
+                <span>Key Features</span>
+            </h2>
+            <ul class="feature-list">
+                <li class="feature-item">
+                    <span class="feature-icon">🚀</span>
+                    <div class="feature-content">
+                        <div class="feature-title">Memory Optimization</div>
+                        <div class="feature-desc">Automatically clean and optimize your system memory for better performance</div>
+                    </div>
+                </li>
+                <li class="feature-item">
+                    <span class="feature-icon">⚙️</span>
+                    <div class="feature-content">
+                        <div class="feature-title">Multiple Profiles</div>
+                        <div class="feature-desc">Choose from Normal, Balanced, or Gaming profiles based on your needs</div>
+                    </div>
+                </li>
+                <li class="feature-item">
+                    <span class="feature-icon">⏰</span>
+                    <div class="feature-content">
+                        <div class="feature-title">Auto Optimization</div>
+                        <div class="feature-desc">Set up automatic memory cleaning on schedule or when memory is low</div>
+                    </div>
+                </li>
+                <li class="feature-item">
+                    <span class="feature-icon">📊</span>
+                    <div class="feature-content">
+                        <div class="feature-title">System Tray Integration</div>
+                        <div class="feature-desc">Monitor memory usage directly from the system tray with real-time updates</div>
+                    </div>
+                </li>
+                <li class="feature-item">
+                    <span class="feature-icon">🎯</span>
+                    <div class="feature-content">
+                        <div class="feature-title">Process Exclusions</div>
+                        <div class="feature-desc">Protect important processes from memory optimization</div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+        <div class="language-selector">
+            <label for="language">Select Language / Seleziona Lingua:</label>
+            <select id="language" onchange="changeLanguage(this.value)">
+                <option value="en">English</option>
+                <option value="it">Italiano</option>
+                <option value="es">Español</option>
+                <option value="fr">Français</option>
+                <option value="de">Deutsch</option>
+                <option value="pt">Português</option>
+                <option value="ar">العربية</option>
+                <option value="ja">日本語</option>
+                <option value="zh">中文</option>
+            </select>
+        </div>
+
+        <div class="creator">
+            <div class="creator-name">Created by tommy437</div>
+            <div class="creator-desc">Professional memory optimization tool for Windows</div>
+        </div>
+
+        <div class="buttons">
+            <button class="secondary" onclick="window.close()">Cancel</button>
+            <button onclick="startInstall()">Continue Installation</button>
+        </div>
+    </div>
+
+    <script>
+        const translations = {
+            en: {
+                title: "Tommy Memory Cleaner",
+                subtitle: "Advanced Memory Optimization Tool",
+                features: "Key Features",
+                continue: "Continue Installation",
+                cancel: "Cancel"
+            },
+            it: {
+                title: "Tommy Memory Cleaner",
+                subtitle: "Strumento Avanzato di Ottimizzazione Memoria",
+                features: "Caratteristiche Principali",
+                continue: "Continua Installazione",
+                cancel: "Annulla"
+            },
+            es: {
+                title: "Tommy Memory Cleaner",
+                subtitle: "Herramienta Avanzada de Optimización de Memoria",
+                features: "Características Principales",
+                continue: "Continuar Instalación",
+                cancel: "Cancelar"
+            },
+            fr: {
+                title: "Tommy Memory Cleaner",
+                subtitle: "Outil Avancé d'Optimisation de la Mémoire",
+                features: "Caractéristiques Principales",
+                continue: "Continuer l'Installation",
+                cancel: "Annuler"
+            },
+            de: {
+                title: "Tommy Memory Cleaner",
+                subtitle: "Erweiterte Speicher-Optimierungs-Tool",
+                features: "Hauptfunktionen",
+                continue: "Installation Fortsetzen",
+                cancel: "Abbrechen"
+            },
+            pt: {
+                title: "Tommy Memory Cleaner",
+                subtitle: "Ferramenta Avançada de Otimização de Memória",
+                features: "Características Principais",
+                continue: "Continuar Instalação",
+                cancel: "Cancelar"
+            }
+        };
+
+        function changeLanguage(lang) {
+            document.documentElement.lang = lang;
+            const t = translations[lang] || translations.en;
+            
+            document.querySelector('h1').textContent = t.title;
+            document.querySelector('.subtitle').textContent = t.subtitle;
+            document.querySelector('.section-title span:last-child').textContent = t.features;
+            document.querySelector('button:last-child').textContent = t.continue;
+            document.querySelector('button.secondary').textContent = t.cancel;
+        }
+
+        function startInstall() {
+            // Questa funzione verrà chiamata dall'installer Inno Setup
+            if (window.external && window.external.StartInstall) {
+                window.external.StartInstall();
+            } else {
+                alert('Installation will start...');
+            }
+        }
+
+        // Rileva lingua del sistema
+        const systemLang = navigator.language.substring(0, 2);
+        const langMap = { 'it': 'it', 'es': 'es', 'fr': 'fr', 'de': 'de', 'pt': 'pt' };
+        if (langMap[systemLang]) {
+            document.getElementById('language').value = langMap[systemLang];
+            changeLanguage(langMap[systemLang]);
+        }
+    </script>
+</body>
+</html>
+

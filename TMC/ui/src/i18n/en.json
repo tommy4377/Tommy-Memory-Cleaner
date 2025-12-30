@@ -1,0 +1,90 @@
+{
+  "Main": "Main",
+  "Settings": "Settings",
+  "Customization": "Customization",
+  "Optimize": "Optimize",
+  "Optimizing...": "Optimizing...",
+  "Ready": "Ready",
+  "Done": "Done",
+  
+  "Physical": "Physical",
+  "Free": "Free",
+  "Commit": "Commit",
+  
+  "Open TMC": "Open TMC",
+  "Optimize Memory": "Optimize Memory",
+  "Exit": "Exit",
+  
+  "Working Set": "Working Set",
+  "Modified Pages": "Modified Pages",
+  "Standby List": "Standby List",
+  "Low Priority Standby": "Low Priority Standby",
+  "System Cache": "System Cache",
+  "Combined Pages": "Combined Pages",
+  "File Cache": "File Cache",
+  "Registry Cache": "Registry Cache",
+  
+  "Normal": "Normal",
+  "Balanced": "Balanced",
+  "Gaming": "Gaming",
+  
+  "Full view": "Full view",
+  "Compact view": "Compact view",
+  "Minimize": "Minimize",
+  "Minimize to tray": "Minimize to tray",
+  "Close": "Close",
+  
+  "Process Exclusions": "Process Exclusions",
+  "These processes will not have their memory optimized": "These processes will not have their memory optimized",
+  "Type process name...": "Type process name...",
+  "Add": "Add",
+  
+  "Auto optimize every": "Auto optimize every",
+  "hours": "hours",
+  "When free RAM below": "When free RAM below",
+  "Disabled": "Disabled",
+  "Will optimize every X hours": "Will optimize every %hours% hours",
+  "5 minute cooldown between optimizations": "5 minute cooldown between optimizations",
+  
+  "Always on top": "Always on top",
+  "Auto update": "Auto update",
+  "Close after optimization": "Close after optimization",
+  "Close to notification area": "Close to notification area",
+  "Show optimization notifications": "Show optimization notifications",
+  "Run on startup": "Run on startup",
+  
+  "Priority": "Priority",
+  "Low": "Low",
+  "High": "High",
+  
+  "Language": "Language",
+  "Theme": "Theme",
+  "Light": "Light",
+  "Dark": "Dark",
+  
+  "Global Hotkey": "Global Hotkey",
+  "Key (A-Z, 0-9, F1-F12)": "Key (A-Z, 0-9, F1-F12)",
+  "Default": "Default",
+  "Apply": "Apply",
+  
+  "Tray Icon Settings": "Tray Icon Settings",
+  "Show memory percentage in tray icon": "Show memory percentage in tray icon",
+  "Transparent background (numbers only)": "Transparent background (numbers only)",
+  "Text": "Text",
+  "Background": "Background",
+  "Warning": "Warning",
+  "Danger": "Danger",
+  
+  "Main Color": "Main Color",
+  "Color": "Color",
+  "Reset": "Reset",
+  "Reset Colors": "Reset Colors",
+  "This color will be used for buttons, progress bars, and accents throughout the app": "This color will be used for buttons, progress bars, and accents throughout the app",
+  
+  "Active areas": "Active areas",
+  
+  "Welcome to Tommy Memory Cleaner": "Welcome to Tommy Memory Cleaner",
+  "Complete Setup": "Complete Setup",
+  "Saving...": "Saving...",
+  "Run on Windows startup": "Run on Windows startup"
+}

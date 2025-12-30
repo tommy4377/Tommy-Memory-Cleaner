@@ -1,0 +1,80 @@
+{
+  "productName": "Tommy Memory Cleaner",
+  "version": "1.0.0",
+  "identifier": "TommyMemoryCleaner",
+  "build": {
+    "beforeDevCommand": {
+      "script": "npm run dev",
+      "cwd": "../ui"
+    },
+    "beforeBuildCommand": {
+      "script": "npm run build",
+      "cwd": "../ui"
+    },
+    "frontendDist": "../ui/dist",
+    "devUrl": "http://localhost:1420"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Tommy Memory Cleaner",
+        "width": 480,
+        "height": 680,
+        "minWidth": 380,
+        "minHeight": 90,
+        "maxWidth": 480,
+        "maxHeight": 680,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "center": true,
+        "skipTaskbar": false,
+        "alwaysOnTop": false,
+        "visible": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* http://localhost:*",
+      "devCsp": null,
+      "freezePrototype": false,
+      "dangerousDisableAssetCspModification": false
+    }
+  },
+  "bundle": {
+    "active": false,
+    "targets": [],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+        "resources": [
+          "../ui/dist/tray.html"
+        ],
+    "externalBin": [],
+    "copyright": "© 2025 tommy437",
+    "category": "Utility",
+    "shortDescription": "Advanced memory optimization tool",
+    "longDescription": "Tommy Memory Cleaner - Professional memory optimization utility for Windows",
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "",
+      "tsp": false,
+      "webviewInstallMode": {
+        "type": "embedBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "perMachine"
+      }
+    }
+  },
+  "plugins": {}
+}
