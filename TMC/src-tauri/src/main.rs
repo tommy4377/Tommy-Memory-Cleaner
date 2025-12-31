@@ -27,7 +27,7 @@ use tauri::webview::WebviewWindowBuilder;
 use tauri::WebviewUrl;
 use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut, GlobalShortcutExt};
 use tauri_plugin_notification::NotificationExt;
-use tauri_plugin_positioner::{WindowExt, Position};
+use tauri_plugin_positioner;
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
 use scopeguard;
@@ -1992,6 +1992,19 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
         
         // Prova prima a ottenere la finestra esistente
         if let Some(menu_win) = app.get_webview_window("tray_menu") {
+            // ⭐ Aggiungi event handler per chiusura automatica (se non già presente)
+            let menu_win_clone = menu_win.clone();
+            menu_win.on_window_event(move |event| {
+                match event {
+                    tauri::WindowEvent::Focused(false) => {
+                        // Quando il menu perde il focus, nascondilo
+                        tracing::debug!("Tray menu lost focus, hiding...");
+                        let _ = menu_win_clone.hide();
+                    }
+                    _ => {}
+                }
+            });
+            
             // Verifica che la finestra sia valida
             if let Ok(is_visible) = menu_win.is_visible() {
                 // Se già visibile, non fare nulla
@@ -2017,6 +2030,11 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
             match menu_win.show() {
                 Ok(_) => {
                     tracing::info!("Tray menu shown successfully (attempt {})", attempt);
+                    
+                    // ⭐ INDISPENSABILE: Imposta il focus per ricevere eventi di focus su Windows
+                    if let Err(e) = menu_win.set_focus() {
+                        tracing::warn!("Failed to set focus on tray menu: {:?}", e);
+                    }
                     
                     // Verifica che sia effettivamente visibile
                     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -2061,10 +2079,23 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
             .visible(false)
             .shadow(false)
             .resizable(false)
-            .focused(false)
+            .focused(true)  // ⭐ INDISPENSABILE su Windows per ricevere eventi di focus
             .build() {
                 Ok(menu_win) => {
                     tracing::info!("Tray menu window created successfully (attempt {})", attempt);
+                    
+                    // ⭐ Gestisci la perdita di focus per chiudere automaticamente il menu
+                    let menu_win_clone = menu_win.clone();
+                    menu_win.on_window_event(move |event| {
+                        match event {
+                            tauri::WindowEvent::Focused(false) => {
+                                // Quando il menu perde il focus, nascondilo
+                                tracing::debug!("Tray menu lost focus, hiding...");
+                                let _ = menu_win_clone.hide();
+                            }
+                            _ => {}
+                        }
+                    });
                     
                     // Posiziona prima di mostrare
                     position_tray_menu(&menu_win);
@@ -2076,6 +2107,11 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
                     match menu_win.show() {
                         Ok(_) => {
                             tracing::info!("Newly created tray menu shown successfully (attempt {})", attempt);
+                            
+                            // ⭐ INDISPENSABILE: Imposta il focus per ricevere eventi di focus su Windows
+                            if let Err(e) = menu_win.set_focus() {
+                                tracing::warn!("Failed to set focus on newly created tray menu: {:?}", e);
+                            }
                             
                             // Verifica che sia effettivamente visibile
                             tokio::time::sleep(Duration::from_millis(100)).await;
@@ -2368,82 +2404,105 @@ fn run_console_mode(args: &[String]) {
 }
 
 fn position_tray_menu(window: &tauri::WebviewWindow) {
-    // Posiziona il menu vicino alla tray icon (sopra di default)
-    let _ = window.move_window(Position::TrayBottomRight);
+    // Ottieni le dimensioni del menu
+    let menu_size = match window.outer_size() {
+        Ok(size) => size,
+        Err(e) => {
+            tracing::error!("Failed to get menu size: {:?}", e);
+            return;
+        }
+    };
     
-    // Aspetta un po' per assicurarsi che il posizionamento iniziale sia completato
-    std::thread::sleep(std::time::Duration::from_millis(50));
+    let menu_width = menu_size.width as i32;
+    let menu_height = menu_size.height as i32;
     
-    // Usa le API Windows per ottenere la posizione esatta della taskbar
-    if let (Ok(pos), Ok(size)) = (window.outer_position(), window.outer_size()) {
-        if let Some(monitor) = window.current_monitor().ok().flatten() {
-            let monitor_size = monitor.size();
-            let monitor_pos = monitor.position();
-            let screen_top = monitor_pos.y;
-            let screen_bottom = monitor_pos.y + monitor_size.height as i32;
-            let menu_height = size.height as i32;
-            let menu_top = pos.y;
-            let menu_bottom = pos.y + menu_height;
-            
-            // Ottieni la posizione della taskbar
-            if let Some((taskbar_left, taskbar_top, taskbar_right, taskbar_bottom)) = get_taskbar_rect() {
-                // Determina dove si trova la taskbar
-                let taskbar_height = taskbar_bottom - taskbar_top;
-                let taskbar_width = taskbar_right - taskbar_left;
-                
-                // Se la taskbar è più larga che alta, è in alto o in basso
-                // Se è più alta che larga, è a sinistra o destra (non influisce sul posizionamento verticale)
-                let is_taskbar_vertical = taskbar_width < taskbar_height;
-                
-                if !is_taskbar_vertical {
-                    // Taskbar orizzontale (alto o basso)
-                    if taskbar_top <= screen_top + 10 {
-                        // Taskbar in ALTO (stile macOS/Linux con StartAllBack)
-                        // Posiziona il menu SOTTO la taskbar (quindi più in basso)
-                        let taskbar_bottom_y = taskbar_bottom;
-                        if menu_top < taskbar_bottom_y + 5 {
-                            // Il menu è troppo in alto, spostalo sotto la taskbar
-                            let new_y = taskbar_bottom_y + 5; // 5px margine sotto la taskbar
-                            
-                            tracing::debug!("Taskbar in alto: taskbar_bottom={}, menu_top={}, new_y={}", 
-                                taskbar_bottom_y, menu_top, new_y);
-                            
-                            let _ = window.set_position(tauri::PhysicalPosition {
-                                x: pos.x,
-                                y: new_y,
-                            });
-                        }
-                    } else if taskbar_top >= screen_bottom - 100 {
-                        // Taskbar in BASSO (classica Windows)
-                        // Posiziona il menu SOPRA la taskbar
-                        if menu_bottom > taskbar_top - 5 {
-                            // Il menu va sotto la taskbar, spostalo sopra
-                            let new_y = taskbar_top - menu_height - 5; // 5px margine sopra la taskbar
-                            let final_y = new_y.max(screen_top + 5); // Almeno 5px dal top
-                            
-                            tracing::debug!("Taskbar in basso: taskbar_top={}, menu_bottom={}, new_y={}, final_y={}", 
-                                taskbar_top, menu_bottom, new_y, final_y);
-                            
-                            let _ = window.set_position(tauri::PhysicalPosition {
-                                x: pos.x,
-                                y: final_y,
-                            });
-                        }
-                    }
-                }
-            } else {
-                // Fallback: se non riusciamo a trovare la taskbar, usa margine conservativo
-                // Assumiamo taskbar in basso (default Windows)
-                let safe_bottom = screen_bottom - 80;
-                if menu_bottom > safe_bottom {
-                    let new_y = safe_bottom - menu_height - 5;
-                    let _ = window.set_position(tauri::PhysicalPosition {
-                        x: pos.x,
-                        y: new_y.max(screen_top + 5),
-                    });
-                }
+    // Ottieni il monitor corrente
+    let monitor = match window.current_monitor() {
+        Ok(Some(m)) => m,
+        _ => {
+            tracing::error!("Failed to get current monitor");
+            return;
+        }
+    };
+    
+    let monitor_size = monitor.size();
+    let monitor_pos = monitor.position();
+    
+    // Ottieni la posizione del cursore (approssimazione della tray icon)
+    let cursor_pos = match window.cursor_position() {
+        Ok(pos) => pos,
+        Err(_) => {
+            // Fallback: usa l'angolo in basso a destra
+            tauri::PhysicalPosition {
+                x: (monitor_pos.x + monitor_size.width as i32 - 50) as f64,
+                y: (monitor_pos.y + monitor_size.height as i32 - 50) as f64,
             }
         }
+    };
+    
+    tracing::debug!("Cursor position: {:?}, Monitor: {}x{} at {:?}", 
+        cursor_pos, monitor_size.width, monitor_size.height, monitor_pos);
+    
+    // Determina la posizione della taskbar
+    let (final_x, final_y) = if let Some((taskbar_left, taskbar_top, taskbar_right, taskbar_bottom)) = get_taskbar_rect() {
+        let taskbar_height = taskbar_bottom - taskbar_top;
+        let taskbar_width = taskbar_right - taskbar_left;
+        let is_taskbar_vertical = taskbar_width < taskbar_height;
+        
+        tracing::debug!("Taskbar rect: ({}, {}, {}, {}), vertical: {}", 
+            taskbar_left, taskbar_top, taskbar_right, taskbar_bottom, is_taskbar_vertical);
+        
+        let cursor_x = cursor_pos.x as i32;
+        let cursor_y = cursor_pos.y as i32;
+        
+        if is_taskbar_vertical {
+            // Taskbar verticale (sinistra o destra)
+            if taskbar_left < monitor_pos.x + 100 {
+                // Taskbar a SINISTRA - menu a destra della tray
+                let x = taskbar_right + 5;
+                let y = (cursor_y - menu_height / 2).max(monitor_pos.y + 5);
+                (x, y)
+            } else {
+                // Taskbar a DESTRA - menu a sinistra della tray
+                let x = (taskbar_left - menu_width - 5).max(monitor_pos.x + 5);
+                let y = (cursor_y - menu_height / 2).max(monitor_pos.y + 5);
+                (x, y)
+            }
+        } else {
+            // Taskbar orizzontale (alto o basso)
+            // Centra il menu orizzontalmente rispetto al cursore
+            let x = (cursor_x - menu_width / 2)
+                .max(monitor_pos.x + 5)  // Non troppo a sinistra
+                .min(monitor_pos.x + monitor_size.width as i32 - menu_width - 5);  // Non troppo a destra
+            
+            if taskbar_top < monitor_pos.y + 100 {
+                // Taskbar in ALTO - menu SOTTO la taskbar
+                let y = taskbar_bottom + 5;
+                (x, y)
+            } else {
+                // Taskbar in BASSO - menu SOPRA la taskbar
+                let y = taskbar_top - menu_height - 5;
+                (x, y)
+            }
+        }
+    } else {
+        // Fallback: nessuna info taskbar, usa posizione sicura
+        tracing::warn!("Could not get taskbar rect, using fallback positioning");
+        let x = (cursor_pos.x as i32 - menu_width / 2)
+            .max(monitor_pos.x + 5)
+            .min(monitor_pos.x + monitor_size.width as i32 - menu_width - 5);
+        let y = (monitor_pos.y + monitor_size.height as i32 - menu_height - 80).max(monitor_pos.y + 5);
+        (x, y)
+    };
+    
+    tracing::info!("Positioning tray menu at: ({}, {})", final_x, final_y);
+    
+    // Applica la posizione
+    if let Err(e) = window.set_position(tauri::PhysicalPosition {
+        x: final_x,
+        y: final_y,
+    }) {
+        tracing::error!("Failed to set menu position: {:?}", e);
     }
 }
 

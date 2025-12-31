@@ -154,6 +154,24 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
+// ⭐ Chiusura automatica quando la finestra perde il focus (click fuori)
+// Usa l'API Tauri invece di window.addEventListener per maggiore affidabilità
+win.onFocusChanged((isFocused) => {
+    if (!isFocused && document.body.classList.contains('menu-open')) {
+        // Piccolo delay per permettere ai click sui menu items di funzionare
+        setTimeout(() => {
+            closeMenu();
+        }, 100);
+    }
+});
+
+// Fallback per click su overlay (se presente)
+document.querySelector('.click-overlay')?.addEventListener('click', () => {
+    if (document.body.classList.contains('menu-open')) {
+        win.hide();
+    }
+});
+
 // Gestione click fuori dal menu container - unico modo per chiudere il menu
 document.addEventListener('click', (e) => {
     const menuContainer = document.querySelector('.menu-container');
