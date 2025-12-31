@@ -620,24 +620,113 @@ impl Config {
     pub fn save(&self) -> io::Result<()> {
         let path = config_path();
         
-        // Usa data_dir per assicurarsi che la directory esista
+        // ⭐ Fallback 1: Assicurati che la directory esista con retry
         {
             let portable = PORTABLE.read();
             let data_dir = portable.data_dir();
             if !data_dir.exists() {
-                fs::create_dir_all(data_dir)?;
+                // Retry fino a 3 volte per creare la directory
+                let mut last_error = None;
+                for attempt in 1..=3 {
+                    match fs::create_dir_all(&data_dir) {
+                        Ok(_) => {
+                            tracing::info!("Created data directory: {}", data_dir.display());
+                            break;
+                        }
+                        Err(e) => {
+                            let error_msg = format!("{}", e);
+                            last_error = Some(e);
+                            tracing::warn!("Failed to create data directory (attempt {}): {}", attempt, error_msg);
+                            if attempt < 3 {
+                                std::thread::sleep(std::time::Duration::from_millis(100 * attempt as u64));
+                            }
+                        }
+                    }
+                }
+                if let Some(e) = last_error {
+                    return Err(e);
+                }
             }
         }
         
+        // ⭐ Fallback 2: Crea anche il parent directory se necessario
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
+            if !parent.exists() {
+                fs::create_dir_all(parent)?;
+            }
         }
         
-        let content = serde_json::to_string_pretty(self)?;
+        // ⭐ Fallback 3: Serializza con retry
+        let content = match serde_json::to_string_pretty(self) {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::error!("Failed to serialize config: {:?}", e);
+                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Serialization error: {}", e)));
+            }
+        };
         
+        // ⭐ Fallback 4: Salvataggio atomico con retry e backup
         let temp_path = path.with_extension("tmp");
-        fs::write(&temp_path, content)?;
-        fs::rename(temp_path, path)?;
+        let backup_path = path.with_extension("json.bak");
+        
+        // Crea backup del file esistente se presente
+        if path.exists() {
+            if let Err(e) = fs::copy(&path, &backup_path) {
+                tracing::warn!("Failed to create backup: {:?}", e);
+                // Non bloccare il salvataggio se il backup fallisce
+            }
+        }
+        
+        // Retry fino a 3 volte per scrivere il file temporaneo
+        let mut last_error = None;
+        for attempt in 1..=3 {
+            match fs::write(&temp_path, &content) {
+                Ok(_) => break,
+                Err(e) => {
+                    let error_msg = format!("{}", e);
+                    last_error = Some(e);
+                    tracing::warn!("Failed to write temp config (attempt {}): {}", attempt, error_msg);
+                    if attempt < 3 {
+                        std::thread::sleep(std::time::Duration::from_millis(50 * attempt as u64));
+                    }
+                }
+            }
+        }
+        
+        if let Some(e) = last_error.take() {
+            tracing::error!("Failed to write config after retries, restoring from backup if available");
+            // Ripristina backup se disponibile
+            if backup_path.exists() && path.exists() {
+                let _ = fs::copy(&backup_path, &path);
+            }
+            return Err(e);
+        }
+        
+        // ⭐ Fallback 5: Rename atomico con retry
+        for attempt in 1..=3 {
+            match fs::rename(&temp_path, &path) {
+                Ok(_) => {
+                    tracing::debug!("Config saved successfully to: {}", path.display());
+                    // Rimuovi backup vecchio se tutto ok
+                    if backup_path.exists() {
+                        let _ = fs::remove_file(&backup_path);
+                    }
+                    return Ok(());
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to rename temp config (attempt {}): {:?}", attempt, e);
+                    if attempt < 3 {
+                        std::thread::sleep(std::time::Duration::from_millis(50 * attempt as u64));
+                    } else {
+                        // Ultimo tentativo fallito, ripristina backup
+                        if backup_path.exists() && path.exists() {
+                            let _ = fs::copy(&backup_path, &path);
+                        }
+                        return Err(e);
+                    }
+                }
+            }
+        }
         
         Ok(())
     }

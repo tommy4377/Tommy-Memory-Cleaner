@@ -1319,6 +1319,12 @@ fn cmd_save_config(app: tauri::AppHandle, state: tauri::State<'_, AppState>, cfg
         update_bool!(show_opt_notifications);
         update_bool!(auto_update);
         update_bool!(close_after_opt);
+        // ⭐ Setup completed - importante per evitare che il setup si apra più volte
+        if let Some(v) = obj.get("setup_completed") {
+            if let Some(b) = v.as_bool() {
+                current_cfg.setup_completed = b;
+            }
+        }
         // Handle run_on_startup specially - it needs to call the system function
         if let Some(v) = obj.get("run_on_startup") {
             if let Some(b) = v.as_bool() {
@@ -1380,13 +1386,28 @@ fn cmd_save_config(app: tauri::AppHandle, state: tauri::State<'_, AppState>, cfg
     // Validate and save
     current_cfg.validate();
     
-    // FIX #2: Rilascia il lock il prima possibile - salva la config e poi rilascia
+    // ⭐ FIX #2: Rilascia il lock il prima possibile - salva la config con retry e poi rilascia
     {
         let mut guard = state.cfg.lock()
             .map_err(|_| "Config lock poisoned".to_string())?;
         *guard = current_cfg.clone();
-        // Salva prima di rilasciare il lock
-        guard.save().map_err(|e| e.to_string())?;
+        
+        // ⭐ Salvataggio con retry per maggiore affidabilità
+        let save_result = guard.save();
+        match save_result {
+            Ok(_) => {
+                tracing::debug!("Config saved successfully");
+            }
+            Err(e) => {
+                tracing::warn!("Failed to save config: {:?}, retrying...", e);
+                // Retry una volta dopo un breve delay
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                guard.save().map_err(|e2| {
+                    tracing::error!("Failed to save config on retry: {:?}", e2);
+                    format!("Failed to save config: {}", e2)
+                })?;
+            }
+        }
         // Lock viene rilasciato qui automaticamente
     }
     
@@ -1545,13 +1566,50 @@ fn cmd_complete_setup(
         }
     }
     
-    // Segna il setup come completato
+    // ⭐ Segna il setup come completato e salva con retry
     cfg.setup_completed = true;
-    cfg.save().map_err(|e| e.to_string())?;
+    
+    // ⭐ Salvataggio con retry per assicurarsi che setup_completed venga salvato
+    let save_result = cfg.save();
+    match save_result {
+        Ok(_) => {
+            tracing::info!("Config saved successfully after setup completion");
+        }
+        Err(e) => {
+            tracing::error!("Failed to save config after setup: {:?}", e);
+            // ⭐ Retry una volta dopo un breve delay
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            match cfg.save() {
+                Ok(_) => {
+                    tracing::info!("Config saved successfully on retry");
+                }
+                Err(e2) => {
+                    tracing::error!("Failed to save config on retry: {:?}", e2);
+                    return Err(format!("Failed to save config: {}", e2));
+                }
+            }
+        }
+    }
+    
+    // ⭐ Verifica che setup_completed sia stato salvato correttamente
+    let config_path = crate::config::get_portable_detector().config_path();
+    if config_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&config_path) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(setup_completed) = json.get("setup_completed").and_then(|v| v.as_bool()) {
+                    if !setup_completed {
+                        tracing::warn!("setup_completed not saved correctly, forcing save again");
+                        cfg.setup_completed = true;
+                        let _ = cfg.save();
+                    }
+                }
+            }
+        }
+    }
     
     // Log delle impostazioni applicate per debug
-    tracing::info!("Setup completed - Theme: {}, Language: {}, AlwaysOnTop: {}, ShowNotifications: {}, RunOnStartup: {}", 
-        cfg.theme, cfg.language, cfg.always_on_top, cfg.show_opt_notifications, cfg.run_on_startup);
+    tracing::info!("Setup completed - Theme: {}, Language: {}, AlwaysOnTop: {}, ShowNotifications: {}, RunOnStartup: {}, SetupCompleted: {}", 
+        cfg.theme, cfg.language, cfg.always_on_top, cfg.show_opt_notifications, cfg.run_on_startup, cfg.setup_completed);
     
     // Prepara i dati per la sincronizzazione PRIMA di creare/mostrare la finestra
     let theme = cfg.theme.clone();
@@ -2772,12 +2830,43 @@ fn main() {
                 std::process::exit(0);
             }
             
-            // Controlla se è il primo avvio e mostra il setup
+            // ⭐ Controlla se è il primo avvio e mostra il setup
+            // Verifica anche che il file di config esista per evitare setup multipli
             let show_setup = {
+                // ⭐ Fallback 1: Verifica se la finestra setup è già aperta
+                if app_handle.get_webview_window("setup").is_some() {
+                    tracing::info!("Setup window already exists, skipping creation");
+                    return Ok(());
+                }
+                
                 let cfg_guard = _cfg_for_setup.lock();
-                cfg_guard.as_ref()
+                let should_show = cfg_guard.as_ref()
                     .map(|c| !c.setup_completed)
-                    .unwrap_or(true)
+                    .unwrap_or(true);
+                
+                // ⭐ Fallback 2: verifica anche se il file config esiste
+                // Se il file esiste ma setup_completed è false, potrebbe essere un problema
+                // In quel caso, assumiamo che il setup sia già stato fatto
+                if should_show {
+                    let config_path = crate::config::get_portable_detector().config_path();
+                    if config_path.exists() {
+                        // Il file esiste, verifica se contiene setup_completed
+                        if let Ok(content) = std::fs::read_to_string(&config_path) {
+                            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                                if let Some(setup_completed) = json.get("setup_completed").and_then(|v| v.as_bool()) {
+                                    if setup_completed {
+                                        tracing::info!("Config file exists with setup_completed=true, skipping setup");
+                                        return Ok(());
+                                    } else {
+                                        tracing::warn!("Config file exists but setup_completed=false, this might indicate a corrupted config");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                should_show
             };
             
             if show_setup {
