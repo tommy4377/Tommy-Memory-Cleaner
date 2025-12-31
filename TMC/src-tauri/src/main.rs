@@ -2474,31 +2474,89 @@ fn position_tray_menu(window: &tauri::WebviewWindow) {
     let menu_width = menu_size.width as i32;
     let menu_height = menu_size.height as i32;
     
-    // Ottieni il monitor corrente
-    let monitor = match window.current_monitor() {
-        Ok(Some(m)) => m,
-        _ => {
-            tracing::error!("Failed to get current monitor");
-            return;
+    // ⭐ FIX: Ottieni PRIMA la posizione del cursore (vicino alla tray icon)
+    let cursor_pos = match window.cursor_position() {
+        Ok(pos) => pos,
+        Err(_) => {
+            tracing::error!("Failed to get cursor position");
+            // Fallback: usa il monitor primario
+            if let Ok(Some(monitor)) = window.primary_monitor() {
+                let monitor_size = monitor.size();
+                let monitor_pos = monitor.position();
+                let fallback_pos = tauri::PhysicalPosition {
+                    x: (monitor_pos.x + monitor_size.width as i32 - 50) as f64,
+                    y: (monitor_pos.y + monitor_size.height as i32 - 50) as f64,
+                };
+                tracing::warn!("Using fallback cursor position: {:?}", fallback_pos);
+                fallback_pos
+            } else {
+                tracing::error!("Failed to get primary monitor for fallback");
+                return;
+            }
+        }
+    };
+    
+    // ⭐ FIX: Trova il monitor che contiene il cursore (non quello della finestra)
+    let cursor_x = cursor_pos.x as i32;
+    let cursor_y = cursor_pos.y as i32;
+    
+    // Ottieni tutti i monitor disponibili e trova quello che contiene il cursore
+    let monitor = match window.available_monitors() {
+        Ok(monitors) => {
+            // Trova il monitor che contiene il cursore
+            let mut found_monitor = None;
+            for m in monitors {
+                let m_pos = m.position();
+                let m_size = m.size();
+                
+                let m_left = m_pos.x;
+                let m_top = m_pos.y;
+                let m_right = m_pos.x + m_size.width as i32;
+                let m_bottom = m_pos.y + m_size.height as i32;
+                
+                // Verifica se il cursore è dentro questo monitor
+                if cursor_x >= m_left && cursor_x < m_right && 
+                   cursor_y >= m_top && cursor_y < m_bottom {
+                    // Log prima di spostare m
+                    tracing::debug!("Found monitor containing cursor: {}x{} at {:?}", 
+                        m_size.width, m_size.height, m_pos);
+                    found_monitor = Some(m);
+                    break;
+                }
+            }
+            
+            // Se non trovato, usa il monitor primario come fallback
+            found_monitor.unwrap_or_else(|| {
+                tracing::warn!("Cursor not found in any monitor, using primary monitor");
+                window.primary_monitor()
+                    .ok()
+                    .flatten()
+                    .expect("No primary monitor available")
+            })
+        }
+        Err(e) => {
+            tracing::error!("Failed to get available monitors: {:?}", e);
+            // Fallback: usa current_monitor o primary_monitor direttamente
+            match window.current_monitor()
+                .ok()
+                .flatten()
+                .or_else(|| window.primary_monitor().ok().flatten()) {
+                Some(m) => {
+                    tracing::warn!("Using fallback monitor (current or primary)");
+                    m
+                }
+                None => {
+                    tracing::error!("No monitors available");
+                    return;
+                }
+            }
         }
     };
     
     let monitor_size = monitor.size();
     let monitor_pos = monitor.position();
     
-    // Ottieni la posizione del cursore (approssimazione della tray icon)
-    let cursor_pos = match window.cursor_position() {
-        Ok(pos) => pos,
-        Err(_) => {
-            // Fallback: usa l'angolo in basso a destra
-            tauri::PhysicalPosition {
-                x: (monitor_pos.x + monitor_size.width as i32 - 50) as f64,
-                y: (monitor_pos.y + monitor_size.height as i32 - 50) as f64,
-            }
-        }
-    };
-    
-    tracing::debug!("Cursor position: {:?}, Monitor: {}x{} at {:?}", 
+    tracing::debug!("Cursor position: {:?}, Using monitor: {}x{} at {:?}", 
         cursor_pos, monitor_size.width, monitor_size.height, monitor_pos);
     
     // Determina la posizione della taskbar
