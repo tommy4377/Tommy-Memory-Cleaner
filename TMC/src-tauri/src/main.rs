@@ -1981,6 +1981,143 @@ fn cmd_show_notification(app: tauri::AppHandle, title: String, message: String, 
     show_windows_notification(&app, &title, &message, &theme)
 }
 
+// ============= TRAY MENU MANAGEMENT (ROBUST) =============
+/// Mostra il tray menu con retry e fallback robusti
+async fn show_tray_menu_with_retry(app: &AppHandle) {
+    const MAX_RETRIES: u32 = 3;
+    const RETRY_DELAY_MS: u64 = 100;
+    
+    for attempt in 1..=MAX_RETRIES {
+        tracing::debug!("Attempting to show tray menu (attempt {}/{})", attempt, MAX_RETRIES);
+        
+        // Prova prima a ottenere la finestra esistente
+        if let Some(menu_win) = app.get_webview_window("tray_menu") {
+            // Verifica che la finestra sia valida
+            if let Ok(is_visible) = menu_win.is_visible() {
+                // Se già visibile, non fare nulla
+                if is_visible {
+                    tracing::debug!("Tray menu already visible, resetting auto-close timer");
+                    // Reset del timer di chiusura automatica nel frontend
+                    let _ = menu_win.eval(r#"
+                        if (typeof showMenu === 'function') {
+                            showMenu();
+                        }
+                    "#);
+                    return;
+                }
+            }
+            
+            // Posiziona prima di mostrare (evita lampeggio)
+            position_tray_menu(&menu_win);
+            
+            // Piccolo delay per assicurarsi che il posizionamento sia completato
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            
+            // Mostra il menu con retry
+            match menu_win.show() {
+                Ok(_) => {
+                    tracing::info!("Tray menu shown successfully (attempt {})", attempt);
+                    
+                    // Verifica che sia effettivamente visibile
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                    
+                    if let Ok(is_visible) = menu_win.is_visible() {
+                        if is_visible {
+                            // Chiama loadConfig per applicare tema e colori
+                            let _ = menu_win.eval(r#"
+                                if (typeof loadConfig === 'function') {
+                                    loadConfig();
+                                }
+                                if (typeof showMenu === 'function') {
+                                    showMenu();
+                                }
+                            "#);
+                            
+                            return;
+                        } else {
+                            tracing::warn!("Menu show() succeeded but window is not visible (attempt {})", attempt);
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to show tray menu (attempt {}): {:?}", attempt, e);
+                }
+            }
+        } else {
+            // Finestra non esiste, creala
+            tracing::info!("Tray menu window does not exist, creating it (attempt {})", attempt);
+            
+            let app_clone = app.clone();
+            match WebviewWindowBuilder::new(
+                &app_clone,
+                "tray_menu",
+                WebviewUrl::App("tray.html".into())
+            )
+            .inner_size(160.0, 120.0)
+            .skip_taskbar(true)
+            .decorations(false)
+            .transparent(true)
+            .always_on_top(true)
+            .visible(false)
+            .shadow(false)
+            .resizable(false)
+            .focused(false)
+            .build() {
+                Ok(menu_win) => {
+                    tracing::info!("Tray menu window created successfully (attempt {})", attempt);
+                    
+                    // Posiziona prima di mostrare
+                    position_tray_menu(&menu_win);
+                    
+                    // Piccolo delay per assicurarsi che il posizionamento sia completato
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                    
+                    // Mostra la finestra
+                    match menu_win.show() {
+                        Ok(_) => {
+                            tracing::info!("Newly created tray menu shown successfully (attempt {})", attempt);
+                            
+                            // Verifica che sia effettivamente visibile
+                            tokio::time::sleep(Duration::from_millis(100)).await;
+                            
+                            if let Ok(is_visible) = menu_win.is_visible() {
+                                if is_visible {
+                                    // Chiama loadConfig per applicare tema e colori
+                                    let _ = menu_win.eval(r#"
+                                        if (typeof loadConfig === 'function') {
+                                            loadConfig();
+                                        }
+                                        if (typeof showMenu === 'function') {
+                                            showMenu();
+                                        }
+                                    "#);
+                                    
+                                    return;
+                                } else {
+                                    tracing::warn!("Menu show() succeeded but window is not visible after creation (attempt {})", attempt);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to show newly created tray menu (attempt {}): {:?}", attempt, e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("Failed to create tray menu window (attempt {}): {:?}", attempt, e);
+                }
+            }
+        }
+        
+        // Se non è riuscito, aspetta prima di riprovare
+        if attempt < MAX_RETRIES {
+            tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS * attempt as u64)).await;
+        }
+    }
+    
+    tracing::error!("Failed to show tray menu after {} attempts", MAX_RETRIES);
+}
+
 fn show_or_create_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.set_skip_taskbar(false);  // Mostra nella taskbar
@@ -2532,75 +2669,11 @@ fn main() {
                         let app_handle = tray.app_handle();
                         tracing::info!("Right click on tray icon detected");
                         
-                        if let Some(menu_win) = app_handle.get_webview_window("tray_menu") {
-                            tracing::info!("Tray menu window exists, showing it...");
-                            
-                            // Posiziona prima di mostrare (evita lampeggio)
-                            position_tray_menu(&menu_win);
-                            
-                            // Mostra il menu
-                            if let Err(e) = menu_win.show() { 
-                                tracing::error!("Failed to show tray menu: {:?}", e); 
-                            } else {
-                                tracing::info!("Tray menu shown successfully");
-                                
-                                // Aspetta che il DOM sia pronto prima di chiamare loadConfig
-                                std::thread::sleep(std::time::Duration::from_millis(100));
-                                
-                                // Chiama loadConfig per applicare tema e colori
-                                let _ = menu_win.eval(r#"
-                                    if (typeof loadConfig === 'function') {
-                                        loadConfig();
-                                    }
-                                "#);
-                            }
-                        } else {
-                            // Creazione lazy della finestra
-                            tracing::info!("Creating tray menu window...");
-                            let app_clone = app_handle.clone();
-                            match WebviewWindowBuilder::new(
-                                &app_clone,
-                                "tray_menu",
-                                WebviewUrl::App("tray.html".into())
-                            )
-                            .inner_size(160.0, 120.0)  // Dimensione normale del menu (160x120px)
-                            .skip_taskbar(true)
-                            .decorations(false)
-                            .transparent(true)
-                            .always_on_top(true)
-                            .visible(false)
-                            .shadow(false)  // Nessuna ombra per finestra trasparente
-                            .resizable(false)
-                            .focused(false)  // FIX: Non richiedere focus immediato
-                            .build() {
-                                Ok(menu_win) => {
-                                    tracing::info!("Tray menu window created successfully");
-                                    
-                                    // Posiziona prima di mostrare
-                                    position_tray_menu(&menu_win);
-                                    
-                                    // Mostra la finestra
-                                    if let Err(e) = menu_win.show() {
-                                        tracing::error!("Failed to show newly created tray menu: {:?}", e);
-                                    } else {
-                                        tracing::info!("Newly created tray menu shown");
-                                        
-                                        // Aspetta che il DOM sia pronto prima di chiamare loadConfig
-                                        std::thread::sleep(std::time::Duration::from_millis(100));
-                                        
-                                        // Chiama loadConfig per applicare tema e colori
-                                        let _ = menu_win.eval(r#"
-                                            if (typeof loadConfig === 'function') {
-                                                loadConfig();
-                                            }
-                                        "#);
-                                    }
-                                }
-                                Err(e) => {
-                                    tracing::error!("Failed to create tray menu window: {:?}", e);
-                                }
-                            }
-                        }
+                        // Usa async runtime per gestire l'apertura in modo non bloccante
+                        let app_clone = app_handle.clone();
+                        tauri::async_runtime::spawn(async move {
+                            show_tray_menu_with_retry(&app_clone).await;
+                        });
                     }
                     _ => {}
                 }

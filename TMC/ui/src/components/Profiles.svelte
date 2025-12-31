@@ -94,6 +94,25 @@
     overflow: hidden;
   }
   
+  /* Effetto shimmer per i bottoni dei profili quando sono attivi */
+  .seg button.active::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.15) 50%, transparent 70%);
+    animation: shimmer 2s infinite;
+    pointer-events: none;
+    border-radius: 10px;
+  }
+  
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  
   html[data-theme="dark"] .seg button {
     cursor: url('/cursors/dark/hand.cur'), pointer;
   }

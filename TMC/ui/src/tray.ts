@@ -21,7 +21,7 @@ const translations = {
 
 async function loadConfig() {
     try {
-        const config = await invoke('cmd_get_config');
+        const config = await invoke('cmd_get_config') as any;
         document.body.setAttribute('data-theme', config.theme || 'dark');
         
         // Applica mainColor ai menu items (non danger)
@@ -33,7 +33,7 @@ async function loadConfig() {
         const t = translations[config.language] || translations.it;
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
-            if (t[key]) el.textContent = t[key];
+            if (key && t[key as keyof typeof t]) el.textContent = t[key as keyof typeof t];
         });
     } catch (err) {
         console.error('Config load failed:', err);
@@ -56,7 +56,7 @@ async function handleAction(action: string) {
         } else if (action === 'optimize') {
             // FIX: Leggi il profilo corrente dalla configurazione e usa le aree corrette
             try {
-                const config = await invoke('cmd_get_config');
+                const config = await invoke('cmd_get_config') as any;
                 const profile = config.profile || 'Balanced';
                 
                 // Usa la funzione areasForProfile per ottenere le aree corrette
@@ -94,7 +94,7 @@ function setupMenuItems() {
     items.forEach((item) => {
         const action = item.getAttribute('data-action');
         if (action) {
-            item.onclick = (e) => {
+            (item as HTMLElement).onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 handleAction(action);
@@ -114,46 +114,64 @@ setTimeout(() => { isInitializing = false; }, 500);
 function closeMenu() {
     if (isInitializing) return;
     
-    // Cancella il timer di chiusura automatica
-    if (autoCloseTimer) {
-        clearTimeout(autoCloseTimer);
-        autoCloseTimer = null;
-    }
-    
     document.body.classList.remove('menu-open');
-    win.hide().catch(() => {});
+    
+    // Chiudi la finestra con retry
+    win.hide().catch((err) => {
+        console.warn('Failed to hide tray menu window:', err);
+        // Retry dopo un breve delay
+        setTimeout(() => {
+            win.hide().catch(() => {});
+        }, 100);
+    });
 }
 
-// Timer per chiusura automatica dopo 5 secondi
-let autoCloseTimer: ReturnType<typeof setTimeout> | null = null;
+// Esponi closeMenu globalmente
+(window as any).closeMenu = closeMenu;
 
 // Funzione per mostrare il menu
 function showMenu() {
     document.body.classList.add('menu-open');
-    
-    // Cancella timer precedente se esiste
-    if (autoCloseTimer) {
-        clearTimeout(autoCloseTimer);
-        autoCloseTimer = null;
-    }
-    
-    // Imposta chiusura automatica dopo 5 secondi
-    autoCloseTimer = setTimeout(() => {
-        closeMenu();
-        autoCloseTimer = null;
-    }, 5000);
 }
+
+// Esponi showMenu globalmente per permettere chiamate dal backend
+(window as any).showMenu = showMenu;
 
 // Mostra il menu quando la finestra diventa visibile
 if (!document.hidden) {
-    showMenu();
+    // Piccolo delay per assicurarsi che il DOM sia pronto
+    setTimeout(() => {
+        showMenu();
+    }, 50);
 }
 
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
         showMenu();
     } else {
+        // Chiudi solo se la finestra diventa nascosta (es. alt-tab)
         closeMenu();
+    }
+});
+
+// Gestione click fuori dal menu container - unico modo per chiudere il menu
+document.addEventListener('click', (e) => {
+    const menuContainer = document.querySelector('.menu-container');
+    const clickOverlay = document.getElementById('click-overlay');
+    
+    // Se il click è sull'overlay (fuori dal menu), chiudi il menu
+    if (clickOverlay && e.target === clickOverlay) {
+        if (document.body.classList.contains('menu-open')) {
+            closeMenu();
+        }
+        return;
+    }
+    
+    // Se il click è fuori dal menu container, chiudilo
+    if (menuContainer && !menuContainer.contains(e.target as Node)) {
+        if (document.body.classList.contains('menu-open')) {
+            closeMenu();
+        }
     }
 });
 
@@ -170,7 +188,7 @@ document.addEventListener('keydown', (e) => {
 // Polling periodico per controllare i cambiamenti di tema dalla configurazione
 setInterval(async () => {
     try {
-        const config = await invoke('cmd_get_config');
+        const config = await invoke('cmd_get_config') as any;
         const newTheme = config.theme || 'dark';
         const currentTheme = document.body.getAttribute('data-theme');
         if (currentTheme !== newTheme) {

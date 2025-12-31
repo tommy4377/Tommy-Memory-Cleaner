@@ -292,26 +292,14 @@ button:hover {
   opacity: 0.9;
 }
 
-/* Effetto shimmer/brillantezza per tutti i bottoni con var(--btn-bg) */
-/* Applica a tutti i bottoni che hanno background: var(--btn-bg) nei loro stili */
-button.shimmer-btn::after,
-button[class*="reset"]::after,
-button[class*="btn"]:not([class*="seg"]):not([class*="active"])::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
-  animation: shimmer 2s infinite;
-  pointer-events: none;
-}
-
+/* Keyframes per shimmer - usato da vari componenti */
 @keyframes shimmer {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
 }
+
+/* NOTA: Lo shimmer è gestito individualmente da ogni componente */
+/* Non aggiungere regole generiche qui per evitare shimmer su elementi non desiderati */
 
 /* Range slider specifici - Design pulito senza pallini che escono */
 input[type="range"] {

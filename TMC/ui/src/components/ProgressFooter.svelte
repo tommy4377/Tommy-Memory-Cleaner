@@ -116,6 +116,24 @@
     width: auto;
   }
   
+  /* Effetto shimmer per il bottone optimize */
+  button:not(:disabled)::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+    animation: shimmer 2s infinite;
+    pointer-events: none;
+    border-radius: 12px;
+  }
+  
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
   
   html[data-theme="dark"] button {
     cursor: url('/cursors/dark/hand.cur'), pointer;
@@ -131,7 +149,7 @@
     transform: translateY(-1px);
     box-shadow: 0 3px 8px rgba(0,0,0,0.2);
   }
-  
+
   button:active:not(:disabled) {
     transform: translateY(0);
   }
@@ -140,6 +158,11 @@
     opacity: 0.6;
     cursor: not-allowed;
     background: var(--bar-track);
+  }
+  
+  /* Rimuovi shimmer quando disabled */
+  button:disabled::after {
+    display: none;
   }
 
   .status {

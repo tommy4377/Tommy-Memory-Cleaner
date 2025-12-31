@@ -14,8 +14,8 @@
         html, body {
             margin: 0;
             padding: 0;
-            width: 160px;
-            height: 120px;
+            width: 100vw;
+            height: 100vh;
             overflow: hidden;
             background: transparent;
         }
@@ -25,11 +25,16 @@
             position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             background: transparent;
             z-index: 1;
             pointer-events: auto;
+            display: none;
+        }
+        
+        body.menu-open .click-overlay {
+            display: block;
         }
 
         body {
@@ -52,11 +57,6 @@
             overflow: hidden;
             pointer-events: auto !important;
             z-index: 1000;
-        }
-        
-        /* Nascondi overlay quando menu è chiuso */
-        body:not(.menu-open) .click-overlay {
-            display: none;
         }
 
         body[data-theme="light"] .menu-container {
@@ -117,6 +117,9 @@
     </style>
 </head>
 <body>
+    <!-- Overlay trasparente per catturare click fuori dal menu -->
+    <div class="click-overlay" id="click-overlay"></div>
+    
     <div class="menu-container">
         <button class="menu-item" data-action="open" data-i18n="dashboard">Dashboard</button>
         <button class="menu-item" data-action="optimize" data-i18n="optimize">Ottimizza</button>

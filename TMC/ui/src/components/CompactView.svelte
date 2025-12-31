@@ -133,7 +133,8 @@
     text-align: center;
   }
   
-  button::after {
+  /* Effetto shimmer per il bottone optimize */
+  button:not(:disabled)::after {
     content: '';
     position: absolute;
     top: 0;
@@ -143,6 +144,7 @@
     background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
     animation: shimmer 2s infinite;
     pointer-events: none;
+    border-radius: 14px;
   }
   
   @keyframes shimmer {
@@ -154,16 +156,21 @@
     transform: translateY(-1px);
     box-shadow: 0 3px 6px rgba(0,0,0,0.15);
   }
-  
+
   button:active:not(:disabled) {
     transform: translateY(0);
   }
-  
+
   button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
     background: linear-gradient(135deg, #6a6a6a, #4a4a4a);
     animation: pulse 1.5s infinite;
+  }
+  
+  /* Rimuovi shimmer quando disabled */
+  button:disabled::after {
+    display: none;
   }
   
   @keyframes pulse {
