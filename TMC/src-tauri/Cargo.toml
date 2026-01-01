@@ -98,13 +98,9 @@ lto = true
 opt-level = "s"
 strip = true
 
-# Metadati Windows (completi per ridurre falsi positivi antivirus)
 [package.metadata.winres]
 OriginalFilename = "TommyMemoryCleaner.exe"
 ProductName = "Tommy Memory Cleaner"
 CompanyName = "tommy437"
 FileDescription = "Advanced Memory Optimization Tool for Windows"
 LegalCopyright = "© 2025 tommy437. All rights reserved."
-FileVersion = "1.0.0.0"
-ProductVersion = "1.0.0.0"
-IconPath = "icons/icon.ico"
