@@ -310,7 +310,7 @@ async fn perform_optimization(
                     crate::commands::get_translation(&state.translations, title_key)
                 };
                 
-                // Formatta il corpo della notifica
+                // Formatta il corpo della notifica usando le traduzioni
                 let profile_key = match profile {
                     Profile::Normal => "Normal",
                     Profile::Balanced => "Balanced",
@@ -322,10 +322,15 @@ async fn perform_optimization(
                     crate::commands::get_translation(&state.translations, profile_key)
                 };
                 
-                let body = format!(
-                    "✅ Freed: {:.1} MB\n🧠 Free RAM: {:.2} GB\n🎯 Profile: {}",
-                    freed_mb.abs(), free_gb, profile_name
-                );
+                let body_template = {
+                    let state = app.state::<AppState>();
+                    crate::commands::get_translation(&state.translations, "✅ Freed: %.1f MB\n🧠 Free RAM: %.2f GB\n🎯 Profile: %s")
+                };
+                
+                let body = body_template
+                    .replace("%.1f", &format!("{:.1}", freed_mb.abs()))
+                    .replace("%.2f", &format!("{:.2}", free_gb))
+                    .replace("%s", &profile_name);
                 // Ottieni il tema corrente dalla configurazione
                 let theme = {
                     let state = app.state::<AppState>();
