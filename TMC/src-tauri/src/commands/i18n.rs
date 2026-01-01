@@ -28,10 +28,12 @@ pub fn cmd_set_translations(
     language: String,
     translations: HashMap<String, String>,
 ) -> Result<(), String> {
+    tracing::info!("Received translations request for language: {} with {} keys", language, translations.len());
+    
     let mut cache = state.write();
     cache.language = language;
     cache.translations = translations;
-    tracing::info!("Translations cached for language: {}", cache.language);
+    tracing::info!("Translations cached successfully for language: {}", cache.language);
     Ok(())
 }
 
