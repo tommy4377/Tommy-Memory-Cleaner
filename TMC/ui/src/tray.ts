@@ -13,26 +13,12 @@ const win = getCurrentWebviewWindow();
 // Funzione per aggiornare le traduzioni nel DOM
 function updateTrayTranslations() {
     const translations = get(dict);
-    console.log('=== DEBUG TRAY TRANSLATIONS ===');
-    console.log('1. Translations object keys:', Object.keys(translations));
-    console.log('2. Language from store:', get(lang));
-    
-    const elements = document.querySelectorAll('[data-i18n]');
-    console.log('3. Elements with data-i18n:', elements.length);
-    
-    elements.forEach((el, index) => {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
-        console.log(`4. Element ${index}: key="${key}", current text="${el.textContent}"`);
-        
         if (key && translations[key]) {
-            console.log(`   ✓ Found translation: "${translations[key]}"`);
             el.textContent = translations[key];
-        } else if (key) {
-            console.log(`   ✗ Missing translation for key: "${key}"`);
-            console.log(`   Available keys:`, Object.keys(translations).filter(k => k.toLowerCase().includes(key.toLowerCase())));
         }
     });
-    console.log('=== END DEBUG ===');
 }
 
 // Registra i listener eventi una sola volta all'avvio
@@ -57,10 +43,6 @@ async function setupEventListeners() {
 async function reloadTrayConfig() {
     try {
         const config = await invoke('cmd_get_config') as any;
-        console.log('=== DEBUG RELOAD CONFIG ===');
-        console.log('Config from backend:', config);
-        console.log('Language from config:', config.language);
-        
         document.body.setAttribute('data-theme', config.theme || 'dark');
         
         // Applica mainColor ai menu items (non danger)
@@ -70,9 +52,7 @@ async function reloadTrayConfig() {
         document.documentElement.style.setProperty('--main-color', mainColor);
         
         // Imposta la lingua usando il sistema i18n
-        console.log('Calling setLanguage with:', config.language || 'en');
         await setLanguage(config.language || 'en');
-        console.log('setLanguage completed');
         
         // Aggiorna subito le traduzioni
         updateTrayTranslations();
