@@ -1,6 +1,7 @@
 #[cfg(windows)]
 use tauri::AppHandle;
 #[cfg(windows)]
+use std::os::windows::process::CommandExt;
 
 /// Show Windows notification with proper icon and theme
 #[cfg(windows)]
@@ -10,35 +11,230 @@ pub fn show_windows_notification(
     body: &str,
     theme: &str,
 ) -> Result<(), String> {
-    use tauri_plugin_notification::NotificationExt;
+    tracing::info!("Attempting to show notification - Title: '{}', Body: '{}', Theme: {}", title, body, theme);
     
-    // Get icon path
-    let icon_path = match crate::notifications::helpers::ensure_notification_icon_available() {
-        Some(path) => path,
-        None => {
-            tracing::warn!("No notification icon available");
-            return Ok(());
+    // NUOVO APPROCCIO: Usa direttamente PowerShell con XML Toast template che include l'icona esplicitamente
+    // Questo garantisce che l'icona venga mostrata correttamente
+    #[cfg(windows)]
+    {
+        // Prova prima a usare un file .ico dedicato per migliori risultati
+        let icon_path_opt = crate::notifications::helpers::ensure_notification_icon_available();
+        
+        // Helper per fare URL encoding del percorso (necessario per spazi e caratteri speciali)
+        let encode_uri = |path: &str| -> String {
+            // Converti backslash a forward slash e poi applica percent-encoding
+            let path_normalized = path.replace("\\", "/");
+            // Per file:/// locali, dobbiamo fare percent-encoding solo dei caratteri speciali, non di tutto
+            // Windows Toast accetta percorsi diretti, ma per sicurezza codifichiamo spazi e caratteri speciali
+            let mut encoded = String::new();
+            for ch in path_normalized.chars() {
+                match ch {
+                    ' ' => encoded.push_str("%20"),
+                    '!' => encoded.push_str("%21"),
+                    '#' => encoded.push_str("%23"),
+                    '$' => encoded.push_str("%24"),
+                    '%' => encoded.push_str("%25"),
+                    '&' => encoded.push_str("%26"),
+                    '\'' => encoded.push_str("%27"),
+                    '(' => encoded.push_str("%28"),
+                    ')' => encoded.push_str("%29"),
+                    '*' => encoded.push_str("%2A"),
+                    '+' => encoded.push_str("%2B"),
+                    ',' => encoded.push_str("%2C"),
+                    ':' => encoded.push_str("%3A"),
+                    ';' => encoded.push_str("%3B"),
+                    '=' => encoded.push_str("%3D"),
+                    '?' => encoded.push_str("%3F"),
+                    '@' => encoded.push_str("%40"),
+                    '[' => encoded.push_str("%5B"),
+                    ']' => encoded.push_str("%5D"),
+                    _ => encoded.push(ch),
+                }
+            }
+            format!("file:///{}", encoded)
+        };
+        
+        let icon_uri = if let Some(icon_path) = icon_path_opt {
+            // Usa il file .ico dedicato - converto il percorso in formato file:/// per Windows Toast
+            let icon_path_str = icon_path.to_string_lossy().to_string();
+            // Windows Toast richiede il formato file:/// con forward slashes e percent-encoding per spazi
+            encode_uri(&icon_path_str)
+        } else {
+            // Fallback: usa l'exe stesso
+            let exe_path = std::env::current_exe()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+            encode_uri(&exe_path)
+        };
+        
+        // Crea un XML Toast template personalizzato con l'icona
+        let xml_template = format!(
+            r#"<toast launch="app-defined-string" scenario="default">
+<visual>
+<binding template="ToastGeneric">
+<text hint-maxLines="1">{}</text>
+<text>{}</text>
+<image placement="appLogoOverride" hint-crop="circle" src="{}"/>
+</binding>
+</visual>
+<audio src="ms-winsoundevent:Notification.Default" />
+</toast>"#,
+            title, body, icon_uri
+        );
+        
+        // Salva l'XML in un file temporaneo
+        let temp_dir = std::env::temp_dir();
+        let xml_path = temp_dir.join("tmc_notification.xml");
+        if let Err(e) = std::fs::write(&xml_path, &xml_template) {
+            tracing::warn!("Failed to write notification XML: {}", e);
+        } else {
+            // Esegui PowerShell per mostrare la notifica
+            let app_id = "TommyMemoryCleaner";
+            let ps_script = format!(
+                r#"
+try {{
+    # Forza la registrazione del DisplayName per assicurarsi che Windows usi il nome corretto anche se la cache è stata invalidata
+    $regPath = "HKCU:\Software\Classes\AppUserModelId\TommyMemoryCleaner"
+    if (-not (Test-Path $regPath)) {{
+        New-Item -Path $regPath -Force | Out-Null
+    }}
+    Set-ItemProperty -Path $regPath -Name DisplayName -Value "{}" -Type String -Force | Out-Null
+    Write-Output "DisplayName forced to: {}"
+    
+    # Carica e mostra la notifica
+    $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
+    $xml.LoadXml([System.IO.File]::ReadAllText('{}'))
+    $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
+    
+    # Crea il notifier - Windows dovrebbe usare automaticamente il DisplayName se registrato
+    $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appId)
+    $notifier.Show($toast)
+"#,
+                title, title, xml_path.to_string_lossy().replace("'", "''")
+            );
+            
+            match std::process::Command::new("powershell")
+                .arg("-NoProfile")
+                .arg("-NonInteractive")
+                .arg("-ExecutionPolicy")
+                .arg("Bypass")
+                .arg("-Command")
+                .arg(&ps_script)
+                .creation_flags(0x08000000) // CREATE_NO_WINDOW
+                .output()
+            {
+                Ok(output) => {
+                    // Pulisci file temporaneo
+                    let _ = std::fs::remove_file(&xml_path);
+                    if output.status.success() {
+                        tracing::info!("✓ Windows Toast notification shown successfully with icon: {}", icon_uri);
+                        return Ok(());
+                    } else {
+                        let error = String::from_utf8_lossy(&output.stderr);
+                        tracing::warn!("✗ PowerShell Toast notification failed: {}, trying fallback", error);
+                    }
+                }
+                Err(e) => {
+                    let _ = std::fs::remove_file(&xml_path);
+                    tracing::warn!("✗ Failed to execute PowerShell Toast notification: {}, trying fallback", e);
+                }
+            }
         }
-    };
+    }
     
-    // Determine icon based on theme
-    let final_icon_path = if theme == "dark" {
-        // For dark theme, we might want a different icon
-        icon_path
-    } else {
-        icon_path
-    };
+    // Fallback: Usa Tauri API notification
+    tracing::debug!("Trying Tauri API notification as fallback...");
+    #[cfg(windows)]
+    let icon_path = crate::notifications::helpers::ensure_notification_icon_available()
+        .and_then(|p| p.to_str().map(|s| s.to_string()))
+        .or_else(|| {
+            std::env::current_exe()
+                .ok()
+                .and_then(|exe_path| {
+                    tracing::debug!("Using embedded icon from exe: {}", exe_path.display());
+                    exe_path.to_str().map(|s| s.to_string())
+                })
+        })
+        .unwrap_or_else(|| {
+            tracing::warn!("Cannot get icon path, notification may fail");
+            String::new()
+        });
     
-    // Send notification
-    app.notification()
-        .builder()
-        .title(title)
-        .body(body)
-        .icon(final_icon_path.to_string_lossy().to_string())
-        .show()
-        .map_err(|e| format!("Failed to show notification: {}", e))?;
+    #[cfg(not(windows))]
+    let icon_path = String::new();
     
-    Ok(())
+    if !icon_path.is_empty() {
+        use tauri_plugin_notification::NotificationExt;
+        match app.notification()
+            .builder()
+            .title(title)
+            .body(body)
+            .icon(icon_path)
+            .show()
+        {
+            Ok(_) => {
+                tracing::info!("✓ Tauri API notification shown successfully");
+                return Ok(());
+            }
+            Err(e) => {
+                tracing::warn!("✗ Tauri API notification failed: {}", e);
+            }
+        }
+    }
+    
+    // Ultimo fallback: PowerShell Balloon
+    #[cfg(windows)]
+    {
+        tracing::debug!("Trying PowerShell balloon notification as last fallback...");
+        let title_clone = title.to_string();
+        let body_clone = body.to_string();
+        let ps_script = format!(
+            r#"
+try {{
+    Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
+    $notification = New-Object System.Windows.Forms.NotifyIcon
+    $notification.Icon = [System.Drawing.SystemIcons]::Information
+    $notification.BalloonTipTitle = '{}'
+    $notification.BalloonTipText = '{}'
+    $notification.Visible = $true
+    $notification.ShowBalloonTip(5000)
+    Start-Sleep -Seconds 6
+    $notification.Dispose()
+    Write-Output "Notification shown successfully"
+}} catch {{
+    Write-Error "Failed to show notification: $_"
+    exit 1
+}}
+"#,
+            title_clone.replace("'", "''").replace("\n", " ").replace("\r", " "),
+            body_clone.replace("'", "''").replace("\n", " ").replace("\r", " ")
+        );
+        
+        match std::process::Command::new("powershell")
+            .arg("-NoProfile")
+            .arg("-NonInteractive")
+            .arg("-Command")
+            .arg(&ps_script)
+            .creation_flags(0x08000000)
+            .output()
+        {
+            Ok(output) => {
+                if output.status.success() {
+                    tracing::info!("✓ PowerShell balloon notification shown successfully");
+                    return Ok(());
+                } else {
+                    let error = String::from_utf8_lossy(&output.stderr);
+                    tracing::error!("✗ PowerShell notification failed: {}", error);
+                }
+            }
+            Err(e) => {
+                tracing::error!("✗ Failed to execute PowerShell notification: {}", e);
+            }
+        }
+    }
+    
+    Err("All notification methods failed".to_string())
 }
 
 #[cfg(not(windows))]
