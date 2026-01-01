@@ -3,6 +3,107 @@ use tauri::AppHandle;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
+// Helper per convertire ICO in PNG ad alta risoluzione
+#[cfg(windows)]
+fn convert_ico_to_highres_png(ico_data: &[u8]) -> Result<Vec<u8>, String> {
+    // Carica l'ICO usando image::load_from_memory che gestisce automaticamente il formato
+    let img = image::load_from_memory(ico_data)
+        .map_err(|e| format!("Failed to load ICO: {}", e))?;
+    
+    // Converti in RGBA8
+    let rgba_img = img.to_rgba8();
+    
+    // Resize a 256x256 (alta risoluzione per Windows Toast)
+    let resized = image::imageops::resize(
+        &rgba_img,
+        256,
+        256,
+        image::imageops::FilterType::Lanczos3,
+    );
+    
+    // Codifica come PNG usando DynamicImage::save (API image 0.25)
+    // Converti RgbaImage in DynamicImage per poter usare save
+    let dynamic_img = image::DynamicImage::ImageRgba8(resized);
+    
+    // Salva in un buffer in memoria usando il metodo save_with_format
+    let mut png_data = Vec::new();
+    {
+        let mut cursor = std::io::Cursor::new(&mut png_data);
+        dynamic_img.write_to(&mut cursor, image::ImageFormat::Png)
+            .map_err(|e| format!("Failed to encode PNG: {}", e))?;
+    }
+    
+    Ok(png_data)
+}
+
+// Helper per ottenere il percorso dell'icona PNG ad alta risoluzione accessibile
+// Windows Toast funziona meglio con PNG ad alta risoluzione (128x128 o più grande) invece di ICO
+#[cfg(windows)]
+fn ensure_notification_icon_available() -> Option<std::path::PathBuf> {
+    use std::fs;
+    
+    // Prova prima a leggere PNG 128x128 dalla directory runtime (se distribuito con l'app)
+    // Altrimenti usa ICO embedded e convertilo in PNG usando la libreria image
+    let (icon_data, icon_ext) = {
+        let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
+        
+        // Prova a leggere PNG dalla directory runtime (se l'app è distribuita con le icone)
+        if let Ok(png_data) = fs::read(exe_dir.join("icons").join("128x128.png")) {
+            (png_data, "png")
+        } else if let Ok(png_data) = fs::read(exe_dir.join("128x128.png")) {
+            (png_data, "png")
+        } else if let Ok(png_data) = fs::read(exe_dir.join("icons").join("icon.png")) {
+            (png_data, "png")
+        } else if let Ok(png_data) = fs::read(exe_dir.join("icon.png")) {
+            (png_data, "png")
+        } else {
+            // Fallback: converti ICO embedded in PNG 256x256 ad alta risoluzione
+            // Questo risolve il problema della sgranatura
+            match convert_ico_to_highres_png(include_bytes!("../../icons/icon.ico")) {
+                Ok(png_data) => {
+                    tracing::debug!("Converted ICO to high-res PNG (256x256) for better notification quality");
+                    (png_data, "png")
+                },
+                Err(e) => {
+                    tracing::warn!("Failed to convert ICO to PNG, using ICO: {}", e);
+                    (include_bytes!("../../icons/icon.ico").to_vec(), "ico")
+                }
+            }
+        }
+    };
+    
+    // Prova a salvare l'icona nella directory dati dell'app
+    let icon_path = {
+        let detector = crate::config::get_portable_detector();
+        detector.data_dir().join(format!("icon.{}", icon_ext))
+    };
+    
+    // Crea la directory se non esiste
+    if let Some(parent) = icon_path.parent() {
+        if let Err(e) = fs::create_dir_all(parent) {
+            tracing::warn!("Failed to create icon directory: {}", e);
+            return None;
+        }
+    }
+    
+    // Copia l'icona solo se non esiste o se è stata modificata
+    // Controlla se il file esiste e ha la stessa dimensione
+    let needs_copy = match fs::metadata(&icon_path) {
+        Ok(meta) => meta.len() != icon_data.len() as u64,
+        Err(_) => true, // File non esiste, devi copiarlo
+    };
+    
+    if needs_copy {
+        if let Err(e) = fs::write(&icon_path, &icon_data) {
+            tracing::warn!("Failed to write notification icon: {}", e);
+            return None;
+        }
+        tracing::debug!("Notification icon (format: {}) copied to: {}", icon_ext, icon_path.display());
+    }
+    
+    Some(icon_path)
+}
+
 /// Show Windows notification with proper icon and theme
 #[cfg(windows)]
 pub fn show_windows_notification(
@@ -18,7 +119,7 @@ pub fn show_windows_notification(
     #[cfg(windows)]
     {
         // Prova prima a usare un file .ico dedicato per migliori risultati
-        let icon_path_opt = crate::notifications::helpers::ensure_notification_icon_available();
+        let icon_path_opt = ensure_notification_icon_available();
         
         // Helper per fare URL encoding del percorso (necessario per spazi e caratteri speciali)
         let encode_uri = |path: &str| -> String {
@@ -93,34 +194,40 @@ pub fn show_windows_notification(
             let app_id = "TommyMemoryCleaner";
             let ps_script = format!(
                 r#"
+[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
+
 try {{
-    # Carica i necessari assembly per Windows UI
-    Add-Type -AssemblyName 'Windows.UI'
-    Add-Type -AssemblyName 'System.Runtime.WindowsRuntime'
+    $appId = '{}'
+    $regPath = 'HKCU:\Software\Classes\AppUserModelId\' + $appId
+    $displayName = 'Tommy Memory Cleaner'
     
-    # Forza la registrazione del DisplayName per assicurarsi che Windows usi il nome corretto anche se la cache è stata invalidata
-    $regPath = "HKCU:\Software\Classes\AppUserModelId\TommyMemoryCleaner"
+    # Forza la registrazione del DisplayName prima di ogni notifica
+    # Questo assicura che Windows usi il nome corretto anche se la cache è stata invalidata
     if (-not (Test-Path $regPath)) {{
         New-Item -Path $regPath -Force | Out-Null
     }}
-    Set-ItemProperty -Path $regPath -Name DisplayName -Value "{}" -Type String -Force | Out-Null
-    Write-Output "DisplayName forced to: {}"
+    Set-ItemProperty -Path $regPath -Name DisplayName -Value $displayName -Type String -Force | Out-Null
+    Write-Output "DisplayName forced to: $displayName"
     
     # Carica e mostra la notifica
     $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
     $xml.LoadXml([System.IO.File]::ReadAllText('{}'))
+    
     $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
     
     # Crea il notifier - Windows dovrebbe usare automaticamente il DisplayName se registrato
-    $appId = "{}"
     $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appId)
     $notifier.Show($toast)
+    
+    Write-Output "Toast notification shown successfully with DisplayName: $displayName"
 }} catch {{
-    Write-Error "Failed to show toast notification: $_"
+    Write-Error "Failed to show toast: $_"
     exit 1
 }}
 "#,
-                title, title, xml_path.to_string_lossy().replace("'", "''"), app_id
+                app_id,
+                xml_path.to_string_lossy().replace("'", "''")
             );
             
             match std::process::Command::new("powershell")
@@ -155,7 +262,7 @@ try {{
     // Fallback: Usa Tauri API notification
     tracing::debug!("Trying Tauri API notification as fallback...");
     #[cfg(windows)]
-    let icon_path = crate::notifications::helpers::ensure_notification_icon_available()
+    let icon_path = ensure_notification_icon_available()
         .and_then(|p| p.to_str().map(|s| s.to_string()))
         .or_else(|| {
             std::env::current_exe()
@@ -309,7 +416,7 @@ pub fn register_app_for_notifications() {
     
     // Prova a usare un file .ico dedicato per migliori risultati con Windows Toast
     // Fallback all'exe se non riesce
-    let icon_path = crate::notifications::helpers::ensure_notification_icon_available()
+    let icon_path = ensure_notification_icon_available()
         .and_then(|p| p.to_str().map(|s| s.to_string()))
         .unwrap_or_else(|| exe_path.clone());
     
