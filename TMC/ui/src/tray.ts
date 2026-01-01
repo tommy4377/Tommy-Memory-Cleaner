@@ -7,7 +7,10 @@ const win = getCurrentWebviewWindow();
 // Esponi win globalmente per il codice inline Rust
 (window as any).win = win;
 
-const translations = {
+type TranslationKeys = 'dashboard' | 'optimize' | 'exit';
+type Translations = Record<string, Record<TranslationKeys, string>>;
+
+const translations: Translations = {
     it: { dashboard: 'Dashboard', optimize: 'Ottimizza', exit: 'Esci' },
     en: { dashboard: 'Dashboard', optimize: 'Optimize', exit: 'Exit' },
     es: { dashboard: 'Panel', optimize: 'Optimizar', exit: 'Salir' },

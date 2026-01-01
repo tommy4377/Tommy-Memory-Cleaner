@@ -28,6 +28,7 @@ if (import.meta.env.PROD) {
       e.preventDefault();
       return false;
     }
+    return true;
   });
 }
 
