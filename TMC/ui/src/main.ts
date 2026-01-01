@@ -4,7 +4,6 @@ import App from './App.svelte';
 import './theme/tokens.css';
 import './theme/common.css';
 import './theme/light.css';
-import './theme/dark.css';
 
 // Per Svelte 4:
 const app = new App({
