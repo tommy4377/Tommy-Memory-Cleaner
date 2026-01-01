@@ -55,9 +55,8 @@
     e.preventDefault();
   }
   
-  // Traduci nomi delle aree
-  function getTranslatedAreaNames(profile: Profile): string {
-    const areas = areasForProfile(profile);
+  $: translatedAreaNames = (() => {
+    const areas = areasForProfile(selected);
     const areaNames: string[] = [];
     
     // Usa l'ordine e i nomi specifici per ogni area
@@ -71,7 +70,7 @@
     if (areas & 8) areaNames.push($t('Registry Cache'));
     
     return areaNames.join(', ');
-  }
+  })();
   
 
 </script>
@@ -203,7 +202,7 @@
   <div class="info">
     <div class="info-title">{$t('Active areas')}:</div>
     <div class="areas-list">
-      {getTranslatedAreaNames(selected)}
+      {translatedAreaNames}
     </div>
   </div>
 </div>

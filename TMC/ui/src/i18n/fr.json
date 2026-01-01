@@ -58,6 +58,9 @@
   "TMC • Low memory optimization": "TMC • Optimisation mémoire faible",
   "TMC • Hotkey optimization": "TMC • Optimisation raccourci",
   
+  "✅ Freed: %.1f MB\n🧠 Free RAM: %.2f GB\n🎯 Profile: %s": "✅ Libérés : %.1f MB\n🧠 RAM libre : %.2f GB\n🎯 Profil : %s",
+  "RAM: %d%": "RAM : %d%",
+  
   "Priority": "Priorité",
   "Low": "Faible",
   "High": "Haute",
