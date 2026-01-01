@@ -24,13 +24,13 @@ pub type TranslationState = Arc<RwLock<TranslationCache>>;
 /// Cache translations from frontend for backend use
 #[tauri::command]
 pub fn cmd_set_translations(
-    state: State<'_, TranslationState>,
+    app_state: State<'_, crate::AppState>,
     language: String,
     translations: HashMap<String, String>,
 ) -> Result<(), String> {
     tracing::info!("Received translations request for language: {} with {} keys", language, translations.len());
     
-    let mut cache = state.write();
+    let mut cache = app_state.translations.write();
     cache.language = language;
     cache.translations = translations;
     tracing::info!("Translations cached successfully for language: {}", cache.language);
