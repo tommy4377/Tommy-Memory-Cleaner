@@ -82,12 +82,19 @@
     const target = e.target as HTMLElement;
     if (e.button === 0 && !target.closest('button, input, select, .traffic')) {
       e.preventDefault();
+      // Imposta cursore appropriato durante il drag
+      document.body.style.cursor = 'move';
       try {
         await appWindow.startDragging();
       } catch (err) {
         console.warn('Failed to start dragging:', err);
       }
     }
+  }
+
+  function handleDragEnd() {
+    // Ripristina cursore quando finisce il drag
+    document.body.style.cursor = '';
   }
 
   async function toggleCompact() {
@@ -194,8 +201,14 @@
   .compact { background: #28c840; }
 </style>
 
-<div class="titlebar" on:mousedown={handleDragStart}>
-  <div class="draggable" on:mousedown={handleDragStart}>
+<div class="titlebar" 
+     on:mousedown={handleDragStart}
+     on:mouseup={handleDragEnd}
+     on:mouseleave={handleDragEnd}>
+  <div class="draggable" 
+       on:mousedown={handleDragStart}
+       on:mouseup={handleDragEnd}
+       on:mouseleave={handleDragEnd}>
   <img class="logo" src="/icon.png" alt="Tommy Memory Cleaner" />
   <div class="title">{title}</div>
 </div>

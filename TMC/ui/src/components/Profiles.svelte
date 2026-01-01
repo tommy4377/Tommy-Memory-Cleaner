@@ -45,6 +45,16 @@
     }
   }
   
+  function handleDragStart(e: DragEvent) {
+    // Previene il drag dei pulsanti
+    e.preventDefault();
+  }
+  
+  function handleDragOver(e: DragEvent) {
+    // Previene il comportamento di default del drag
+    e.preventDefault();
+  }
+  
   // Traduci nomi delle aree
   function getTranslatedAreaNames(profile: Profile): string {
     const areas = areasForProfile(profile);
@@ -92,6 +102,10 @@
     transition: all 0.2s;
     position: relative;
     overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
   }
   
   /* Effetto shimmer per i bottoni dei profili quando sono attivi */
@@ -160,6 +174,8 @@
     <button 
       class:active={selected === 'Normal'} 
       on:click={() => selectProfile('Normal')}
+      on:dragstart={handleDragStart}
+      on:selectstart={handleDragStart}
       disabled={isChanging}
     >
       {$t('Normal')}
@@ -167,6 +183,8 @@
     <button 
       class:active={selected === 'Balanced'} 
       on:click={() => selectProfile('Balanced')}
+      on:dragstart={handleDragStart}
+      on:selectstart={handleDragStart}
       disabled={isChanging}
     >
       {$t('Balanced')}
@@ -174,6 +192,8 @@
     <button 
       class:active={selected === 'Gaming'} 
       on:click={() => selectProfile('Gaming')}
+      on:dragstart={handleDragStart}
+      on:selectstart={handleDragStart}
       disabled={isChanging}
     >
       {$t('Gaming')}
@@ -184,6 +204,6 @@
     <div class="info-title">{$t('Active areas')}:</div>
     <div class="areas-list">
       {getTranslatedAreaNames(selected)}
-      </div>
+    </div>
   </div>
 </div>
