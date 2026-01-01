@@ -6,6 +6,9 @@ publish = false
 authors = ["tommy437"]
 description = "Advanced Memory Optimization Tool"
 
+# Windows resource file for version info
+build = "build.rs"
+
 [dependencies]
 # Image processing per tray icon
 image = "0.25"

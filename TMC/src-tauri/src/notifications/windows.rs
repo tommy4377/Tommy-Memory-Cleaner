@@ -94,6 +94,10 @@ pub fn show_windows_notification(
             let ps_script = format!(
                 r#"
 try {{
+    # Carica i necessari assembly per Windows UI
+    Add-Type -AssemblyName 'Windows.UI'
+    Add-Type -AssemblyName 'System.Runtime.WindowsRuntime'
+    
     # Forza la registrazione del DisplayName per assicurarsi che Windows usi il nome corretto anche se la cache è stata invalidata
     $regPath = "HKCU:\Software\Classes\AppUserModelId\TommyMemoryCleaner"
     if (-not (Test-Path $regPath)) {{
@@ -112,7 +116,7 @@ try {{
     $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appId)
     $notifier.Show($toast)
 }} catch {{
-    Write-Error "Failed to show notification: $_"
+    Write-Error "Failed to show toast notification: $_"
     exit 1
 }}
 "#,
