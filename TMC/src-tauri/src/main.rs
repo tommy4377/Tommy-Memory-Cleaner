@@ -708,7 +708,33 @@ fn main() {
     
     // Build Tauri v2 app
     tauri::Builder::default()
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_global_shortcut::Builder::new()
+            .with_handler(move |app, shortcut, event| {
+                if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    tracing::info!("Hotkey pressed: {}", shortcut.id());
+                    
+                    // Trigger optimization when hotkey is pressed
+                    let app_clone = app.clone();
+                    tauri::async_runtime::spawn(async move {
+                        // Get current configuration
+                        if let Some(state) = app_clone.try_state::<crate::AppState>() {
+                            let cfg = state.cfg.clone();
+                            let engine = state.engine.clone();
+                            
+                            // Perform optimization with hotkey reason
+                            crate::perform_optimization(
+                                app_clone,
+                                engine,
+                                cfg,
+                                crate::memory::types::Reason::Hotkey,
+                                true,
+                                None
+                            ).await;
+                        }
+                    });
+                }
+            })
+            .build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_positioner::init())
         .manage(state.clone())

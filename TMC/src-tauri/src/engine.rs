@@ -356,6 +356,7 @@ where F: FnMut(u8, u8, String)
             Reason::Manual => "Manual",
             Reason::Schedule => "Scheduled",
             Reason::LowMemory => "Low Memory Auto",
+            Reason::Hotkey => "Hotkey",
         };
         
         log_optimization_event(

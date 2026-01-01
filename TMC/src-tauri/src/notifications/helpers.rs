@@ -114,6 +114,7 @@ pub fn get_notification_title(language: &str, reason: Reason) -> String {
         Reason::Manual => t(language, "TMC • Optimization completed"),
         Reason::Schedule => t(language, "TMC • Scheduled optimization"),
         Reason::LowMemory => t(language, "TMC • Low memory optimization"),
+        Reason::Hotkey => t(language, "TMC • Hotkey optimization"),
     }
 }
 

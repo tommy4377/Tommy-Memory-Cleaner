@@ -83,6 +83,7 @@ pub enum Reason {
     LowMemory,
     Manual,
     Schedule,
+    Hotkey,
 }
 
 impl fmt::Display for Reason {
@@ -91,6 +92,7 @@ impl fmt::Display for Reason {
             Reason::LowMemory => write!(f, "Low Memory"),
             Reason::Manual => write!(f, "Manual"),
             Reason::Schedule => write!(f, "Scheduled"),
+            Reason::Hotkey => write!(f, "Hotkey"),
         }
     }
 }
