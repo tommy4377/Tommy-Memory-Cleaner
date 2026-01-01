@@ -108,10 +108,11 @@ try {{
     $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
     
     # Crea il notifier - Windows dovrebbe usare automaticamente il DisplayName se registrato
+    $appId = "{}"
     $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appId)
     $notifier.Show($toast)
 "#,
-                title, title, xml_path.to_string_lossy().replace("'", "''")
+                title, title, xml_path.to_string_lossy().replace("'", "''"), app_id
             );
             
             match std::process::Command::new("powershell")
