@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWebviewWindow, listen } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { listen } from '@tauri-apps/api/event';
 import { areasForProfile, areasToString } from './lib/profiles';
 import { dict, setLanguage } from './i18n';
 import { get } from 'svelte/store';
@@ -47,7 +48,7 @@ async function loadConfig() {
             await setLanguage(newLanguage);
             updateTrayTranslations();
         });
-    } catch (err) {
+    } catch (err: any) {
         console.error('Config load failed:', err);
     }
 }
@@ -79,7 +80,7 @@ async function handleAction(action: string) {
                     reason: 'Manual', 
                     areas: areasString 
                 });
-            } catch (err) {
+            } catch (err: any) {
                 console.error('Failed to get config for optimization, using default balanced profile:', err);
                 // Fallback a balanced se non riesce a leggere la config
                 const defaultAreas = areasForProfile('Balanced');
@@ -92,7 +93,7 @@ async function handleAction(action: string) {
         } else if (action === 'exit') {
             await invoke('cmd_exit');
         }
-    } catch (err) {
+    } catch (err: any) {
         console.error('Action failed:', err);
     } finally {
         // Assicurati che il menu sia sempre chiuso dopo un'azione
@@ -168,7 +169,7 @@ document.addEventListener('visibilitychange', () => {
 
 // ⭐ Chiusura automatica quando la finestra perde il focus (click fuori)
 // Usa l'API Tauri invece di window.addEventListener per maggiore affidabilità
-win.onFocusChanged((isFocused) => {
+win.onFocusChanged((isFocused: boolean) => {
     if (!isFocused && document.body.classList.contains('menu-open')) {
         // Piccolo delay per permettere ai click sui menu items di funzionare
         setTimeout(() => {
@@ -224,7 +225,7 @@ setInterval(async () => {
         if (currentTheme !== newTheme) {
             loadConfig();
         }
-    } catch (err) {
+    } catch (err: any) {
         // Ignora errori silenziosamente
     }
 }, 500);
