@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import { dict, lang } from '../i18n/index';
 import { get } from 'svelte/store';
 

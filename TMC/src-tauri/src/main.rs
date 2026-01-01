@@ -244,7 +244,7 @@ async fn perform_optimization(
         tracing::info!("First optimization setup complete, proceeding with optimization");
     }
     
-    let (areas, show_notif, profile, language) = {
+    let (areas, show_notif, profile, _language) = {
         match cfg.lock() {
             Ok(c) => {
                 // Se areas_override è specificato, usalo, altrimenti usa le aree dal profilo

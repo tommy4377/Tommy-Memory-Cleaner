@@ -10,13 +10,11 @@
     initApp, 
     cleanupApp, 
     config, 
-    loadConfig, 
-    saveConfig, 
     isAppInitialized,
-    setupConfigListener,
-    cleanupConfigListener,
-    getSystemConfig
-  } from './lib/config';
+    updateConfig,
+    getSafeLanguage,
+    stopMemoryRefresh
+  } from './lib/store';
   import { getConfig } from './lib/api';
   import { setLanguage } from './i18n/index';
   import { memoryInfo } from './lib/api';

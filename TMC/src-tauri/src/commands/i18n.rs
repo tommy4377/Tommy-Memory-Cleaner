@@ -40,9 +40,3 @@ pub fn get_translation(state: &TranslationState, key: &str) -> String {
     let cache = state.read();
     cache.translations.get(key).cloned().unwrap_or_else(|| key.to_string())
 }
-
-/// Get current cached language
-pub fn get_language(state: &TranslationState) -> String {
-    let cache = state.read();
-    cache.language.clone()
-}
