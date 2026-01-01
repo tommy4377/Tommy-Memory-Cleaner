@@ -53,6 +53,11 @@
   "Show optimization notifications": "Afficher les notifications d'optimisation",
   "Run on startup": "Lancer au démarrage",
   
+  "TMC • Optimization completed": "TMC • Optimisation terminée",
+  "TMC • Scheduled optimization": "TMC • Optimisation programmée",
+  "TMC • Low memory optimization": "TMC • Optimisation mémoire faible",
+  "TMC • Hotkey optimization": "TMC • Optimisation raccourci",
+  
   "Priority": "Priorité",
   "Low": "Faible",
   "High": "Haute",

@@ -53,6 +53,11 @@
   "Show optimization notifications": "最適化通知を表示",
   "Run on startup": "起動時に実行",
   
+  "TMC • Optimization completed": "TMC • 最適化完了",
+  "TMC • Scheduled optimization": "TMC • スケジュール最適化",
+  "TMC • Low memory optimization": "TMC • 低メモリ最適化",
+  "TMC • Hotkey optimization": "TMC • ホットキー最適化",
+  
   "Priority": "優先度",
   "Low": "低",
   "High": "高",

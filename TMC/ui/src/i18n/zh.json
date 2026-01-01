@@ -53,6 +53,11 @@
   "Show optimization notifications": "显示优化通知",
   "Run on startup": "开机启动",
   
+  "TMC • Optimization completed": "TMC • 优化完成",
+  "TMC • Scheduled optimization": "TMC • 计划优化",
+  "TMC • Low memory optimization": "TMC • 低内存优化",
+  "TMC • Hotkey optimization": "TMC • 热键优化",
+  
   "Priority": "优先级",
   "Low": "低",
   "High": "高",

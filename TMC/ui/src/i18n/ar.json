@@ -53,6 +53,11 @@
   "Show optimization notifications": "إظهار إشعارات التحسين",
   "Run on startup": "التشغيل عند بدء النظام",
   
+  "TMC • Optimization completed": "TMC • اكتمل التحسين",
+  "TMC • Scheduled optimization": "TMC • تحسين مجدول",
+  "TMC • Low memory optimization": "TMC • تحسين الذاكرة المنخفضة",
+  "TMC • Hotkey optimization": "TMC • تحسين اختصار لوحة المفاتيح",
+  
   "Priority": "الأولوية",
   "Low": "منخفضة",
   "High": "عالية",
