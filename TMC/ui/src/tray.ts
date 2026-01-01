@@ -1,26 +1,12 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { areasForProfile, areasToString } from './lib/profiles';
+import { dict, setLanguage } from './i18n';
 
 const win = getCurrentWebviewWindow();
 
 // Esponi win globalmente per il codice inline Rust
 (window as any).win = win;
-
-type TranslationKeys = 'dashboard' | 'optimize' | 'exit';
-type Translations = Record<string, Record<TranslationKeys, string>>;
-
-const translations: Translations = {
-    it: { dashboard: 'Dashboard', optimize: 'Ottimizza', exit: 'Esci' },
-    en: { dashboard: 'Dashboard', optimize: 'Optimize', exit: 'Exit' },
-    es: { dashboard: 'Panel', optimize: 'Optimizar', exit: 'Salir' },
-    fr: { dashboard: 'Tableau', optimize: 'Optimiser', exit: 'Quitter' },
-    pt: { dashboard: 'Painel', optimize: 'Otimizar', exit: 'Sair' },
-    de: { dashboard: 'Dashboard', optimize: 'Optimieren', exit: 'Beenden' },
-    ar: { dashboard: 'لوحة التحكم', optimize: 'تحسين', exit: 'خروج' },
-    ja: { dashboard: 'ダッシュボード', optimize: '最適化', exit: '終了' },
-    zh: { dashboard: '仪表板', optimize: '优化', exit: '退出' }
-};
 
 async function loadConfig() {
     try {
@@ -33,10 +19,17 @@ async function loadConfig() {
             : (config.main_color_hex_dark || '#0a84ff');
         document.documentElement.style.setProperty('--main-color', mainColor);
         
-        const t = translations[config.language] || translations.it;
-        document.querySelectorAll('[data-i18n]').forEach(el => {
-            const key = el.getAttribute('data-i18n');
-            if (key && t[key as keyof typeof t]) el.textContent = t[key as keyof typeof t];
+        // Imposta la lingua usando il sistema i18n
+        await setLanguage(config.language || 'en');
+        
+        // Aggiorna le traduzioni nel DOM
+        dict.subscribe(translations => {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (key && translations[key]) {
+                    el.textContent = translations[key];
+                }
+            });
         });
     } catch (err) {
         console.error('Config load failed:', err);
