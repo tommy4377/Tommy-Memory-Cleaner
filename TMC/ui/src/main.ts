@@ -3,7 +3,6 @@ import App from './App.svelte';
 // Importa prima i temi, poi tokens (tokens ha le variabili base, i temi le sovrascrivono)
 import './theme/tokens.css';
 import './theme/common.css';
-import './theme/light.css';
 
 // Per Svelte 4:
 const app = new App({

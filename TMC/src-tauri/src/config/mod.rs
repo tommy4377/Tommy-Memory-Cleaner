@@ -1,5 +1,5 @@
 use crate::memory::types::Areas;
-use crate::security::{sanitize_string, sanitize_process_name, sanitize_hotkey, contains_injection_patterns};
+use crate::security::{sanitize_process_name, sanitize_hotkey, contains_injection_patterns, is_valid_hex_color};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeSet, fs, io, path::PathBuf};
 use once_cell::sync::Lazy;
@@ -438,9 +438,9 @@ impl Config {
                 "#007aff".to_string()
             };
         } else {
-            // Normalizza il formato del colore
-            let clean = self.main_color_hex.trim().trim_start_matches('#');
-            if clean.len() == 6 && clean.chars().all(|c| c.is_ascii_hexdigit()) {
+            // Usa la funzione di validazione dal modulo security
+            if is_valid_hex_color(&self.main_color_hex) {
+                let clean = self.main_color_hex.trim().trim_start_matches('#');
                 self.main_color_hex = format!("#{}", clean.to_uppercase());
             } else {
                 self.main_color_hex = if self.theme == "dark" {
