@@ -400,11 +400,17 @@ function getProfilePriority(profile: Profile): 'Low' | 'Normal' | 'High' {
     case 'Normal': return 'Low';
     case 'Balanced': return 'Normal';
     case 'Gaming': return 'High';
+    case 'LowPower': return 'Low';
     default: return 'Normal';
   }
 }
 
 // ========== MEMORY REFRESH ==========
+const MEMORY_REFRESH_LOW = 1000; // 1 second when memory is low
+const MEMORY_REFRESH_CRITICAL = 500; // 0.5 seconds when memory is critical
+const LOW_MEMORY_THRESHOLD = 80; // 80%
+const CRITICAL_MEMORY_THRESHOLD = 90; // 90%
+
 export function startMemoryRefresh(intervalMs: number = MEMORY_REFRESH_INTERVAL): void {
   stopMemoryRefresh();
   
@@ -412,6 +418,23 @@ export function startMemoryRefresh(intervalMs: number = MEMORY_REFRESH_INTERVAL)
     try {
       const mem = await memoryInfo();
       memory.set(mem);
+      
+      // Adaptive refresh: adjust interval based on memory usage
+      const usagePercent = mem.physical.used.percentage;
+      let newInterval = intervalMs;
+      
+      if (usagePercent >= CRITICAL_MEMORY_THRESHOLD) {
+        newInterval = MEMORY_REFRESH_CRITICAL;
+      } else if (usagePercent >= LOW_MEMORY_THRESHOLD) {
+        newInterval = MEMORY_REFRESH_LOW;
+      }
+      
+      // Restart with new interval if changed
+      if (newInterval !== intervalMs) {
+        stopMemoryRefresh();
+        appState.refreshInterval = window.setInterval(refresh, newInterval);
+        console.debug(`Adaptive refresh: ${newInterval}ms (memory: ${usagePercent.toFixed(1)}%)`);
+      }
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Failed to refresh memory info:', error);

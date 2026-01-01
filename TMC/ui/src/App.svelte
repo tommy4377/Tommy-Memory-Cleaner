@@ -4,8 +4,23 @@
   import { LogicalSize, type PhysicalSize } from '@tauri-apps/api/window';
   import { listen, type UnlistenFn } from '@tauri-apps/api/event';
   import Titlebar from './components/Titlebar.svelte';
-  import CompactView from './components/CompactView.svelte';
-  import FullView from './components/FullView.svelte';
+  
+  // Lazy load components for better performance
+  let CompactView: any = null;
+  let FullView: any = null;
+  
+  // Load components when needed
+  async function loadComponents() {
+    if (!CompactView) {
+      const module = await import('./components/CompactView.svelte');
+      CompactView = module.default;
+    }
+    if (!FullView) {
+      const module = await import('./components/FullView.svelte');
+      FullView = module.default;
+    }
+  }
+  
   import { 
     initApp, 
     cleanupApp, 
@@ -459,9 +474,21 @@
     <!-- Main App -->
     <Titlebar />
     {#if isCompact}
-      <CompactView />
+      {#await loadComponents() then}
+        <svelte:component this={CompactView} />
+      {:catch error}
+        <div class="error">
+          <div class="error-message">Failed to load CompactView: {error}</div>
+        </div>
+      {/await}
     {:else}
-      <FullView />
+      {#await loadComponents() then}
+        <svelte:component this={FullView} />
+      {:catch error}
+        <div class="error">
+          <div class="error-message">Failed to load FullView: {error}</div>
+        </div>
+      {/await}
     {/if}
   {/if}
 </div>
