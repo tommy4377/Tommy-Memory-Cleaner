@@ -1,5 +1,5 @@
 [package]
-name = "TMC"
+name = "TommyMemoryCleaner"
 version = "1.0.0"
 edition = "2021"
 publish = false
