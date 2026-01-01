@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { getCurrentWebviewWindow, listen } from '@tauri-apps/api/event';
 import { areasForProfile, areasToString } from './lib/profiles';
 import { dict, setLanguage } from './i18n';
 import { get } from 'svelte/store';
@@ -39,6 +39,14 @@ async function loadConfig() {
         
         // Ascolta i cambiamenti futuri
         const unsubscribe = dict.subscribe(updateTrayTranslations);
+        
+        // Ascolta eventi di cambio lingua dal backend
+        await listen('language-changed', async (event: any) => {
+            const newLanguage = event.payload;
+            console.log('Language changed in tray:', newLanguage);
+            await setLanguage(newLanguage);
+            updateTrayTranslations();
+        });
     } catch (err) {
         console.error('Config load failed:', err);
     }

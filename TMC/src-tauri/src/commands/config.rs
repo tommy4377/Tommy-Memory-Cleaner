@@ -68,8 +68,14 @@ pub fn cmd_save_config(app: AppHandle, state: State<'_, crate::AppState>, cfg_js
         // Language
         if let Some(v) = obj.get("language") {
             if let Some(s) = v.as_str() {
+                let old_language = current_cfg.language.clone();
                 current_cfg.language = s.to_string();
                 _need_menu_update = true;
+                
+                // Emit event if language actually changed
+                if old_language != s.to_string() {
+                    let _ = app.emit("language-changed", s.to_string());
+                }
             }
         }
         
