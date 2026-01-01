@@ -12,6 +12,7 @@
   "Commit": "虚拟",
   
   "Open TMC": "打开TMC",
+  "Dashboard": "仪表板",
   "Optimize Memory": "优化内存",
   "Exit": "退出",
   
@@ -41,6 +42,7 @@
   
   "Auto optimize every": "自动优化间隔",
   "hours": "小时",
+  "When free RAM below": "当可用内存低于",
   "✅ Freed: %.1f MB\n🧠 Free RAM: %.2f GB\n🎯 Profile: %s": "✅ 已释放: %.1f MB\n🧠 可用内存: %.2f GB\n🎯 配置文件: %s",
   "RAM: %d%": "内存: %d%",
   "Disabled": "已禁用",

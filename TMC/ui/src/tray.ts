@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { areasForProfile, areasToString } from './lib/profiles';
 import { dict, setLanguage } from './i18n';
+import { get } from 'svelte/store';
 
 const win = getCurrentWebviewWindow();
 
@@ -22,15 +23,22 @@ async function loadConfig() {
         // Imposta la lingua usando il sistema i18n
         await setLanguage(config.language || 'en');
         
-        // Aggiorna le traduzioni nel DOM
-        dict.subscribe(translations => {
+        // Aggiorna le traduzioni nel DOM immediatamente
+        function updateTrayTranslations() {
+            const translations = get(dict);
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 if (key && translations[key]) {
                     el.textContent = translations[key];
                 }
             });
-        });
+        }
+        
+        // Aggiorna subito
+        updateTrayTranslations();
+        
+        // Ascolta i cambiamenti futuri
+        const unsubscribe = dict.subscribe(updateTrayTranslations);
     } catch (err) {
         console.error('Config load failed:', err);
     }

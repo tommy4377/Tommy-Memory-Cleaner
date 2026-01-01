@@ -12,6 +12,7 @@
   "Commit": "Virtual",
   
   "Open TMC": "Abrir TMC",
+  "Dashboard": "Painel",
   "Optimize Memory": "Otimizar Memória",
   "Exit": "Sair",
   
@@ -41,6 +42,7 @@
   
   "Auto optimize every": "Auto otimizar a cada",
   "hours": "horas",
+  "When free RAM below": "Quando RAM livre abaixo de",
   "✅ Freed: %.1f MB\n🧠 Free RAM: %.2f GB\n🎯 Profile: %s": "✅ Libertado: %.1f MB\n🧠 RAM livre: %.2f GB\n🎯 Perfil: %s",
   "RAM: %d%": "RAM: %d%",
   "Disabled": "Desativado",

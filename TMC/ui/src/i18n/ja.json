@@ -12,6 +12,7 @@
   "Commit": "仮想",
   
   "Open TMC": "TMCを開く",
+  "Dashboard": "ダッシュボード",
   "Optimize Memory": "メモリを最適化",
   "Exit": "終了",
   
@@ -41,6 +42,7 @@
   
   "Auto optimize every": "自動最適化間隔",
   "hours": "時間",
+  "When free RAM below": "空きRAMが以下の場合",
   "✅ Freed: %.1f MB\n🧠 Free RAM: %.2f GB\n🎯 Profile: %s": "✅ 解放済み: %.1f MB\n🧠 空きRAM: %.2f GB\n🎯 プロファイル: %s",
   "RAM: %d%": "RAM: %d%",
   "Disabled": "無効",
