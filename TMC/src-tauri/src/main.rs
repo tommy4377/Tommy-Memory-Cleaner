@@ -417,6 +417,9 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
                 Ok(_) => {
                     tracing::info!("Tray menu shown successfully (attempt {})", attempt);
                     
+                    // Emit event to trigger config reload in frontend
+                    let _ = menu_win.emit("tray-menu-open", ());
+                    
                     // ⭐ INDISPENSABILE: Imposta il focus per ricevere eventi di focus su Windows
                     if let Err(e) = menu_win.set_focus() {
                         tracing::warn!("Failed to set focus on tray menu: {:?}", e);
@@ -493,6 +496,8 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
                     match menu_win.show() {
                         Ok(_) => {
                             tracing::info!("Newly created tray menu shown successfully (attempt {})", attempt);
+                            // Emit event to trigger config reload in frontend
+                            let _ = menu_win.emit("tray-menu-open", ());
                             
                             // ⭐ INDISPENSABILE: Imposta il focus per ricevere eventi di focus su Windows
                             if let Err(e) = menu_win.set_focus() {

@@ -48,6 +48,12 @@ async function loadConfig() {
             await setLanguage(newLanguage);
             updateTrayTranslations();
         });
+        
+        // Ascolta eventi di apertura menu per ricaricare la configurazione
+        await listen('tray-menu-open', async () => {
+            console.log('Tray menu opened, reloading config...');
+            await loadConfig();
+        });
     } catch (err: any) {
         console.error('Config load failed:', err);
     }
