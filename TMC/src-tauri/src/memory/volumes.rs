@@ -50,9 +50,10 @@ fn open_volume(letter: char) -> Option<HANDLE> {
             null_mut(),
             OPEN_EXISTING,
             FILE_ATTRIBUTE_NORMAL | FILE_FLAG_NO_BUFFERING,
-            null_mut(),
+            0, // lpTemplateFile: HANDLE in windows-sys is isize, use 0 instead of null_mut()
         );
-        if h.is_null() { None } else { Some(h) }
+        // HANDLE in windows-sys is isize, so compare with 0
+        if h == 0 { None } else { Some(h) }
     }
 }
 

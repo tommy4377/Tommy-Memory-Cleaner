@@ -292,7 +292,8 @@ fn empty_ws_process(pid: u32) -> bool {
                 pid
             );
             
-            if h.is_null() {
+            // HANDLE in windows-sys is isize, so compare with 0
+            if h == 0 {
                 let error = GetLastError();
                 // ERROR_ACCESS_DENIED (0x5) è comune se SE_DEBUG_NAME non è acquisito
                 if error == 5 {

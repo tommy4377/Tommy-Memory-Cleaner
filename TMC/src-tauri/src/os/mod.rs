@@ -30,13 +30,12 @@ fn get_windows_version() -> OsVersion {
         
         // Carica ntdll.dll e ottieni RtlGetVersion
         use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
-        use std::ptr::null_mut;
         
         let ntdll_name = b"ntdll.dll\0";
         let ntdll = GetModuleHandleA(ntdll_name.as_ptr());
-        // GetModuleHandleA restituisce un HMODULE che è un alias per *mut c_void
-        // Confronta direttamente con null_mut()
-        if ntdll != null_mut() {
+        // GetModuleHandleA restituisce un HMODULE che è isize in windows-sys
+        // Compare with 0 instead of null_mut()
+        if ntdll != 0 {
             let rtl_get_version_name = b"RtlGetVersion\0";
             if let Some(rtl_get_version) = GetProcAddress(ntdll, rtl_get_version_name.as_ptr()) {
                 let rtl_get_version_fn: RtlGetVersionFn = std::mem::transmute(rtl_get_version);
