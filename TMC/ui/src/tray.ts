@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { listen } from '@tauri-apps/api/event';
 import { areasForProfile, areasToString } from './lib/profiles';
-import { dict, setLanguage, lang } from './i18n';
+import { dict, setLanguage, lang, t } from './i18n';
 import { get } from 'svelte/store';
 
 const win = getCurrentWebviewWindow();
@@ -10,13 +10,17 @@ const win = getCurrentWebviewWindow();
 // Esponi win globalmente per il codice inline Rust
 (window as any).win = win;
 
-// Funzione per aggiornare le traduzioni nel DOM
+// Funzione per aggiornare le traduzioni nel DOM usando il sistema i18n
 function updateTrayTranslations() {
-    const translations = get(dict);
+    // Ottieni la funzione di traduzione dallo store
+    const translate = get(t);
+    
+    // Traduci tutti gli elementi con data-i18n
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
-        if (key && translations[key]) {
-            el.textContent = translations[key];
+        if (key) {
+            // Usa la funzione t() per tradurre
+            el.textContent = translate(key);
         }
     });
 }
@@ -65,8 +69,15 @@ async function loadConfig() {
     try {
         await reloadTrayConfig();
         
-        // Ascolta i cambiamenti futuri
-        const unsubscribe = dict.subscribe(updateTrayTranslations);
+        // Ascolta i cambiamenti futuri del dizionario
+        const unsubscribeDict = dict.subscribe(() => {
+            updateTrayTranslations();
+        });
+        
+        // Ascolta anche i cambiamenti della funzione t
+        const unsubscribeT = t.subscribe(() => {
+            updateTrayTranslations();
+        });
     } catch (err: any) {
         console.error('Config load failed:', err);
     }
