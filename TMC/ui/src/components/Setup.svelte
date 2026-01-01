@@ -239,7 +239,7 @@
   }
 </script>
 
-<div class="setup-container" on:mousedown={handleDragStart}>
+<button class="setup-container" on:mousedown={handleDragStart} tabindex="-1" type="button" style="background: none; border: none; padding: 0; width: 100%; height: 100%;">
   <Titlebar title="Tommy Memory Cleaner - Setup" onClose={handleClose} />
   
   <div class="setup-content">
@@ -274,8 +274,9 @@
       
       <div class="option-group">
         <div class="option-row">
-          <label>{$t('Theme')}</label>
+          <label for="theme-select">{$t('Theme')}</label>
           <CustomSelect 
+            id="theme-select"
             options={themeOptions} 
             value={theme} 
             noShimmer={true}
@@ -284,8 +285,9 @@
         </div>
         
         <div class="option-row">
-          <label>{$t('Language')}</label>
+          <label for="language-select">{$t('Language')}</label>
           <CustomSelect 
+            id="language-select"
             options={languageOptions} 
             value={language} 
             noShimmer={true}
@@ -305,7 +307,7 @@
       </button>
     </div>
   </div>
-</div>
+</button>
 
 <style>
   .setup-container {

@@ -83,13 +83,6 @@
     margin: 6px 0;
   }
 
-  .row-label {
-    min-width: 0;
-    font-size: 12px;
-    display: none;
-  }
-
-
   button {
     padding: 6px 14px;
     background: var(--btn-bg);

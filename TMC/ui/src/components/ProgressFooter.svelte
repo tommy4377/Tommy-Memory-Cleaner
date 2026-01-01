@@ -137,21 +137,6 @@
   
   html[data-theme="dark"] button {
     cursor: url('/cursors/dark/hand.cur'), pointer;
-    font-weight: 500;
-    font-size: 13px;
-    min-width: auto;
-    width: auto;
-    transition: all 0.2s;
-    white-space: nowrap;
-  }
-
-  button:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(0,0,0,0.2);
-  }
-
-  button:active:not(:disabled) {
-    transform: translateY(0);
   }
 
   button:disabled {

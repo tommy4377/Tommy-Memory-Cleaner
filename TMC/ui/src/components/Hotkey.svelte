@@ -144,18 +144,13 @@ function onKeyInput(e: Event) {
     cursor: url('/cursors/light/hand.cur'), pointer;
     font-size: 10px;
     font-weight: 500;
-    background: var(--input-bg);
+    background: var(--bg);
     color: var(--fg);
     transition: all 0.2s;
   }
   
   html[data-theme="dark"] .mod-box {
     cursor: url('/cursors/dark/hand.cur'), pointer;
-  }
-  
-  .mod-box:hover:not(.active) {
-    background: var(--card);
-    border-color: var(--btn-bg);
   }
   
   .mod-box.active {

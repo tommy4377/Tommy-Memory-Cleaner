@@ -78,10 +78,6 @@
     opacity: 0.7;
     transition: all 0.2s;
   }
-  
-  html[data-theme="dark"] .tab {
-    cursor: url('/cursors/dark/hand.cur'), pointer;
-  }
 
   .tab.active {
     opacity: 1;

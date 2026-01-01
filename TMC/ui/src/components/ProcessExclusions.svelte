@@ -278,13 +278,8 @@ input {
   border: 1px solid var(--border);
   background: var(--input-bg);
   color: var(--fg);
-  width: 100%;  /* Aggiunto */
-  cursor: url('/cursors/light/nwpen.cur'), text;
 }
 
-html[data-theme="dark"] input {
-  cursor: url('/cursors/dark/nwpen.cur'), text;
-}
   
   input:focus {
     outline: none;

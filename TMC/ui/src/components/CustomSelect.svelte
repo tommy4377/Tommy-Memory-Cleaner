@@ -6,6 +6,7 @@
   export let placeholder: string = 'Select...';
   export let disabled: boolean = false;
   export let noShimmer: boolean = false;
+  export let id: string = '';
   
   const dispatch = createEventDispatcher<{ change: string }>();
   
@@ -147,6 +148,7 @@
     bind:this={buttonEl}
     type="button"
     class="select-button"
+    {id}
     on:click={toggle}
     on:keydown={handleKeydown}
     disabled={disabled}
@@ -196,7 +198,7 @@
     color: var(--fg);
     font-size: 12px;
     font-weight: 450;
-    cursor: url('/cursors/light/hand.cur'), pointer;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -205,8 +207,8 @@
     text-align: left;
   }
   
-  html[data-theme="dark"] .select-button {
-    cursor: url('/cursors/dark/hand.cur'), pointer;
+  :global(html[data-theme="dark"]) .select-button {
+    cursor: pointer;
   }
   
   .select-button:hover:not(:disabled) {
@@ -218,13 +220,6 @@
     border-color: var(--input-focus);
   }
   
-  [data-theme="light"] .select-button:focus {
-    box-shadow: 0 0 0 3px rgba(154, 138, 114, 0.15);
-  }
-  
-  html[data-theme="dark"] .select-button:focus {
-    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.15);
-  }
   
   .select-button:disabled {
     opacity: 0.5;
@@ -293,51 +288,6 @@
     transition: all 0.15s;
     position: relative;
     overflow: hidden;
-  }
-  
-  html[data-theme="dark"] .option-item {
-    cursor: url('/cursors/dark/hand.cur'), pointer;
-  }
-  
-  .option-item:hover,
-  .option-item.hovered {
-    background: var(--bar-track);
-  }
-  
-  /* Light theme: colore di selezione attinente al tema */
-  [data-theme="light"] .option-item.selected {
-    background: #9a8a72;
-    color: white;
-    font-weight: 500;
-  }
-
-  /* SHIMMER COMPLETAMENTE DISABILITATO - NESSUN ::after */
-  [data-theme="light"] .option-item.selected::after {
-    display: none !important;
-    content: none !important;
-    animation: none !important;
-    background: none !important;
-    pointer-events: none !important;
-    opacity: 0 !important;
-    visibility: hidden !important;
-  }
-  
-  /* Dark theme: colore blu */
-  html[data-theme="dark"] .option-item.selected {
-    background: #0a84ff;
-    color: white;
-    font-weight: 500;
-  }
-
-  /* SHIMMER COMPLETAMENTE DISABILITATO - NESSUN ::after */
-  html[data-theme="dark"] .option-item.selected::after {
-    display: none !important;
-    content: none !important;
-    animation: none !important;
-    background: none !important;
-    pointer-events: none !important;
-    opacity: 0 !important;
-    visibility: hidden !important;
   }
   
   .option-item:focus {

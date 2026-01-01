@@ -204,11 +204,14 @@
 <div class="titlebar" 
      on:mousedown={handleDragStart}
      on:mouseup={handleDragEnd}
-     on:mouseleave={handleDragEnd}>
+     on:mouseleave={handleDragEnd}
+     role="toolbar"
+     tabindex="0">
   <div class="draggable" 
        on:mousedown={handleDragStart}
        on:mouseup={handleDragEnd}
-       on:mouseleave={handleDragEnd}>
+       on:mouseleave={handleDragEnd}
+       role="none">
   <img class="logo" src="/icon.png" alt="Tommy Memory Cleaner" />
   <div class="title">{title}</div>
 </div>

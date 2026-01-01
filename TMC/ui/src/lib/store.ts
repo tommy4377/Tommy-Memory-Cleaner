@@ -1,8 +1,6 @@
 import { writable, get } from 'svelte/store';
 import type { Config, MemoryInfo, Profile } from './types';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import { saveConfig, getConfig } from './api';
-import { memoryInfo } from './api';
 import { setLanguage } from '../i18n/index';
 import { cacheTranslationsInBackend } from '../lib/translations';
 import { areasForProfile } from '../lib/profiles';
@@ -103,6 +101,7 @@ export async function initApp(): Promise<void> {
     await cleanupApp();
     
     // Load configuration
+    const { getConfig } = await import('./api');
     const cfg = await getConfig();
     
     // Validate and fix configuration
@@ -115,6 +114,7 @@ export async function initApp(): Promise<void> {
       if (validLang !== cfg.language) {
         cfg.language = validLang;
         // Save corrected language
+        const { saveConfig } = await import('./api');
         await saveConfig({ language: validLang }).catch(() => {});
       }
       
@@ -163,6 +163,7 @@ export async function initApp(): Promise<void> {
     
     // Load initial memory info
     try {
+      const { memoryInfo } = await import('./api');
       const mem = await memoryInfo();
       memory.set(mem);
     } catch (error) {
@@ -224,6 +225,7 @@ async function setupEventListeners(): Promise<void> {
     // Optimize now listener
     appState.listeners.optimizeNow = await listen('tmc://optimize_now', async () => {
       try {
+        const { getConfig } = await import('./api');
         const currentCfg = await getConfig();
         if (currentCfg) {
           const { optimizeAsync } = await import('./api');
@@ -286,6 +288,7 @@ export async function updateConfig(
   
   try {
     // Save to backend PRIMA di aggiornare lo store
+    const { saveConfig } = await import('./api');
     await saveConfig(partial);
     
     // Solo dopo il salvataggio riuscito, aggiorna lo store
@@ -380,6 +383,7 @@ export async function updateConfig(
     
     // Try to reload from backend
     try {
+      const { getConfig } = await import('./api');
       const freshConfig = await getConfig();
       config.set(freshConfig);
     } catch (reloadError) {
@@ -423,6 +427,7 @@ export function startMemoryRefresh(intervalMs: number = MEMORY_REFRESH_INTERVAL)
   
   const refresh = async () => {
     try {
+      const { memoryInfo } = await import('./api');
       const mem = await memoryInfo();
       memory.set(mem);
       
@@ -465,6 +470,7 @@ export function stopMemoryRefresh(): void {
 
 export async function refreshMemoryOnce(): Promise<void> {
   try {
+    const { memoryInfo } = await import('./api');
     const mem = await memoryInfo();
     memory.set(mem);
   } catch (error) {

@@ -155,30 +155,18 @@
     align-items: center;
     gap: 8px;
     cursor: url('/cursors/light/hand.cur'), pointer;
-    font-size: 12px;
-    font-weight: 450;
-    user-select: none;
   }
   
-  html[data-theme="dark"] label {
-    cursor: url('/cursors/dark/hand.cur'), pointer;
-  }
-
   input[type="checkbox"] {
     width: 18px;
     height: 18px;
     cursor: url('/cursors/light/hand.cur'), pointer !important;
-  }
-  
-  html[data-theme="dark"] input[type="checkbox"] {
-    cursor: url('/cursors/dark/hand.cur'), pointer !important;
   }
 
   .checkbox-row {
     margin: 8px 0;
     display: flex;
     align-items: center;
-    gap: 8px;
   }
 
   .color-row {
