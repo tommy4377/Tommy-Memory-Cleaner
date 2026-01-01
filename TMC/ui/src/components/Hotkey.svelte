@@ -79,10 +79,25 @@
   // NUOVA FUNZIONE - Aggiungi questa
 function onKeyInput(e: Event) {
   const target = e.target as HTMLInputElement; // Cast esplicito
-  const input = target.value;
+  let input = target.value;
+  
+  // Security: Limita lunghezza e rimuovi caratteri pericolosi
+  if (input.length > 50) {
+    input = input.slice(0, 50);
+    target.value = input;
+  }
+  
+  // Rimuovi caratteri potenzialmente pericolosi
+  const dangerousPatterns = ['<', '>', '&', '"', "'", '/', '\\', ';', '(', ')', '{', '}', '[', ']'];
+  if (dangerousPatterns.some(pattern => input.includes(pattern))) {
+    errorMsg = 'Invalid characters in hotkey';
+    return;
+  }
+  
   const validated = validateMainKey(input);
   if (validated) {
     mainKey = validated;
+    errorMsg = '';
   } else if (input === '') {
     mainKey = '';
   }

@@ -197,7 +197,32 @@
   async function add() {
     if (!cfg || !selected.trim()) return;
     
-    const processName = selected.trim();
+    let processName = selected.trim();
+    
+    // Security: Validazione lunghezza massima
+    if (processName.length > 100) {
+      processName = processName.slice(0, 100);
+      selected = processName;
+    }
+    
+    // Security: Rimuovi caratteri pericolosi
+    const dangerousPatterns = ['<', '>', '&', '"', "'", '/', '\\', ';', '|', '(', ')', '{', '}', '[', ']', '`', '$'];
+    if (dangerousPatterns.some(pattern => processName.includes(pattern))) {
+      selected = '';
+      showDropdown = false;
+      selectedIndex = -1;
+      return;
+    }
+    
+    // Security: Verifica pattern di injection
+    const injectionPatterns = ['javascript:', 'data:', 'vbscript:', 'file:', 'ftp:', 'http', 'https'];
+    if (injectionPatterns.some(pattern => processName.toLowerCase().includes(pattern))) {
+      selected = '';
+      showDropdown = false;
+      selectedIndex = -1;
+      return;
+    }
+    
     const cleanName = processName.toLowerCase();
     
     // Verifica che non sia un processo critico

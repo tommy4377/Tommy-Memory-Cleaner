@@ -19,6 +19,15 @@ pub fn cmd_optimize_async(
     reason: Reason, 
     areas: String
 ) -> Result<(), String> {
+    // Rate limiting check
+    {
+        let mut rl = state.rate_limiter.lock()
+            .map_err(|_| "Rate limiter lock poisoned".to_string())?;
+        if !rl.check_rate_limit("optimize") {
+            return Err("Too many optimization requests. Please wait before trying again.".to_string());
+        }
+    }
+    
     let engine = state.engine.clone();
     let cfg = state.cfg.clone();
     

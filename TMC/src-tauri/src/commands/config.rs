@@ -20,6 +20,15 @@ pub fn cmd_get_config(state: State<'_, crate::AppState>) -> Result<Config, Strin
 /// Save configuration from JSON
 #[tauri::command]
 pub fn cmd_save_config(app: AppHandle, state: State<'_, crate::AppState>, cfg_json: serde_json::Value) -> Result<(), String> {
+    // Rate limiting check
+    {
+        let mut rl = state.rate_limiter.lock()
+            .map_err(|_| "Rate limiter lock poisoned".to_string())?;
+        if !rl.check_rate_limit("save_config") {
+            return Err("Too many requests. Please wait before trying again.".to_string());
+        }
+    }
+    
     let mut current_cfg = state.cfg.lock()
         .map_err(|_| "Config lock poisoned".to_string())?
         .clone();

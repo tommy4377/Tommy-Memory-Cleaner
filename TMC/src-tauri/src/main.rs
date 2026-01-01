@@ -50,6 +50,7 @@ struct AppState {
     cfg: Arc<Mutex<Config>>, 
     engine: Engine,
     translations: crate::commands::TranslationState,
+    rate_limiter: Arc<Mutex<crate::security::RateLimiter>>,
 }
 
 // ============= WINDOWS HELPERS =============
@@ -732,10 +733,15 @@ fn main() {
         })
     ));
     let engine = Engine::new(cfg.clone());
+    let rate_limiter = crate::security::RateLimiter::new(
+        100, // max 100 richieste
+        std::time::Duration::from_secs(60) // per minuto
+    );
     let state = AppState { 
         cfg: cfg.clone(), 
         engine: engine.clone(),
         translations: crate::commands::TranslationState::default(), 
+        rate_limiter: Arc::new(Mutex::new(rate_limiter)),
     };
     
     // Build Tauri v2 app
