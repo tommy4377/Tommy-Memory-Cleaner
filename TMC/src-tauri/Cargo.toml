@@ -1,6 +1,6 @@
 [package]
 name = "TMC"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 publish = false
 authors = ["tommy437"]
@@ -95,13 +95,13 @@ lto = true
 opt-level = "s"
 strip = true
 
-# Metadati Windows
+# Metadati Windows (completi per ridurre falsi positivi antivirus)
 [package.metadata.winres]
 OriginalFilename = "TommyMemoryCleaner.exe"
 ProductName = "Tommy Memory Cleaner"
 CompanyName = "tommy437"
-FileDescription = "Advanced Memory Optimization Tool"
-LegalCopyright = "© 2025 tommy437"
+FileDescription = "Advanced Memory Optimization Tool for Windows"
+LegalCopyright = "© 2025 tommy437. All rights reserved."
 FileVersion = "1.0.0.0"
 ProductVersion = "1.0.0.0"
 IconPath = "icons/icon.ico"

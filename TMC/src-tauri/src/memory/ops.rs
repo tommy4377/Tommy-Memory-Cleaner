@@ -1,5 +1,23 @@
 #![allow(non_camel_case_types)]
 
+// NOTA: Questo modulo usa API Windows di sistema che possono essere flaggate dagli antivirus come "sospette",
+// ma sono API LEGITTIME e necessarie per un memory cleaner professionale:
+//
+// - K32EmptyWorkingSet: API Microsoft documentata per svuotare il working set di un processo
+//   (https://docs.microsoft.com/en-us/windows/win32/api/psapi/nf-psapi-emptyworkingset)
+//   Usata da molti memory cleaner commerciali legittimi (MemReduct, CleanMem, etc.)
+//
+// - NtSetSystemInformation: API NT documentata per ottimizzazioni di sistema
+//   Usata con SYSTEM_MEMORY_LIST_INFORMATION per svuotare liste di memoria standby/modified
+//   Richiede privilegi amministratore (comportamento normale per memory cleaner)
+//
+// - SetSystemFileCacheSize: API Microsoft documentata per gestire la cache del file system
+//   (https://docs.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-setsystemfilecachesize)
+//   Permette di limitare la cache file system per liberare memoria fisica
+//
+// Tutte queste API sono documentate ufficialmente da Microsoft e utilizzate da software legittimo.
+// I falsi positivi degli antivirus sono comuni per software non firmato che usa API di sistema.
+
 use crate::memory::privileges::ensure_privileges;
 use crate::memory::types::{mk_stats, MemoryInfo};
 use anyhow::{bail, Result};
