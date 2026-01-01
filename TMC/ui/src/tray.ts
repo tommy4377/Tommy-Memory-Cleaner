@@ -169,7 +169,8 @@ document.addEventListener('visibilitychange', () => {
 
 // ⭐ Chiusura automatica quando la finestra perde il focus (click fuori)
 // Usa l'API Tauri invece di window.addEventListener per maggiore affidabilità
-win.onFocusChanged((isFocused: boolean) => {
+win.onFocusChanged((event: any) => {
+    const isFocused = event.payload;
     if (!isFocused && document.body.classList.contains('menu-open')) {
         // Piccolo delay per permettere ai click sui menu items di funzionare
         setTimeout(() => {
