@@ -1,4 +1,5 @@
 use crate::memory::types::Areas;
+use crate::security::{sanitize_string, sanitize_process_name, sanitize_hotkey, contains_injection_patterns};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeSet, fs, io, path::PathBuf};
 use once_cell::sync::Lazy;
@@ -466,32 +467,47 @@ impl Config {
             self.theme = "dark".to_string();
         }
         
-        if self.hotkey.trim().is_empty() {
+        // Security: Validate and sanitize hotkey
+        if contains_injection_patterns(&self.hotkey) {
+            tracing::warn!("Potential injection in hotkey, resetting to default");
             self.hotkey = "Ctrl+Alt+N".to_string();
+        } else {
+            self.hotkey = sanitize_hotkey(&self.hotkey);
+            if self.hotkey.trim().is_empty() {
+                self.hotkey = "Ctrl+Alt+N".to_string();
+            }
         }
-        
+
         self.tray.validate();
-        
+
+        // Security: Sanitize process exclusion list
         let mut seen = BTreeSet::new();
         self.process_exclusion_list = self.process_exclusion_list
             .iter()
             .filter_map(|s| {
-                let trimmed = s.trim();
+                let sanitized = sanitize_process_name(s);
+                let trimmed = sanitized.trim();
                 if !trimmed.is_empty() {
-                    let lower = trimmed.to_lowercase();
-                    if seen.insert(lower.clone()) {
-                        Some(trimmed.to_string())
-                    } else {
+                    // Check for injection patterns
+                    if contains_injection_patterns(trimmed) {
+                        tracing::warn!("Potential injection in process exclusion: {}", trimmed);
                         None
+                    } else {
+                        let lower = trimmed.to_lowercase();
+                        if seen.insert(lower.clone()) {
+                            Some(trimmed.to_string())
+                        } else {
+                            None
+                        }
                     }
                 } else {
                     None
                 }
             })
             .collect();
-        
+
         self.is_portable_install = PORTABLE.read().is_portable();
-        
+
         if self.memory_areas.is_empty() {
             self.memory_areas = self.profile.get_memory_areas();
         }

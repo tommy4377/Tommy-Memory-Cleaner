@@ -16,6 +16,7 @@ mod memory;
 mod cli;
 mod commands;
 mod notifications;
+mod security;
 
 use crate::config::{Config, Profile};
 use crate::engine::Engine;
