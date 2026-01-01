@@ -400,14 +400,15 @@ function getProfilePriority(profile: Profile): 'Low' | 'Normal' | 'High' {
     case 'Normal': return 'Low';
     case 'Balanced': return 'Normal';
     case 'Gaming': return 'High';
-    case 'LowPower': return 'Low';
     default: return 'Normal';
   }
 }
 
 // ========== MEMORY REFRESH ==========
-const MEMORY_REFRESH_LOW = 1000; // 1 second when memory is low
+
 const MEMORY_REFRESH_CRITICAL = 500; // 0.5 seconds when memory is critical
+const MEMORY_REFRESH_NORMAL = 2000; // 2 seconds when memory is normal
+const MEMORY_REFRESH_LOW = 1000; // 1 second when memory is low
 const LOW_MEMORY_THRESHOLD = 80; // 80%
 const CRITICAL_MEMORY_THRESHOLD = 90; // 90%
 
