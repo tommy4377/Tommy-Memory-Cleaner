@@ -6,19 +6,16 @@
 mod config;
 mod engine;
 mod logging;
-mod memory;
-mod utils;
+mod antivirus;
 mod os;
 mod ui;
 mod system;
 mod hotkeys;
 mod auto_optimizer;
+mod memory;
 mod cli;
 mod commands;
 mod notifications;
-mod antivirus {
-    pub mod whitelist;
-}
 
 use crate::config::{Config, Profile};
 use crate::engine::Engine;
@@ -652,7 +649,7 @@ fn main() {
     // CONTROLLO CRITICO: Verifica che il programma sia eseguito come amministratore
     #[cfg(windows)]
     {
-        use crate::utils::is_app_elevated;
+        use crate::system::is_app_elevated;
         if !is_app_elevated() {
             eprintln!("ERRORE CRITICO: Tommy Memory Cleaner deve essere eseguito come Amministratore!");
             eprintln!("CRITICAL ERROR: Tommy Memory Cleaner must be run as Administrator!");
