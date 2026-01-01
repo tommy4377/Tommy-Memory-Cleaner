@@ -1,4 +1,5 @@
 import { writable, derived } from 'svelte/store';
+import { cacheTranslationsInBackend } from '../lib/translations';
 import en from './en.json';
 import it from './it.json';
 import es from './es.json';
@@ -26,7 +27,7 @@ const translations: Record<Language, any> = {
   zh: zh
 };
 
-export function setLanguage(code: Language) {
+export async function setLanguage(code: Language) {
   const selected = translations[code] || translations.en;
   lang.set(code);
   dict.set(selected);
@@ -39,6 +40,13 @@ export function setLanguage(code: Language) {
     } else {
       document.documentElement.setAttribute('dir', 'ltr');
     }
+  }
+  
+  // Update backend translations for notifications
+  try {
+    await cacheTranslationsInBackend();
+  } catch (error) {
+    console.error('Failed to update backend translations:', error);
   }
 }
 

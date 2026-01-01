@@ -116,7 +116,7 @@ export async function initApp(): Promise<void> {
       }
       
       // Set language in UI
-      setLanguage(validLang);
+      await setLanguage(validLang);
       
       // Set theme
       const theme = cfg.theme === 'light' ? 'light' : 'dark';
@@ -290,7 +290,7 @@ export async function updateConfig(
     // Language change
     if (partial.language !== undefined) {
       const validLang = getSafeLanguage(partial.language);
-      setLanguage(validLang);
+      await setLanguage(validLang);
       
       // If language was corrected, save it
       if (validLang !== partial.language) {

@@ -46,8 +46,15 @@
   "Will optimize every X hours": "Se optimizará cada %hours% horas",
   "5 minute cooldown between optimizations": "5 minutos de espera entre optimizaciones",
   
-  "Always on top": "Siempre encima",
-  "Auto update": "Actualización automática",
+  "Always on top": "Always on top",
+  "Auto update": "Auto update",
+  
+  "TMC • Optimization completed": "TMC • Optimización completada",
+  "TMC • Scheduled optimization": "TMC • Optimización programada",
+  "TMC • Low memory optimization": "TMC • Optimización por memoria baja",
+  "TMC • Hotkey optimization": "TMC • Optimización hotkey",
+  
+  "✅ Freed: %.1f MB\n🧠 Free RAM: %.2f GB\n🎯 Profile: %s": "✅ Liberado: %.1f MB\n🧠 RAM libre: %.2f GB\n🎯 Perfil: %s",
   "Close after optimization": "Cerrar después de optimizar",
   "Close to notification area": "Cerrar al área de notificación",
   "Show optimization notifications": "Mostrar notificaciones de optimización",

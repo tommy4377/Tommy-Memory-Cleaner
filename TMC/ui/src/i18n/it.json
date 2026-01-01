@@ -48,6 +48,13 @@
   
   "Always on top": "Sempre in primo piano",
   "Auto update": "Aggiornamento automatico",
+  
+  "TMC • Optimization completed": "TMC • Ottimizzazione completata",
+  "TMC • Scheduled optimization": "TMC • Ottimizzazione programmata",
+  "TMC • Low memory optimization": "TMC • Ottimizzazione per memoria bassa",
+  "TMC • Hotkey optimization": "TMC • Ottimizzazione hotkey",
+  
+  "✅ Freed: %.1f MB\n🧠 Free RAM: %.2f GB\n🎯 Profile: %s": "✅ Liberati: %.1f MB\n🧠 RAM libera: %.2f GB\n🎯 Profilo: %s",
   "Close after optimization": "Chiudi dopo ottimizzazione",
   "Close to notification area": "Chiudi nell'area notifiche",
   "Show optimization notifications": "Mostra notifiche ottimizzazione",

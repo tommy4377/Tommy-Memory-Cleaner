@@ -45,7 +45,7 @@
   }
 
   async function onLangChange(code: string) {
-    setLanguage(code as 'en' | 'it');
+    await setLanguage(code as 'en' | 'it' | 'es' | 'fr' | 'pt' | 'de' | 'ar' | 'ja' | 'zh');
     await updateConfig({ language: code });
   }
 

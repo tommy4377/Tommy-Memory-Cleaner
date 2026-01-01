@@ -10,13 +10,13 @@
     initApp, 
     cleanupApp, 
     config, 
-    memory, 
-    updateConfig,
-    startMemoryRefresh, 
-    stopMemoryRefresh,
+    loadConfig, 
+    saveConfig, 
     isAppInitialized,
-    getSafeLanguage
-  } from './lib/store';
+    setupConfigListener,
+    cleanupConfigListener,
+    getSystemConfig
+  } from './lib/config';
   import { getConfig } from './lib/api';
   import { setLanguage } from './i18n/index';
   import { memoryInfo } from './lib/api';
@@ -97,7 +97,7 @@
             
             // Applica la lingua
             const validLang = getSafeLanguage(cfg.language);
-            setLanguage(validLang);
+            await setLanguage(validLang);
             
             // Aggiorna lo store (questo aggiornerà anche always_on_top e altre impostazioni)
             config.set(cfg);

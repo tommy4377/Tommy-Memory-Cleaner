@@ -27,7 +27,7 @@ use crate::ui::bridge::{emit_progress, EV_DONE};
 use crate::hotkeys::{register_global_hotkey_v2, cmd_register_hotkey};
 use crate::auto_optimizer::start_auto_optimizer;
 use crate::cli::run_console_mode;
-use crate::notifications::{show_windows_notification, get_notification_title, get_notification_body, register_app_for_notifications};
+use crate::notifications::{show_windows_notification, register_app_for_notifications};
 use crate::commands::{show_or_create_window, position_tray_menu};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -50,7 +50,8 @@ pub(crate) static TRAY_ICON_ID: Lazy<std::sync::Mutex<Option<String>>> = Lazy::n
 #[derive(Clone)]
 struct AppState { 
     cfg: Arc<Mutex<Config>>, 
-    engine: Engine 
+    engine: Engine,
+    translations: crate::commands::TranslationState,
 }
 
 // ============= WINDOWS HELPERS =============
@@ -299,8 +300,35 @@ async fn perform_optimization(
             // 1. Abbiamo liberato almeno 1MB OPPURE
             // 2. Abbiamo almeno un'area ottimizzata con successo (anche se poco memoria liberata)
             if freed_mb > 1.0 || has_successful_area {
-                let title = get_notification_title(&language, reason);
-                let body = get_notification_body(&language, reason, freed_mb, free_gb, &profile);
+                // Usa traduzioni cache dal frontend
+                let title_key = match reason {
+                    Reason::Manual => "TMC • Optimization completed",
+                    Reason::Schedule => "TMC • Scheduled optimization",
+                    Reason::LowMemory => "TMC • Low memory optimization",
+                    Reason::Hotkey => "TMC • Hotkey optimization",
+                };
+                
+                let title = {
+                    let state = app.state::<AppState>();
+                    crate::commands::get_translation(&state.translations, title_key)
+                };
+                
+                // Formatta il corpo della notifica
+                let profile_key = match profile {
+                    Profile::Normal => "Normal",
+                    Profile::Balanced => "Balanced",
+                    Profile::Gaming => "Gaming",
+                };
+                
+                let profile_name = {
+                    let state = app.state::<AppState>();
+                    crate::commands::get_translation(&state.translations, profile_key)
+                };
+                
+                let body = format!(
+                    "✅ Freed: {:.1} MB\n🧠 Free RAM: {:.2} GB\n🎯 Profile: {}",
+                    freed_mb.abs(), free_gb, profile_name
+                );
                 // Ottieni il tema corrente dalla configurazione
                 let theme = {
                     let state = app.state::<AppState>();
@@ -703,7 +731,8 @@ fn main() {
     let engine = Engine::new(cfg.clone());
     let state = AppState { 
         cfg: cfg.clone(), 
-        engine: engine.clone() 
+        engine: engine.clone(),
+        translations: crate::commands::TranslationState::default(), 
     };
     
     // Build Tauri v2 app
@@ -758,6 +787,8 @@ fn main() {
             // Commands from ui module
             commands::ui::cmd_show_or_create_window,
             commands::ui::cmd_show_notification,
+            // Commands from i18n module
+            commands::i18n::cmd_set_translations,
             // Commands from hotkeys module
             cmd_register_hotkey
         ])
