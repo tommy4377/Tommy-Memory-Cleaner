@@ -13,33 +13,36 @@
   onMount(() => {
     unsub = progress.subscribe(v => {
       p = v;
-      // Calcola percentuale
-      percent = v && v.total > 0 ? Math.floor((v.value / v.total) * 100) : 0;
-      
-      // Genera testo status
-      if (v?.running && v?.step) {
-        // Traduci i nomi delle aree
-        const stepTranslations: Record<string, string> = {
-          'Working Set': $t('Working Set'),
-          'Modified Page List': $t('Modified Pages'),
-          'Standby List': $t('Standby List'),
-          'Standby List (Low Priority)': $t('Low Priority Standby'),
-          'System File Cache': $t('System Cache'),
-          'Combined Page List': $t('Combined Pages'),
-          'Modified File Cache': $t('File Cache'),
-          'Registry Cache': $t('Registry Cache'),
-          'Completed': $t('Done')
-        };
-        
-        const translatedStep = stepTranslations[v.step] || v.step;
-        statusText = `${v.value}/${v.total} - ${translatedStep} (${percent}%)`;
-      } else if (v?.step === 'Completed' || v?.step === 'Done') {
-        statusText = $t('Done');
-      } else {
-        statusText = $t('Ready');
-      }
     });
   });
+
+  // Calcola percentuale e testo status in modo reattivo
+  $: percent = p && p.total > 0 ? Math.floor((p.value / p.total) * 100) : 0;
+  
+  // Rendi statusText reattivo sia al progress che alla lingua
+  $: statusText = (() => {
+    if (p?.running && p?.step) {
+      // Traduci i nomi delle aree
+      const stepTranslations: Record<string, string> = {
+        'Working Set': $t('Working Set'),
+        'Modified Page List': $t('Modified Pages'),
+        'Standby List': $t('Standby List'),
+        'Standby List (Low Priority)': $t('Low Priority Standby'),
+        'System File Cache': $t('System Cache'),
+        'Combined Page List': $t('Combined Pages'),
+        'Modified File Cache': $t('File Cache'),
+        'Registry Cache': $t('Registry Cache'),
+        'Completed': $t('Done')
+      };
+      
+      const translatedStep = stepTranslations[p.step] || p.step;
+      return `${p.value}/${p.total} - ${translatedStep} (${percent}%)`;
+    } else if (p?.step === 'Completed' || p?.step === 'Done') {
+      return $t('Done');
+    } else {
+      return $t('Ready');
+    }
+  })();
 
   onDestroy(() => {
     if (unsub) {
