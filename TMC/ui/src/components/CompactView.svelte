@@ -48,14 +48,8 @@
     }
   }
   
-  // Helper per ottenere il testo del bottone tradotto
-  function getButtonText(): string {
-    // FIX: Usa prog?.running invece di optimizing locale
-    if (prog?.running) {
-      return $t('Optimizing...');
-    }
-    return $t('Optimize');
-  }
+  // Helper per ottenere il testo del bottone tradotto (reattivo)
+  $: buttonText = prog?.running ? $t('Optimizing...') : $t('Optimize');
   
 </script>
 
@@ -192,6 +186,6 @@
     </div>
   </div>
   <button on:click={optimize} disabled={prog?.running}>
-    {getButtonText()}
+    {buttonText}
   </button>
 </div>
