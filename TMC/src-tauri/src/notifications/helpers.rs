@@ -111,10 +111,10 @@ use crate::memory::types::Reason;
 /// Get notification title based on language and reason
 pub fn get_notification_title(language: &str, reason: Reason) -> String {
     match reason {
-        Reason::Manual => t(language, "TDM • Download completed"),
-        Reason::Schedule => t(language, "TDM • Scheduled download"),
-        Reason::LowMemory => t(language, "TDM • Low memory download"),
-        Reason::Hotkey => t(language, "TDM • Hotkey download"),
+        Reason::Manual => t(language, "TMC • Optimization completed"),
+        Reason::Schedule => t(language, "TMC • Scheduled optimization"),
+        Reason::LowMemory => t(language, "TMC • Low memory optimization"),
+        Reason::Hotkey => t(language, "TMC • Hotkey optimization"),
     }
 }
 
@@ -176,73 +176,73 @@ pub fn get_notification_body(language: &str, _reason: Reason, freed_mb: f64, fre
 fn t(lang: &str, key: &str) -> String {
     match (lang, key) {
         // Italiano
-        ("it", "TDM • Download completed") => "TDM • Download completato",
-        ("it", "TDM • Scheduled download") => "TDM • Download programmato",
-        ("it", "TDM • Low memory download") => "TDM • Download per memoria bassa",
+        ("it", "TMC • Optimization completed") => "TMC • Ottimizzazione completata",
+        ("it", "TMC • Scheduled optimization") => "TMC • Ottimizzazione programmata",
+        ("it", "TMC • Low memory optimization") => "TMC • Ottimizzazione per memoria bassa",
         ("it", "Normal") => "Normale",
         ("it", "Balanced") => "Bilanciato",
         ("it", "Gaming") => "Gaming",
         
         // Spagnolo
-        ("es", "TDM • Download completed") => "TDM • Descarga completada",
-        ("es", "TDM • Scheduled download") => "TDM • Descarga programada",
-        ("es", "TDM • Low memory download") => "TDM • Descarga por memoria baja",
+        ("es", "TMC • Optimization completed") => "TMC • Optimización completada",
+        ("es", "TMC • Scheduled optimization") => "TMC • Optimización programada",
+        ("es", "TMC • Low memory optimization") => "TMC • Optimización por memoria baja",
         ("es", "Normal") => "Normal",
         ("es", "Balanced") => "Equilibrado",
         ("es", "Gaming") => "Gaming",
         
         // Francese
-        ("fr", "TDM • Download completed") => "TDM • Téléchargement terminé",
-        ("fr", "TDM • Scheduled download") => "TDM • Téléchargement programmé",
-        ("fr", "TDM • Low memory download") => "TDM • Téléchargement mémoire faible",
+        ("fr", "TMC • Optimization completed") => "TMC • Optimisation terminée",
+        ("fr", "TMC • Scheduled optimization") => "TMC • Optimisation programmée",
+        ("fr", "TMC • Low memory optimization") => "TMC • Optimisation mémoire faible",
         ("fr", "Normal") => "Normal",
         ("fr", "Balanced") => "Équilibré",
         ("fr", "Gaming") => "Gaming",
         
         // Portoghese
-        ("pt", "TDM • Download completed") => "TDM • Download concluído",
-        ("pt", "TDM • Scheduled download") => "TDM • Download agendado",
-        ("pt", "TDM • Low memory download") => "TDM • Download por memória baixa",
+        ("pt", "TMC • Optimization completed") => "TMC • Otimização concluída",
+        ("pt", "TMC • Scheduled optimization") => "TMC • Otimização agendada",
+        ("pt", "TMC • Low memory optimization") => "TMC • Otimização por memória baixa",
         ("pt", "Normal") => "Normal",
         ("pt", "Balanced") => "Balanceado",
         ("pt", "Gaming") => "Jogos",
         
         // Tedesco
-        ("de", "TDM • Download completed") => "TDM • Download abgeschlossen",
-        ("de", "TDM • Scheduled download") => "TDM • Geplanter Download",
-        ("de", "TDM • Low memory download") => "TDM • Download bei wenig Speicher",
+        ("de", "TMC • Optimization completed") => "TMC • Optimierung abgeschlossen",
+        ("de", "TMC • Scheduled optimization") => "TMC • Geplante Optimierung",
+        ("de", "TMC • Low memory optimization") => "TMC • Optimierung bei wenig Speicher",
         ("de", "Normal") => "Normal",
         ("de", "Balanced") => "Ausgeglichen",
         ("de", "Gaming") => "Spielen",
         
         // Arabo
-        ("ar", "TDM • Download completed") => "TDM • اكتمل التنزيل",
-        ("ar", "TDM • Scheduled download") => "TDM • تنزيل مجدول",
-        ("ar", "TDM • Low memory download") => "TDM • تنزيل الذاكرة المنخفضة",
+        ("ar", "TMC • Optimization completed") => "TMC • اكتمل التحسين",
+        ("ar", "TMC • Scheduled optimization") => "TMC • تحسين مجدول",
+        ("ar", "TMC • Low memory optimization") => "TMC • تحسين الذاكرة المنخفضة",
         ("ar", "Normal") => "عادي",
         ("ar", "Balanced") => "متوازن",
         ("ar", "Gaming") => "الألعاب",
         
         // Giapponese
-        ("ja", "TDM • Download completed") => "TDM • ダウンロード完了",
-        ("ja", "TDM • Scheduled download") => "TDM • スケジュールダウンロード",
-        ("ja", "TDM • Low memory download") => "TDM • メモリ不足ダウンロード",
+        ("ja", "TMC • Optimization completed") => "TMC • 最適化完了",
+        ("ja", "TMC • Scheduled optimization") => "TMC • スケジュール最適化",
+        ("ja", "TMC • Low memory optimization") => "TMC • メモリ不足最適化",
         ("ja", "Normal") => "ノーマル",
         ("ja", "Balanced") => "バランス",
         ("ja", "Gaming") => "ゲーミング",
         
         // Cinese
-        ("zh", "TDM • Download completed") => "TDM • 下载完成",
-        ("zh", "TDM • Scheduled download") => "TDM • 计划下载",
-        ("zh", "TDM • Low memory download") => "TDM • 低内存下载",
+        ("zh", "TMC • Optimization completed") => "TMC • 优化完成",
+        ("zh", "TMC • Scheduled optimization") => "TMC • 计划优化",
+        ("zh", "TMC • Low memory optimization") => "TMC • 低内存优化",
         ("zh", "Normal") => "普通",
         ("zh", "Balanced") => "平衡",
         ("zh", "Gaming") => "游戏",
         
         // Default inglese
-        (_, "TDM • Download completed") => "TDM • Download completed",
-        (_, "TDM • Scheduled download") => "TDM • Scheduled download",
-        (_, "TDM • Low memory download") => "TDM • Low memory download",
+        (_, "TMC • Optimization completed") => "TMC • Optimization completed",
+        (_, "TMC • Scheduled optimization") => "TMC • Scheduled optimization",
+        (_, "TMC • Low memory optimization") => "TMC • Low memory optimization",
         (_, "Normal") => "Normal",
         (_, "Balanced") => "Balanced",
         (_, "Gaming") => "Gaming",

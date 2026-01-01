@@ -275,7 +275,7 @@ pub fn register_app_for_notifications() {
     // IMPORTANTE: Windows richiede che questa registrazione avvenga PRIMA di qualsiasi notifica
     // USIAMO "TommyMemoryCleaner" come AppUserModelID per mostrare un nome user-friendly nelle notifiche
     let key_path = r"Software\Classes\AppUserModelId\TommyMemoryCleaner";
-    let display_name = "Tommy Download Manager";
+    let display_name = "Tommy Memory Cleaner";
     
     // Elimina ricorsivamente la chiave esistente per forzare la ricreazione (utile se è stata modificata)
     // Usa SHDeleteKey per eliminare anche le sottocartelle

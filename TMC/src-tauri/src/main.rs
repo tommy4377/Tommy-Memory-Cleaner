@@ -916,7 +916,7 @@ fn main() {
                 let setup_url = WebviewUrl::App("setup.html".into());
                 let app_clone = app_handle.clone();
                 match WebviewWindowBuilder::new(&app_clone, "setup", setup_url)
-                    .title("Tommy Download Manager - Setup")
+                    .title("Tommy Memory Cleaner - Setup")
                     .inner_size(480.0, 600.0)
                     .min_inner_size(380.0, 500.0)
                     .max_inner_size(480.0, 700.0)

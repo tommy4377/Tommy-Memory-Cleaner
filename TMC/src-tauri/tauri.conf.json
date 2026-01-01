@@ -1,5 +1,5 @@
 {
-  "productName": "Tommy Download Manager",
+  "productName": "Tommy Memory Cleaner",
   "version": "1.0.0",
   "identifier": "TommyMemoryCleaner",
   "build": {
@@ -18,7 +18,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Tommy Download Manager",
+        "title": "Tommy Memory Cleaner",
         "width": 480,
         "height": 680,
         "minWidth": 380,
@@ -59,8 +59,8 @@
     "externalBin": [],
     "copyright": "© 2025 tommy437",
     "category": "Utility",
-    "shortDescription": "Advanced download manager tool",
-    "longDescription": "Tommy Download Manager - Professional download management utility for Windows",
+    "shortDescription": "Advanced memory optimization tool",
+    "longDescription": "Tommy Memory Cleaner - Professional memory optimization utility for Windows",
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
