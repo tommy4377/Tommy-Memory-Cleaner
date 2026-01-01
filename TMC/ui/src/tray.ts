@@ -10,7 +10,37 @@ const win = getCurrentWebviewWindow();
 // Esponi win globalmente per il codice inline Rust
 (window as any).win = win;
 
-async function loadConfig() {
+// Funzione per aggiornare le traduzioni nel DOM
+function updateTrayTranslations() {
+    const translations = get(dict);
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (key && translations[key]) {
+            el.textContent = translations[key];
+        }
+    });
+}
+
+// Registra i listener eventi una sola volta all'avvio
+async function setupEventListeners() {
+    // Ascolta eventi di cambio lingua dal backend
+    await listen('language-changed', async (event: any) => {
+        const newLanguage = event.payload;
+        console.log('Language changed in tray:', newLanguage);
+        await setLanguage(newLanguage);
+        updateTrayTranslations();
+    });
+    
+    // Ascolta eventi di apertura menu per ricaricare la configurazione
+    await listen('tray-menu-open', async () => {
+        console.log('Tray menu opened, reloading config...');
+        // Ricarica solo la configurazione, non i listener
+        await reloadTrayConfig();
+    });
+}
+
+// Funzione separata per ricaricare solo la config (senza registrare listener)
+async function reloadTrayConfig() {
     try {
         const config = await invoke('cmd_get_config') as any;
         document.body.setAttribute('data-theme', config.theme || 'dark');
@@ -24,36 +54,19 @@ async function loadConfig() {
         // Imposta la lingua usando il sistema i18n
         await setLanguage(config.language || 'en');
         
-        // Aggiorna le traduzioni nel DOM immediatamente
-        function updateTrayTranslations() {
-            const translations = get(dict);
-            document.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                if (key && translations[key]) {
-                    el.textContent = translations[key];
-                }
-            });
-        }
-        
-        // Aggiorna subito
+        // Aggiorna subito le traduzioni
         updateTrayTranslations();
+    } catch (err: any) {
+        console.error('Config reload failed:', err);
+    }
+}
+
+async function loadConfig() {
+    try {
+        await reloadTrayConfig();
         
         // Ascolta i cambiamenti futuri
         const unsubscribe = dict.subscribe(updateTrayTranslations);
-        
-        // Ascolta eventi di cambio lingua dal backend
-        await listen('language-changed', async (event: any) => {
-            const newLanguage = event.payload;
-            console.log('Language changed in tray:', newLanguage);
-            await setLanguage(newLanguage);
-            updateTrayTranslations();
-        });
-        
-        // Ascolta eventi di apertura menu per ricaricare la configurazione
-        await listen('tray-menu-open', async () => {
-            console.log('Tray menu opened, reloading config...');
-            await loadConfig();
-        });
     } catch (err: any) {
         console.error('Config load failed:', err);
     }
@@ -238,7 +251,15 @@ setInterval(async () => {
 }, 500);
 
 // Carica configurazione all'avvio
-loadConfig();
+async function initializeTray() {
+    // Prima registra i listener eventi
+    await setupEventListeners();
+    // Poi carica la configurazione
+    await loadConfig();
+}
+
+// Inizializza all'avvio
+initializeTray();
 
 // Posiziona il menu container in base alla posizione della finestra
 // La finestra è fullscreen, quindi dobbiamo posizionare il container
