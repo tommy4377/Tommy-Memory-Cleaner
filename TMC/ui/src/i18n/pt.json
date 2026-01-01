@@ -41,7 +41,8 @@
   
   "Auto optimize every": "Auto otimizar a cada",
   "hours": "horas",
-  "When free RAM below": "Quando RAM livre abaixo de",
+  "✅ Freed: %.1f MB\n🧠 Free RAM: %.2f GB\n🎯 Profile: %s": "✅ Libertado: %.1f MB\n🧠 RAM livre: %.2f GB\n🎯 Perfil: %s",
+  "RAM: %d%": "RAM: %d%",
   "Disabled": "Desativado",
   "Will optimize every X hours": "Otimizará a cada %hours% horas",
   "5 minute cooldown between optimizations": "5 minutos de pausa entre otimizações",
