@@ -111,6 +111,10 @@ try {{
     $appId = "{}"
     $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appId)
     $notifier.Show($toast)
+}} catch {{
+    Write-Error "Failed to show notification: $_"
+    exit 1
+}}
 "#,
                 title, title, xml_path.to_string_lossy().replace("'", "''"), app_id
             );
@@ -271,7 +275,7 @@ pub fn register_app_for_notifications() {
     // IMPORTANTE: Windows richiede che questa registrazione avvenga PRIMA di qualsiasi notifica
     // USIAMO "TommyMemoryCleaner" come AppUserModelID per mostrare un nome user-friendly nelle notifiche
     let key_path = r"Software\Classes\AppUserModelId\TommyMemoryCleaner";
-    let display_name = "Tommy Memory Cleaner";
+    let display_name = "Tommy Download Manager";
     
     // Elimina ricorsivamente la chiave esistente per forzare la ricreazione (utile se è stata modificata)
     // Usa SHDeleteKey per eliminare anche le sottocartelle

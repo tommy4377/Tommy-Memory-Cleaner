@@ -4,7 +4,7 @@ version = "1.0.0"
 edition = "2021"
 publish = false
 authors = ["tommy437"]
-description = "Advanced Memory Optimization Tool"
+description = "Advanced Download Manager Tool"
 
 [dependencies]
 # Image processing per tray icon
