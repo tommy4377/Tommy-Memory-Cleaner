@@ -1,9 +1,12 @@
 import { writable, get } from 'svelte/store';
 import type { Config, MemoryInfo, Profile } from './types';
-import { getConfig, saveConfig, memoryInfo } from './api';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { setLanguage, type Language } from '../i18n/index';
-import { areasForProfile } from './profiles';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { saveConfig, getConfig } from './api';
+import { memoryInfo } from './api';
+import { setLanguage } from '../i18n/index';
+import { cacheTranslationsInBackend } from '../lib/translations';
+import { areasForProfile } from '../lib/profiles';
+import type { Language } from '../i18n/index';
 
 // ========== TYPES ==========
 interface ProgressState {
@@ -117,6 +120,9 @@ export async function initApp(): Promise<void> {
       
       // Set language in UI
       await setLanguage(validLang);
+      
+      // Cache translations in backend for notifications
+      await cacheTranslationsInBackend();
       
       // Set theme
       const theme = cfg.theme === 'light' ? 'light' : 'dark';

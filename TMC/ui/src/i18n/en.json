@@ -54,6 +54,7 @@
   "TMC • Hotkey optimization": "TMC • Hotkey optimization",
   
   "✅ Freed: %.1f MB\n🧠 Free RAM: %.2f GB\n🎯 Profile: %s": "✅ Freed: %.1f MB\n🧠 Free RAM: %.2f GB\n🎯 Profile: %s",
+  "RAM: %d%": "RAM: %d%",
   "Close after optimization": "Close after optimization",
   "Close to notification area": "Close to notification area",
   "Show optimization notifications": "Show optimization notifications",

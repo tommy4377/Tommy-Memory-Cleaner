@@ -38,5 +38,14 @@ pub fn cmd_set_translations(
 /// Get a cached translation
 pub fn get_translation(state: &TranslationState, key: &str) -> String {
     let cache = state.read();
-    cache.translations.get(key).cloned().unwrap_or_else(|| key.to_string())
+    let translation = cache.translations.get(key).cloned().unwrap_or_else(|| {
+        tracing::warn!("Translation not found for key: '{}' (language: {})", key, cache.language);
+        key.to_string()
+    });
+    
+    if translation != key {
+        tracing::debug!("Found translation for '{}' -> '{}'", key, translation);
+    }
+    
+    translation
 }

@@ -270,7 +270,18 @@ pub fn update_tray_icon(app: &AppHandle, mem_percent: u8) {
     };
     
     let icon = create_tray_icon(mem_percent, bg, &tray_cfg.text_color_hex, tray_cfg.transparent_bg);
-    set_tray_icon(app, icon, &format!("RAM: {}%", mem_percent));
+    
+    // Try to get translated tooltip, fallback to English
+    let tooltip = {
+        match crate::commands::get_translation(&state.translations, "RAM: %d%") {
+            translated if translated != "RAM: %d%" => {
+                translated.replace("%d%", &mem_percent.to_string())
+            }
+            _ => format!("RAM: {}%", mem_percent)
+        }
+    };
+    
+    set_tray_icon(app, icon, &tooltip);
 }
 
 /// Forza refresh dell'icona (chiamato quando cambia la config)
