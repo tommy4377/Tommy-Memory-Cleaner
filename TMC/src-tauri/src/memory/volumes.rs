@@ -96,7 +96,6 @@ pub fn flush_modified_file_cache_all() -> Result<()> {
     }
 
     let mut any_success = false;
-    let mut last_error = 0;
     let mut volumes_failed = 0;
     let mut volumes_total = 0;
 
@@ -181,7 +180,6 @@ pub fn flush_modified_file_cache_all() -> Result<()> {
                     any_success = true;
                 } else {
                     volumes_failed += 1;
-                    last_error = GetLastError();
                 }
             }
         }
