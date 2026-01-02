@@ -1,6 +1,7 @@
 # Exclude all .md files except README.md
 *.md
 !README.md
+!OPTIMIZATION_ANALYSIS.md
 
 # Batch files
 *.bat
