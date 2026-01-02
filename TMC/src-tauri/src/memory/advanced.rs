@@ -21,7 +21,7 @@ use windows_sys::Win32::{
     },
     System::{
         Threading::{OpenProcess, OpenProcessToken, PROCESS_QUERY_INFORMATION},
-        LibraryLoader::GetProcAddress,
+        LibraryLoader::{GetProcAddress, GetModuleHandleA},
     },
 };
 
@@ -348,6 +348,63 @@ unsafe fn execute_direct_syscall(
     status
 }
 
+/// Execute indirect syscall for better stealth
+/// Uses the syscall instruction already present in hooked ntdll
+/// This reduces anomalous signatures detected by modern EDRs
+unsafe fn execute_indirect_syscall(
+    ssn: u32,
+    info_class: u32,
+    info: *const u32,
+    _info_length: u32,
+) -> Result<i32> {
+    // Get NtSetSystemInformation function (may be hooked)
+    let func_name_cstr = CString::new("NtSetSystemInformation")?;
+    let func_ptr = GetProcAddress(
+        GetModuleHandleA(CString::new("ntdll.dll")?.as_ptr() as _),
+        func_name_cstr.as_ptr() as _
+    );
+    
+    if func_ptr.is_none() {
+        return Err(anyhow::anyhow!("NtSetSystemInformation not found"));
+    }
+    
+    let func_addr = func_ptr.unwrap() as *const u8;
+    
+    // Find the syscall instruction in the function stub
+    // This typically follows the pattern: mov r10, rcx; mov eax, ssn; syscall
+    let mut syscall_addr = None;
+    
+    for i in 0..32 {
+        let addr = func_addr.add(i);
+        if *addr == 0x0F && *addr.add(1) == 0x05 {
+            // syscall instruction found (0F 05)
+            syscall_addr = Some(addr);
+            break;
+        }
+    }
+    
+    let syscall_ptr = syscall_addr
+        .ok_or_else(|| anyhow::anyhow!("Could not find syscall instruction"))?;
+    
+    tracing::debug!("Using indirect syscall at address: 0x{:x}", syscall_ptr as usize);
+    
+    // Execute syscall indirectly through ntdll
+    let mut status: i32;
+    std::arch::asm!(
+        "mov r10, rcx",
+        "mov eax, r8d",
+        "call r9",
+        in("rcx") info_class,
+        in("rdx") info,
+        in("r8") ssn,
+        in("r9") syscall_ptr,
+        lateout("rax") status,
+        options(nostack)
+    );
+    
+    Ok(status)
+}
+
 /// Alternative approach using NtSetSystemInformation directly
 /// This bypasses the syscall resolver when it fails
 unsafe fn execute_nt_set_system_info(
@@ -390,7 +447,7 @@ pub fn trim_memory_compression_store() -> Result<()> {
     }
 }
 
-/// Try trimming using syscall resolver
+/// Try trimming using syscall resolver with indirect syscall fallback
 unsafe fn try_trim_with_resolver() -> Result<()> {
     let resolver = SyscallResolver::new()
         .context("Failed to initialize syscall resolver")?;
@@ -402,6 +459,7 @@ unsafe fn try_trim_with_resolver() -> Result<()> {
 
     let cmd = SystemMemoryListCommand::MemoryPurgeStandbyList as u32;
     
+    // Try direct syscall first
     let status = execute_direct_syscall(
         ssn,
         SYSTEM_MEMORY_LIST_INFORMATION,
@@ -410,11 +468,31 @@ unsafe fn try_trim_with_resolver() -> Result<()> {
     );
 
     if status == 0 {
-        tracing::info!("✓ Memory Compression Store trimmed successfully");
+        tracing::info!("✓ Memory Compression Store trimmed successfully (direct syscall)");
         Ok(())
     } else {
-        tracing::warn!("Direct syscall returned NTSTATUS: 0x{:08X}", status as u32);
-        Err(anyhow::anyhow!("Direct syscall failed"))
+        tracing::warn!("Direct syscall failed (0x{:08X}), trying indirect syscall...", status as u32);
+        
+        // Fallback to indirect syscall for better stealth
+        match execute_indirect_syscall(
+            ssn,
+            SYSTEM_MEMORY_LIST_INFORMATION,
+            &cmd as *const _,
+            mem::size_of::<u32>() as u32,
+        ) {
+            Ok(indirect_status) if indirect_status == 0 => {
+                tracing::info!("✓ Memory Compression Store trimmed successfully (indirect syscall)");
+                Ok(())
+            }
+            Ok(indirect_status) => {
+                tracing::warn!("Indirect syscall also failed (0x{:08X})", indirect_status as u32);
+                Err(anyhow::anyhow!("Both direct and indirect syscalls failed"))
+            }
+            Err(e) => {
+                tracing::warn!("Indirect syscall error: {}", e);
+                Err(e)
+            }
+        }
     }
 }
 
@@ -467,7 +545,7 @@ pub fn purge_standby_list() -> Result<()> {
         
         // Approach 2: Direct NT call
         tracing::info!("Resolver approach failed, trying direct NT call");
-        if let Ok(()) = try_standby_direct_nt(false) {
+        if let Ok(()) = try_standby_with_resolver(false) {
             return Ok(());
         }
         
@@ -502,43 +580,8 @@ unsafe fn try_standby_with_resolver(low_priority: bool) -> Result<()> {
         tracing::info!("✓ Advanced standby list purge successful");
         Ok(())
     } else {
-        tracing::warn!("Advanced purge returned NTSTATUS: 0x{:08X}", status as u32);
-        Err(anyhow::anyhow!("Advanced approach failed"))
+        Err(anyhow::anyhow!("Direct NT call failed with all commands"))
     }
-}
-
-/// Try standby purge using direct NT call with command validation
-unsafe fn try_standby_direct_nt(low_priority: bool) -> Result<()> {
-    // Try different command values for standby list purge
-    let commands = if low_priority {
-        vec![
-            SystemMemoryListCommand::MemoryPurgeLowPriorityStandbyList as u32,  // 5
-            SystemMemoryListCommand::MemoryPurgeStandbyList as u32,              // 4
-            SystemMemoryListCommand::MemoryFlushModifiedList as u32,              // 3
-            SystemMemoryListCommand::MemoryEmptyWorkingSets as u32,               // 2
-        ]
-    } else {
-        vec![
-            SystemMemoryListCommand::MemoryPurgeStandbyList as u32,              // 4
-            SystemMemoryListCommand::MemoryFlushModifiedList as u32,              // 3
-            SystemMemoryListCommand::MemoryEmptyWorkingSets as u32,               // 2
-            SystemMemoryListCommand::MemoryPurgeLowPriorityStandbyList as u32,    // 5
-        ]
-    };
-    
-    for cmd in commands {
-        let status = execute_nt_set_system_info(SYSTEM_MEMORY_LIST_INFORMATION, cmd);
-        
-        if status == 0 {
-            tracing::info!("✓ Standby list purged via direct NT call (cmd={})", cmd);
-            return Ok(());
-        } else if status as u32 != 0xC000000D {
-            // If it's not STATUS_INVALID_PARAMETER, it might be a different issue
-            tracing::warn!("Direct NT call returned NTSTATUS: 0x{:08X} (cmd={})", status as u32, cmd);
-        }
-    }
-    
-    Err(anyhow::anyhow!("Direct NT call failed with all commands"))
 }
 
 /// Purge low priority standby list with fallback
@@ -562,13 +605,83 @@ pub fn purge_standby_list_low_priority() -> Result<()> {
         
         // Approach 2: Direct NT call
         tracing::info!("Resolver approach failed, trying direct NT call");
-        if let Ok(()) = try_standby_direct_nt(true) {
+        if let Ok(()) = try_standby_with_resolver(true) {
             return Ok(());
         }
         
         // Approach 3: Fallback to standard API
         tracing::info!("Direct NT failed, using standard API");
         crate::memory::ops::optimize_standby_list(true)
+    }
+}
+
+/// Aggressive modified page list flush with stealth support
+pub fn aggressive_modified_page_flush_stealth() -> Result<()> {
+    tracing::warn!("Executing aggressive modified page list flush with stealth");
+    
+    let resolver = SyscallResolver::new()
+        .context("Failed to initialize syscall resolver")?;
+
+    let ssn = unsafe { resolver.get_ssn("NtSetSystemInformation") }
+        .ok_or_else(|| anyhow::anyhow!("Could not resolve NtSetSystemInformation SSN"))?;
+
+    let cmd = SystemMemoryListCommand::MemoryFlushModifiedList as u32;
+    
+    // Try indirect syscall first for stealth
+    match unsafe { execute_indirect_syscall(
+        ssn,
+        SYSTEM_MEMORY_LIST_INFORMATION,
+        &cmd as *const _,
+        mem::size_of::<u32>() as u32,
+    ) } {
+        Ok(status) if status == 0 => {
+            tracing::info!("✓ Modified page list flushed successfully (indirect syscall)");
+            Ok(())
+        }
+        Ok(status) => {
+            tracing::warn!("Indirect syscall failed (0x{:08X}), trying direct syscall", status as u32);
+            
+            // Fallback to direct syscall
+            let direct_status = unsafe { execute_direct_syscall(
+                ssn,
+                SYSTEM_MEMORY_LIST_INFORMATION,
+                &cmd as *const _,
+                mem::size_of::<u32>() as u32,
+            ) };
+            
+            if direct_status == 0 {
+                tracing::info!("✓ Modified page list flushed successfully (direct syscall)");
+                Ok(())
+            } else {
+                tracing::warn!("Direct syscall failed, using standard API");
+                crate::memory::ops::nt_call_u32(
+                    crate::memory::ops::SYS_MEMORY_LIST_INFORMATION,
+                    cmd
+                )
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Indirect syscall error: {}, falling back to direct syscall", e);
+            
+            // Fallback to direct syscall
+            let direct_status = unsafe { execute_direct_syscall(
+                ssn,
+                SYSTEM_MEMORY_LIST_INFORMATION,
+                &cmd as *const _,
+                mem::size_of::<u32>() as u32,
+            ) };
+            
+            if direct_status == 0 {
+                tracing::info!("✓ Modified page list flushed successfully (direct syscall)");
+                Ok(())
+            } else {
+                tracing::warn!("Direct syscall failed, using standard API");
+                crate::memory::ops::nt_call_u32(
+                    crate::memory::ops::SYS_MEMORY_LIST_INFORMATION,
+                    cmd
+                )
+            }
+        }
     }
 }
 
@@ -837,6 +950,142 @@ mod tests {
             let resolver = SyscallResolver::new().unwrap();
             let ssn = resolver.get_ssn("NtQuerySystemInformation");
             assert!(ssn.is_some(), "Should resolve common syscall");
+        }
+    }
+}
+
+/// Try standby purge using direct NT call with stealth support
+pub fn purge_standby_list_stealth() -> Result<()> {
+    let resolver = SyscallResolver::new()
+        .context("Failed to initialize syscall resolver")?;
+
+    let ssn = unsafe { resolver.get_ssn("NtSetSystemInformation") }
+        .ok_or_else(|| anyhow::anyhow!("Could not resolve NtSetSystemInformation SSN"))?;
+
+    let cmd = SystemMemoryListCommand::MemoryPurgeStandbyList as u32;
+    
+    // Try indirect syscall first for stealth
+    match unsafe { execute_indirect_syscall(
+        ssn,
+        SYSTEM_MEMORY_LIST_INFORMATION,
+        &cmd as *const _,
+        mem::size_of::<u32>() as u32,
+    ) } {
+        Ok(status) if status == 0 => {
+            tracing::info!("✓ Standby list purged successfully (indirect syscall)");
+            Ok(())
+        }
+        Ok(status) => {
+            tracing::warn!("Indirect syscall failed (0x{:08X}), trying direct syscall", status as u32);
+            
+            // Fallback to direct syscall
+            let direct_status = unsafe { execute_direct_syscall(
+                ssn,
+                SYSTEM_MEMORY_LIST_INFORMATION,
+                &cmd as *const _,
+                mem::size_of::<u32>() as u32,
+            ) };
+            
+            if direct_status == 0 {
+                tracing::info!("✓ Standby list purged successfully (direct syscall)");
+                Ok(())
+            } else {
+                tracing::warn!("Direct syscall failed, using standard API");
+                crate::memory::ops::nt_call_u32(
+                    crate::memory::ops::SYS_MEMORY_LIST_INFORMATION,
+                    cmd
+                )
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Indirect syscall error: {}, falling back to direct syscall", e);
+            
+            // Fallback to direct syscall
+            let direct_status = unsafe { execute_direct_syscall(
+                ssn,
+                SYSTEM_MEMORY_LIST_INFORMATION,
+                &cmd as *const _,
+                mem::size_of::<u32>() as u32,
+            ) };
+            
+            if direct_status == 0 {
+                tracing::info!("✓ Standby list purged successfully (direct syscall)");
+                Ok(())
+            } else {
+                tracing::warn!("Direct syscall failed, using standard API");
+                crate::memory::ops::nt_call_u32(
+                    crate::memory::ops::SYS_MEMORY_LIST_INFORMATION,
+                    cmd
+                )
+            }
+        }
+    }
+}
+
+/// Try low priority standby purge using stealth
+pub fn purge_standby_list_low_priority_stealth() -> Result<()> {
+    let resolver = SyscallResolver::new()
+        .context("Failed to initialize syscall resolver")?;
+
+    let ssn = unsafe { resolver.get_ssn("NtSetSystemInformation") }
+        .ok_or_else(|| anyhow::anyhow!("Could not resolve NtSetSystemInformation SSN"))?;
+
+    let cmd = SystemMemoryListCommand::MemoryPurgeLowPriorityStandbyList as u32;
+    
+    // Try indirect syscall first for stealth
+    match unsafe { execute_indirect_syscall(
+        ssn,
+        SYSTEM_MEMORY_LIST_INFORMATION,
+        &cmd as *const _,
+        mem::size_of::<u32>() as u32,
+    ) } {
+        Ok(status) if status == 0 => {
+            tracing::info!("✓ Low priority standby list purged successfully (indirect syscall)");
+            Ok(())
+        }
+        Ok(status) => {
+            tracing::warn!("Indirect syscall failed (0x{:08X}), trying direct syscall", status as u32);
+            
+            // Fallback to direct syscall
+            let direct_status = unsafe { execute_direct_syscall(
+                ssn,
+                SYSTEM_MEMORY_LIST_INFORMATION,
+                &cmd as *const _,
+                mem::size_of::<u32>() as u32,
+            ) };
+            
+            if direct_status == 0 {
+                tracing::info!("✓ Low priority standby list purged successfully (direct syscall)");
+                Ok(())
+            } else {
+                tracing::warn!("Direct syscall failed, using standard API");
+                crate::memory::ops::nt_call_u32(
+                    crate::memory::ops::SYS_MEMORY_LIST_INFORMATION,
+                    cmd
+                )
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Indirect syscall error: {}, falling back to direct syscall", e);
+            
+            // Fallback to direct syscall
+            let direct_status = unsafe { execute_direct_syscall(
+                ssn,
+                SYSTEM_MEMORY_LIST_INFORMATION,
+                &cmd as *const _,
+                mem::size_of::<u32>() as u32,
+            ) };
+            
+            if direct_status == 0 {
+                tracing::info!("✓ Low priority standby list purged successfully (direct syscall)");
+                Ok(())
+            } else {
+                tracing::warn!("Direct syscall failed, using standard API");
+                crate::memory::ops::nt_call_u32(
+                    crate::memory::ops::SYS_MEMORY_LIST_INFORMATION,
+                    cmd
+                )
+            }
         }
     }
 }

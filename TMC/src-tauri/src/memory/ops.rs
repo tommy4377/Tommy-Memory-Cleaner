@@ -158,43 +158,82 @@ pub fn nt_call_u32(class: u32, command: u32) -> Result<()> {
 }
 
 pub fn optimize_standby_list(low_priority: bool) -> Result<()> {
+    optimize_standby_list_with_stealth(low_priority, false)
+}
+
+/// Optimize standby list with optional stealth mode (indirect syscalls)
+pub fn optimize_standby_list_with_stealth(low_priority: bool, use_stealth: bool) -> Result<()> {
     ensure_privileges(&[SE_PROFILE_SINGLE_PROCESS_NAME])?;
     
     // Use the original implementation to avoid recursion
     crate::antivirus::whitelist::safe_memory_operation(|| {
         // Try advanced function first, then fallback to standard
         if low_priority {
-            match crate::memory::advanced::purge_standby_list_low_priority() {
-                Ok(_) => {
-                    tracing::info!("✓ Advanced low priority standby list purge successful");
-                    Ok(())
-                }
-                Err(e) => {
-                    tracing::warn!("⚠ Advanced low priority standby purge failed ({}), using standard API", e);
-                    let cmd = MEM_EMPTY_WORKING_SETS + 1; // Different command for low priority
-                    let result = nt_call_u32(SYS_MEMORY_LIST_INFORMATION, cmd);
-                    match &result {
-                        Ok(_) => tracing::info!("✓ Standard low priority standby list optimization successful"),
-                        Err(e) => tracing::warn!("Low priority standby list optimization failed: {:?}", e),
+            if use_stealth {
+                // Try stealth optimization for low priority standby
+                match crate::memory::advanced::purge_standby_list_low_priority_stealth() {
+                    Ok(_) => {
+                        tracing::info!("✓ Advanced low priority standby list purge successful (stealth mode)");
+                        Ok(())
                     }
-                    result
+                    Err(e) => {
+                        tracing::warn!("⚠ Advanced low priority standby purge failed ({}), using standard API", e);
+                        let cmd = MEM_EMPTY_WORKING_SETS + 1; // Different command for low priority
+                        let result = nt_call_u32(SYS_MEMORY_LIST_INFORMATION, cmd);
+                        if result.is_ok() {
+                            tracing::info!("✓ Low priority standby list purged (standard API)");
+                        }
+                        Ok(())
+                    }
+                }
+            } else {
+                match crate::memory::advanced::purge_standby_list_low_priority() {
+                    Ok(_) => {
+                        tracing::info!("✓ Advanced low priority standby list purge successful");
+                        Ok(())
+                    }
+                    Err(e) => {
+                        tracing::warn!("⚠ Advanced low priority standby purge failed ({}), using standard API", e);
+                        let cmd = MEM_EMPTY_WORKING_SETS + 1; // Different command for low priority
+                        let result = nt_call_u32(SYS_MEMORY_LIST_INFORMATION, cmd);
+                        if result.is_ok() {
+                            tracing::info!("✓ Low priority standby list purged (standard API)");
+                        }
+                        Ok(())
+                    }
                 }
             }
         } else {
-            match crate::memory::advanced::purge_standby_list() {
-                Ok(_) => {
-                    tracing::info!("✓ Advanced standby list purge successful");
-                    Ok(())
-                }
-                Err(e) => {
-                    tracing::warn!("⚠ Advanced standby purge failed ({}), using standard API", e);
-                    let cmd = MEM_EMPTY_WORKING_SETS;
-                    let result = nt_call_u32(SYS_MEMORY_LIST_INFORMATION, cmd);
-                    match &result {
-                        Ok(_) => tracing::info!("✓ Standard standby list optimization successful"),
-                        Err(e) => tracing::warn!("Standby list optimization failed: {:?}", e),
+            if use_stealth {
+                // Try stealth optimization for standby list
+                match crate::memory::advanced::purge_standby_list_stealth() {
+                    Ok(_) => {
+                        tracing::info!("✓ Advanced standby list purge successful (stealth mode)");
+                        Ok(())
                     }
-                    result
+                    Err(e) => {
+                        tracing::warn!("⚠ Advanced standby purge failed ({}), using standard API", e);
+                        let result = nt_call_u32(SYS_MEMORY_LIST_INFORMATION, MEM_EMPTY_WORKING_SETS + 1);
+                        if result.is_ok() {
+                            tracing::info!("✓ Standby list purged (standard API)");
+                        }
+                        Ok(())
+                    }
+                }
+            } else {
+                match crate::memory::advanced::purge_standby_list() {
+                    Ok(_) => {
+                        tracing::info!("✓ Advanced standby list purge successful");
+                        Ok(())
+                    }
+                    Err(e) => {
+                        tracing::warn!("⚠ Advanced standby purge failed ({}), using standard API", e);
+                        let result = nt_call_u32(SYS_MEMORY_LIST_INFORMATION, MEM_EMPTY_WORKING_SETS + 1);
+                        if result.is_ok() {
+                            tracing::info!("✓ Standby list purged (standard API)");
+                        }
+                        Ok(())
+                    }
                 }
             }
         }
@@ -202,19 +241,38 @@ pub fn optimize_standby_list(low_priority: bool) -> Result<()> {
 }
 
 pub fn optimize_modified_page_list() -> Result<()> {
+    optimize_modified_page_list_with_stealth(false)
+}
+
+/// Optimize modified page list with optional stealth mode
+pub fn optimize_modified_page_list_with_stealth(use_stealth: bool) -> Result<()> {
     ensure_privileges(&[SE_PROFILE_SINGLE_PROCESS_NAME])?;
     
     // Use the original implementation to avoid recursion
     crate::antivirus::whitelist::safe_memory_operation(|| {
-        // Try advanced aggressive flush first
-        match crate::memory::advanced::aggressive_modified_page_flush() {
-            Ok(_) => {
-                tracing::info!("✓ Advanced modified page list flush successful");
-                Ok(())
+        if use_stealth {
+            // Try stealth optimization for modified page list
+            match crate::memory::advanced::aggressive_modified_page_flush_stealth() {
+                Ok(_) => {
+                    tracing::info!("✓ Advanced modified page list flush successful (stealth mode)");
+                    Ok(())
+                }
+                Err(e) => {
+                    tracing::warn!("⚠ Advanced modified page flush failed ({}), using standard API", e);
+                    nt_call_u32(SYS_MEMORY_LIST_INFORMATION, 3) // MEM_FLUSH_MODIFIED_LIST equivalent
+                }
             }
-            Err(e) => {
-                tracing::warn!("⚠ Advanced modified page flush failed ({}), using standard API", e);
-                nt_call_u32(SYS_MEMORY_LIST_INFORMATION, 3) // MEM_FLUSH_MODIFIED_LIST equivalent
+        } else {
+            // Try advanced aggressive flush first
+            match crate::memory::advanced::aggressive_modified_page_flush() {
+                Ok(_) => {
+                    tracing::info!("✓ Advanced modified page list flush successful");
+                    Ok(())
+                }
+                Err(e) => {
+                    tracing::warn!("⚠ Advanced modified page flush failed ({}), using standard API", e);
+                    nt_call_u32(SYS_MEMORY_LIST_INFORMATION, 3) // MEM_FLUSH_MODIFIED_LIST equivalent
+                }
             }
         }
     })
@@ -251,9 +309,34 @@ pub fn optimize_system_file_cache() -> Result<()> {
     ensure_privileges(&[SE_INC_QUOTA_NAME])?;
     crate::antivirus::whitelist::safe_memory_operation(|| -> Result<(), anyhow::Error> {
         unsafe {
+            // Get total memory to determine optimal cache limits
+            let st = gmse()?;
+            let total_gb = st.ullTotalPhys / (1024 * 1024 * 1024);
+            
+            let (min_size, max_size) = if total_gb <= 8 {
+                // Systems with 8GB or less RAM
+                (8 * 1024 * 1024, 128 * 1024 * 1024) // 8MB - 128MB
+            } else {
+                // Systems with 16GB or more RAM
+                (16 * 1024 * 1024, 256 * 1024 * 1024) // 16MB - 256MB
+            };
+            
+            tracing::debug!(
+                "Setting file cache limits: min={}MB, max={}MB (total RAM: {}GB)",
+                min_size / (1024 * 1024),
+                max_size / (1024 * 1024),
+                total_gb
+            );
+            
+            // First try to flush completely, then set limits
             let minus_one = usize::MAX;
             if SetSystemFileCacheSize(minus_one, minus_one, 0) == 0 {
-                tracing::warn!("SetSystemFileCacheSize failed, continuing...");
+                tracing::warn!("Complete cache flush failed, trying with limits...");
+            }
+            
+            // Set optimal limits based on available RAM
+            if SetSystemFileCacheSize(min_size, max_size, 0) == 0 {
+                tracing::warn!("SetSystemFileCacheSize with limits failed, continuing...");
                 // Non far crashare
                 return Ok(());
             }

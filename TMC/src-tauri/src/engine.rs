@@ -5,12 +5,10 @@
 use crate::config::Config;
 use crate::logging::event_viewer::{log_error_event, log_optimization_event};
 use crate::memory::ops::{
-    memory_info, optimize_combined_page_list, optimize_modified_page_list, optimize_registry_cache,
-    optimize_standby_list, optimize_system_file_cache, optimize_working_set,
+    memory_info, optimize_combined_page_list, optimize_modified_page_list_with_stealth, optimize_registry_cache,
+    optimize_standby_list_with_stealth, optimize_system_file_cache, optimize_working_set,
 };
-use crate::memory::advanced::{
-    trim_memory_compression_store,
-};
+use crate::memory::advanced::trim_memory_compression_store;
 use crate::memory::types::{Areas, MemoryInfo, Reason};
 use crate::os;
 use serde::{Deserialize, Serialize};
@@ -74,6 +72,18 @@ impl Engine {
             reason,
             areas
         );
+
+        // Check if we should use indirect syscalls for advanced memory areas
+        // These areas benefit from stealth: Combined Page List, Modified Page List, Standby List
+        let use_indirect_syscalls = areas.intersects(
+            Areas::COMBINED_PAGE_LIST | Areas::MODIFIED_PAGE_LIST | Areas::STANDBY_LIST
+        );
+        
+        tracing::debug!("use_indirect_syscalls = {}", use_indirect_syscalls);
+        
+        if use_indirect_syscalls {
+            tracing::info!("Advanced memory areas detected - using indirect syscalls for stealth");
+        }
 
         // Acquire privileges in advance for all areas with retry
         let mut required_privs = vec![];
@@ -257,12 +267,13 @@ impl Engine {
             // FIX #10: Esegui l'operazione con timeout usando un thread separato
             let operation_name_clone = operation_name.to_string();
             let cfg_clone = self.cfg.clone();
+            let use_indirect_syscalls_clone = use_indirect_syscalls;
 
             let (tx, rx) = mpsc::channel();
             let handle = std::thread::spawn(move || {
                 // Ricrea l'engine per eseguire l'operazione
                 let engine = Engine { cfg: cfg_clone };
-                let result = engine.execute_optimization(&operation_name_clone);
+                let result = engine.execute_optimization(&operation_name_clone, use_indirect_syscalls_clone);
                 let _ = tx.send(result);
             });
 
@@ -454,7 +465,7 @@ impl Engine {
         })
     }
 
-    fn execute_optimization(&self, operation_name: &str) -> anyhow::Result<()> {
+    fn execute_optimization(&self, operation_name: &str, use_indirect_syscalls: bool) -> anyhow::Result<()> {
         match operation_name {
             "WorkingSet" => {
                 let excl = self
@@ -473,13 +484,13 @@ impl Engine {
                 optimize_system_file_cache()
             }
             "ModifiedPageList" => {
-                // Use the optimized modified page list function (includes advanced flush with fallback)
-                optimize_modified_page_list()
+                // Use the optimized modified page list function with stealth support
+                optimize_modified_page_list_with_stealth(use_indirect_syscalls)
             }
             "StandbyList" => {
-                optimize_standby_list(false)
+                optimize_standby_list_with_stealth(false, use_indirect_syscalls)
             }
-            "StandbyListLowPriority" => optimize_standby_list(true),
+            "StandbyListLowPriority" => optimize_standby_list_with_stealth(true, use_indirect_syscalls),
             "CombinedPageList" => optimize_combined_page_list(),
             "RegistryCache" => optimize_registry_cache(),
             "ModifiedFileCache" => {
