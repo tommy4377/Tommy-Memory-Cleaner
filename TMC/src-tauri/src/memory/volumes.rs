@@ -1,9 +1,9 @@
 use anyhow::Result;
 use std::ptr::null_mut;
 use windows_sys::Win32::{
-    Foundation::{CloseHandle, GetLastError, HANDLE, INVALID_HANDLE_VALUE},
+    Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE},
     Storage::FileSystem::{
-        CreateFileW, FlushFileBuffers, GetDriveTypeW, FILE_ATTRIBUTE_NORMAL,
+        CreateFileW, GetDriveTypeW, FILE_ATTRIBUTE_NORMAL,
         FILE_FLAG_NO_BUFFERING, FILE_GENERIC_READ, FILE_GENERIC_WRITE, FILE_SHARE_READ,
         FILE_SHARE_WRITE, OPEN_EXISTING,
     },
@@ -98,7 +98,6 @@ pub fn flush_modified_file_cache_all() -> Result<()> {
     }
 
     let mut any_success = false;
-    let mut volumes_failed = 0;
     let mut volumes_total = 0;
 
     for letter in 'C'..='Z' {
@@ -110,12 +109,10 @@ pub fn flush_modified_file_cache_all() -> Result<()> {
             volumes_total += 1;
             unsafe {
                 let mut _ret: u32 = 0;
-                let mut volume_success = false;
 
                 // If we can open the volume, consider it a success
                 // The actual cache flushing is handled by other optimizations (Modified Page List, System File Cache)
                 tracing::debug!("Volume {} accessed successfully", letter);
-                volume_success = true;
                 
                 // Try additional optimizations if we have write access
                 if privileges_acquired && access != 0 {
@@ -171,11 +168,8 @@ pub fn flush_modified_file_cache_all() -> Result<()> {
 
                 CloseHandle(h);
                 
-                if volume_success {
-                    any_success = true;
-                } else {
-                    volumes_failed += 1;
-                }
+                // If we could access the volume, count it as success
+                any_success = true;
             }
         }
     }
@@ -184,14 +178,6 @@ pub fn flush_modified_file_cache_all() -> Result<()> {
     if volumes_total == 0 {
         tracing::info!("No fixed drives found to optimize");
         Ok(())
-    } else if volumes_failed == volumes_total {
-        // All volumes failed - this is expected in some environments
-        tracing::warn!(
-            "All {} volume(s) failed to optimize (ERROR_INVALID_HANDLE). This is normal when antivirus or system locks prevent direct volume access.",
-            volumes_total
-        );
-        tracing::info!("Tip: Try running TMC as administrator or temporarily disable antivirus protection");
-        Ok(()) // Still return OK to not crash the optimization
     } else if any_success {
         tracing::info!("Successfully accessed {} volumes for cache monitoring", volumes_total);
         Ok(())
