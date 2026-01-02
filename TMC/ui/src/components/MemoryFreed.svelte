@@ -16,9 +16,14 @@
     // Set up event listener
     try {
       unlisten = await listen('optimization-completed', (event: any) => {
+        console.log('Optimization event received:', event)
         const payload = event.payload as { freed_physical_mb: number }
+        console.log('Freed MB:', payload.freed_physical_mb)
         if (payload.freed_physical_mb > 0) {
-          totalFreedGB += payload.freed_physical_mb / 1024
+          const freedGB = payload.freed_physical_mb / 1024
+          console.log('Converted to GB:', freedGB)
+          totalFreedGB += freedGB
+          console.log('New totalFreedGB:', totalFreedGB)
           saveStats()
         }
       })
@@ -35,9 +40,12 @@
 
   async function loadStats() {
     try {
+      console.log('Loading stats from AppData...')
       const stats = await invoke('get_memory_stats') as { total_freed_gb: number } | null
+      console.log('Stats loaded from AppData:', stats)
       if (stats) {
         totalFreedGB = stats.total_freed_gb
+        console.log('Set totalFreedGB to:', totalFreedGB)
       }
     } catch (error) {
       console.error('Failed to load memory stats:', error)
@@ -46,10 +54,12 @@
 
   async function saveStats() {
     try {
+      console.log('Saving stats to AppData:', { totalFreedGB })
       await invoke('save_memory_stats', {
-        totalFreedGB,
+        totalFreedGb: totalFreedGB,
         lastUpdated: new Date().toISOString()
       })
+      console.log('Stats saved successfully to AppData')
     } catch (error) {
       console.error('Failed to save memory stats:', error)
     }
@@ -60,10 +70,10 @@
     return `${value.toFixed(1)} GB`
   }
 
-  // Dynamic font size based on number of digits
+  // Dynamic font size and box width based on number of digits
   $: fontSize = totalFreedGB >= 10 ? '14px' : totalFreedGB >= 1 ? '16px' : '18px'
   $: padding = totalFreedGB >= 10 ? '6px 12px' : '8px 16px'
-  $: minWidth = totalFreedGB >= 10 ? '90px' : '100px'
+  $: minWidth = totalFreedGB >= 10 ? '100px' : totalFreedGB >= 1 ? '90px' : '80px'
 </script>
 
 <div class="card">
@@ -110,6 +120,7 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     transition: all 0.2s ease;
     justify-self: end;
+    width: auto;
   }
 
   /* Light mode: make text white */
