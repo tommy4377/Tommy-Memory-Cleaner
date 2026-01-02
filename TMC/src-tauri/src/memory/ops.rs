@@ -40,8 +40,6 @@ use std::sync::RwLock;
 use std::time::{Duration, Instant};
 
 const SYS_MEMORY_LIST_INFORMATION: u32 = 80;
-const SYS_PROCESS_INFORMATION: u32 = 5;
-const SYS_FILE_CACHE_INFORMATION: u32 = 21;
 const SYS_COMBINE_PHYSICAL_MEMORY_INFORMATION: u32 = 101;
 
 const MEM_EMPTY_WORKING_SETS: u32 = 2;
