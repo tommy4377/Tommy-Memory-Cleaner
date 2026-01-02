@@ -8,6 +8,9 @@ use crate::engine::Engine;
 use crate::memory::types::{Areas, Reason};
 use std::sync::{Arc, Mutex};
 
+#[cfg(not(windows))]
+use std::io;
+
 /// Runs the application in console mode with command-line arguments.
 ///
 /// Parses the provided arguments to determine which memory areas to optimize
@@ -66,7 +69,7 @@ pub fn run_console_mode(args: &[String]) {
                 #[cfg(windows)]
                 {
                     console_print("Tommy Memory Cleaner - Console Mode\n\n");
-                    console_print("Usage: tmc.exe [OPTIONS]\n\n");
+                    console_print("Usage: TommyMemoryCleaner.exe [OPTIONS]\n\n");
                     console_print("Options:\n");
                     console_print("  /WorkingSet              Optimize Working Set\n");
                     console_print("  /ModifiedPageList        Optimize Modified Page List\n");
@@ -83,14 +86,14 @@ pub fn run_console_mode(args: &[String]) {
                     console_print("  /Profile:Gaming          Use Gaming profile\n");
                     console_print("  /?                       Show this help\n\n");
                     console_print("Examples:\n");
-                    console_print("  tmc.exe /WorkingSet /StandbyList\n");
-                    console_print("  tmc.exe /Profile:Balanced\n");
+                    console_print("  TommyMemoryCleaner.exe /WorkingSet /StandbyList\n");
+                    console_print("  TommyMemoryCleaner.exe /Profile:Balanced\n");
                 }
                 #[cfg(not(windows))]
                 {
                     println!("Tommy Memory Cleaner - Console Mode");
                     println!();
-                    println!("Usage: tmc.exe [OPTIONS]");
+                    println!("Usage: TommyMemoryCleaner.exe [OPTIONS]");
                     println!();
                     println!("Options:");
                     println!("  /WorkingSet              Optimize Working Set");
@@ -107,8 +110,8 @@ pub fn run_console_mode(args: &[String]) {
                     println!("  /?                       Show this help");
                     println!();
                     println!("Examples:");
-                    println!("  tmc.exe /WorkingSet /StandbyList");
-                    println!("  tmc.exe /Profile:Balanced");
+                    println!("  TommyMemoryCleaner.exe /WorkingSet /StandbyList");
+                    println!("  TommyMemoryCleaner.exe /Profile:Balanced");
                 }
                 return;
             }
@@ -204,6 +207,18 @@ pub fn run_console_mode(args: &[String]) {
     // Execute optimization synchronously in console mode
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
+        // Initialize privileges before optimization
+        if let Err(e) = crate::ensure_privileges_initialized() {
+            #[cfg(windows)]
+            {
+                console_print(&format!("Warning: Failed to initialize privileges: {}\n", e));
+            }
+            #[cfg(not(windows))]
+            {
+                eprintln!("Warning: Failed to initialize privileges: {}", e);
+            }
+        }
+        
         // Initialize configuration
         let cfg = match Config::load() {
             Ok(c) => c,
@@ -226,8 +241,20 @@ pub fn run_console_mode(args: &[String]) {
         let cfg_arc = Arc::new(Mutex::new(cfg));
         let engine = Engine::new(cfg_arc.clone());
 
-        // Execute memory optimization
-        match engine.optimize::<fn(u8, u8, String)>(Reason::Manual, areas, None) {
+        // Execute memory optimization with progress callback
+        let progress_callback = |current: u8, total: u8, area: String| {
+            #[cfg(windows)]
+            {
+                console_print(&format!("[{}/{}] Optimizing: {}\n", current + 1, total, area));
+            }
+            #[cfg(not(windows))]
+            {
+                println!("[{}/{}] Optimizing: {}", current + 1, total, area);
+                io::stdout().flush().unwrap();
+            }
+        };
+        
+        match engine.optimize(Reason::Manual, areas, Some(progress_callback)) {
             Ok(result) => {
                 let freed_mb = result.freed_physical_bytes.abs() as f64 / 1024.0 / 1024.0;
                 #[cfg(windows)]

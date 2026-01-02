@@ -145,72 +145,63 @@ impl Profile {
     pub fn get_memory_areas(&self) -> Areas {
         match self {
             Profile::Normal => {
-                // Light profile: Essential and safest areas only
-                // - WORKING_SET: Core optimization, high impact, safe (critical processes protected)
-                // - MODIFIED_PAGE_LIST: Very safe, clears pages waiting for disk write
-                // - REGISTRY_CACHE: Lightweight, very safe, cache rebuilds automatically
-                // Excludes: STANDBY_LIST, SYSTEM_FILE_CACHE, MODIFIED_FILE_CACHE (too aggressive for light profile)
-                // Excludes: STANDBY_LIST_LOW, COMBINED_PAGE_LIST (advanced/aggressive areas)
-                Areas::WORKING_SET | Areas::MODIFIED_PAGE_LIST | Areas::REGISTRY_CACHE
+                // Profilo Normal: Working Set + Registry Cache + Standby List (Low Priority)
+                // - Liberazione immediata senza latenza percepibile
+                // ~540MB Working Set + ~1.86MB Registry Cache
+                // NOTA: MODIFIED_PAGE_LIST non è incluso nel profilo Normal (come da specifiche utente)
+                let mut areas = Areas::WORKING_SET | Areas::REGISTRY_CACHE;
+                
+                // Aggiunge Standby List Low Priority se disponibile
+                if crate::os::has_standby_list_low() {
+                    areas |= Areas::STANDBY_LIST_LOW;
+                }
+                
+                areas
             }
             Profile::Balanced => {
-                // Balanced profile: Good balance between memory freed and system performance
-                // Includes all Normal areas plus:
-                // - STANDBY_LIST: High memory freed, safe, low-medium performance impact
-                // - SYSTEM_FILE_CACHE: High memory freed, safe with auto-rebuild
-                // - MODIFIED_FILE_CACHE: More aggressive cache flush, high impact (if available)
-                // Excludes: STANDBY_LIST_LOW, COMBINED_PAGE_LIST (too aggressive for balanced profile)
-                let mut areas = Areas::WORKING_SET
-                    | Areas::MODIFIED_PAGE_LIST
-                    | Areas::STANDBY_LIST
-                    | Areas::SYSTEM_FILE_CACHE
-                    | Areas::REGISTRY_CACHE;
-
-                // Add Modified File Cache if available (Windows 10 1803+)
-                // This provides more thorough cache flushing than SYSTEM_FILE_CACHE alone
+                // Profilo Balanced: Include Normal + System File Cache + File Cache + Standby List (Full)
+                // - Refresh profondo del sistema dopo uso intenso
+                let mut areas = Areas::WORKING_SET | Areas::REGISTRY_CACHE;
+                
+                // Aggiunge aree aggiuntive
+                areas |= Areas::SYSTEM_FILE_CACHE;
+                areas |= Areas::STANDBY_LIST;
+                
+                // Standby List Low Priority se disponibile
+                if crate::os::has_standby_list_low() {
+                    areas |= Areas::STANDBY_LIST_LOW;
+                }
+                
+                // Modified File Cache se disponibile
                 if crate::os::has_modified_file_cache() {
                     areas |= Areas::MODIFIED_FILE_CACHE;
-                    tracing::debug!("Balanced profile: MODIFIED_FILE_CACHE available");
                 }
-
+                
                 areas
             }
             Profile::Gaming => {
-                // Aggressive profile: All available areas for maximum memory freeing
-                // Suitable for gaming and resource-intensive applications
-                // Includes all areas from Balanced plus:
-                // - STANDBY_LIST_LOW: Low-priority standby memory (if available)
-                // - COMBINED_PAGE_LIST: Most aggressive optimization (if available)
-                // Note: Final validation in engine.rs will remove unavailable areas
-                let mut areas = Areas::empty();
-
-                // Base areas (always available)
-                areas |= Areas::WORKING_SET;
-                areas |= Areas::MODIFIED_PAGE_LIST;
-                areas |= Areas::STANDBY_LIST;
+                // Profilo Gaming: Include Balanced + Modified Page List + Combined Page List
+                // - Reset totale per gaming, tabula rasa della RAM
+                let mut areas = Areas::WORKING_SET | Areas::REGISTRY_CACHE;
+                
+                // Tutte le aree del profilo Balanced
                 areas |= Areas::SYSTEM_FILE_CACHE;
-                areas |= Areas::REGISTRY_CACHE;
-
-                // Advanced areas (version-dependent)
+                areas |= Areas::STANDBY_LIST;
+                
+                // Aree aggiuntive per gaming
+                areas |= Areas::MODIFIED_PAGE_LIST;
+                
+                // Aree dipendenti dalla versione Windows
                 if crate::os::has_standby_list_low() {
                     areas |= Areas::STANDBY_LIST_LOW;
-                    tracing::debug!("Gaming profile: STANDBY_LIST_LOW available");
-                } else {
-                    tracing::debug!("Gaming profile: STANDBY_LIST_LOW NOT available");
                 }
                 if crate::os::has_combined_page_list() {
                     areas |= Areas::COMBINED_PAGE_LIST;
-                    tracing::debug!("Gaming profile: COMBINED_PAGE_LIST available");
-                } else {
-                    tracing::debug!("Gaming profile: COMBINED_PAGE_LIST NOT available");
                 }
                 if crate::os::has_modified_file_cache() {
                     areas |= Areas::MODIFIED_FILE_CACHE;
-                    tracing::debug!("Gaming profile: MODIFIED_FILE_CACHE available");
-                } else {
-                    tracing::debug!("Gaming profile: MODIFIED_FILE_CACHE NOT available");
                 }
-
+                
                 tracing::info!(
                     "Gaming profile areas: {:?} ({} areas)",
                     areas,

@@ -4,43 +4,34 @@ import { AreasFlag } from './types'
 export function areasForProfile(profile: Profile): Areas {
   switch (profile) {
     case 'Normal':
-      // Light profile: Essential and safest areas only
-      // - WORKING_SET: Core optimization, high impact, safe (critical processes protected)
-      // - MODIFIED_PAGE_LIST: Very safe, clears pages waiting for disk write
-      // - REGISTRY_CACHE: Lightweight, very safe, cache rebuilds automatically
-      // Excludes aggressive areas for minimal system impact
-      return AreasFlag.WORKING_SET | AreasFlag.MODIFIED_PAGE_LIST | AreasFlag.REGISTRY_CACHE
+      // Profilo Normal: Working Set + Registry Cache + Standby List (Low Priority)
+      // - Liberazione immediata senza latenza percepibile
+      // ~540MB Working Set + ~1.86MB Registry Cache
+      // NOTA: MODIFIED_PAGE_LIST non è incluso nel profilo Normal (come da specifiche utente)
+      return AreasFlag.WORKING_SET | AreasFlag.REGISTRY_CACHE | AreasFlag.STANDBY_LIST_LOW
     case 'Balanced':
-      // Balanced profile: Good balance between memory freed and system performance
-      // Includes all Normal areas plus:
-      // - STANDBY_LIST: High memory freed, safe, low-medium performance impact
-      // - SYSTEM_FILE_CACHE: High memory freed, safe with auto-rebuild
-      // - MODIFIED_FILE_CACHE: More aggressive cache flush, high impact
-      // Note: Backend will validate availability of MODIFIED_FILE_CACHE at runtime
+      // Profilo Balanced: Include Normal + System File Cache + File Cache + Standby List (Full)
+      // - Refresh profondo del sistema dopo uso intenso
       return (
         AreasFlag.WORKING_SET |
-        AreasFlag.MODIFIED_PAGE_LIST |
+        AreasFlag.REGISTRY_CACHE |
         AreasFlag.STANDBY_LIST |
         AreasFlag.SYSTEM_FILE_CACHE |
         AreasFlag.MODIFIED_FILE_CACHE |
-        AreasFlag.REGISTRY_CACHE
+        AreasFlag.STANDBY_LIST_LOW
       )
     case 'Gaming':
-      // Aggressive profile: All available areas for maximum memory freeing
-      // Suitable for gaming and resource-intensive applications
-      // Includes all areas from Balanced plus:
-      // - STANDBY_LIST_LOW: Low-priority standby memory
-      // - COMBINED_PAGE_LIST: Most aggressive optimization
-      // Note: Backend will validate availability of version-dependent areas at runtime
+      // Profilo Gaming: Include Balanced + Modified Page List + Combined Page List
+      // - Reset totale per gaming, tabula rasa della RAM
       return (
         AreasFlag.WORKING_SET |
-        AreasFlag.MODIFIED_PAGE_LIST |
+        AreasFlag.REGISTRY_CACHE |
         AreasFlag.STANDBY_LIST |
-        AreasFlag.STANDBY_LIST_LOW |
         AreasFlag.SYSTEM_FILE_CACHE |
-        AreasFlag.COMBINED_PAGE_LIST |
         AreasFlag.MODIFIED_FILE_CACHE |
-        AreasFlag.REGISTRY_CACHE
+        AreasFlag.STANDBY_LIST_LOW |
+        AreasFlag.MODIFIED_PAGE_LIST |
+        AreasFlag.COMBINED_PAGE_LIST
       )
     default:
       return AreasFlag.WORKING_SET
