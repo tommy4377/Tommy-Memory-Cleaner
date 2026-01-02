@@ -188,11 +188,22 @@ impl Engine {
         let mut successful_areas = 0;
 
         // Costruisci lista operazioni
-        if areas.contains(Areas::WORKING_SET) {
-            area_operations.push(("WorkingSet", "Working Set"));
+        // Order operations for optimal chaining:
+        // 1. ModifiedFileCache first (flushes disk cache)
+        // 2. ModifiedPageList second (needs flushed data)
+        // 3. SystemFileCache (limits cache size)
+        // 4. Other operations
+        if areas.contains(Areas::MODIFIED_FILE_CACHE) {
+            area_operations.push(("ModifiedFileCache", "Modified File Cache"));
         }
         if areas.contains(Areas::MODIFIED_PAGE_LIST) {
             area_operations.push(("ModifiedPageList", "Modified Page List"));
+        }
+        if areas.contains(Areas::SYSTEM_FILE_CACHE) {
+            area_operations.push(("SystemFileCache", "System File Cache"));
+        }
+        if areas.contains(Areas::WORKING_SET) {
+            area_operations.push(("WorkingSet", "Working Set"));
         }
         if areas.contains(Areas::STANDBY_LIST) {
             area_operations.push(("StandbyList", "Standby List"));
@@ -202,14 +213,8 @@ impl Engine {
         if areas.contains(Areas::STANDBY_LIST_LOW) {
             area_operations.push(("StandbyListLowPriority", "Standby List (Low Priority)"));
         }
-        if areas.contains(Areas::SYSTEM_FILE_CACHE) {
-            area_operations.push(("SystemFileCache", "System File Cache"));
-        }
         if areas.contains(Areas::COMBINED_PAGE_LIST) {
             area_operations.push(("CombinedPageList", "Combined Page List"));
-        }
-        if areas.contains(Areas::MODIFIED_FILE_CACHE) {
-            area_operations.push(("ModifiedFileCache", "Modified File Cache"));
         }
         if areas.contains(Areas::REGISTRY_CACHE) {
             area_operations.push(("RegistryCache", "Registry Cache"));

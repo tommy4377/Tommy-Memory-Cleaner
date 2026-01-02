@@ -351,6 +351,9 @@ pub fn optimize_working_set(exclusions_lower: &[String]) -> Result<()> {
     // Even if we use the global method, SE_DEBUG_NAME ensures it works on all processes
     ensure_privileges(&[SE_DEBUG_NAME, SE_PROFILE_SINGLE_PROCESS_NAME])?;
 
+    // Get foreground window PID to exclude it (prevents FPS drops in games)
+    let foreground_pid = get_foreground_process_pid();
+
     // If there are no custom exclusions, use fast global optimization
     // This method requires SE_DEBUG_NAME to work correctly on system processes
     if exclusions_lower.is_empty() {
@@ -366,9 +369,17 @@ pub fn optimize_working_set(exclusions_lower: &[String]) -> Result<()> {
     let mut success_count = 0;
     let mut skip_count = 0;
     let mut critical_skip = 0;
+    let mut foreground_skip = 0;
 
     for (pid, name) in processes {
-        // FIRST check if it's a critical process
+        // FIRST check if it's the foreground process
+        if Some(pid) == foreground_pid {
+            tracing::debug!("Skipping foreground process {} (PID: {})", name, pid);
+            foreground_skip += 1;
+            continue;
+        }
+
+        // THEN check if it's a critical process
         if is_critical_process(&name) {
             critical_skip += 1;
             continue;
@@ -386,10 +397,11 @@ pub fn optimize_working_set(exclusions_lower: &[String]) -> Result<()> {
     }
 
     tracing::debug!(
-        "Working set optimization: {} cleaned, {} user excluded, {} critical protected",
+        "Working set optimization: {} cleaned, {} user excluded, {} critical protected, {} foreground protected",
         success_count,
         skip_count,
-        critical_skip
+        critical_skip,
+        foreground_skip
     );
 
     Ok(())
@@ -437,6 +449,28 @@ pub fn optimize_combined_page_list() -> Result<()> {
         }
         Ok(())
     })
+}
+
+/// Get the PID of the foreground window process
+#[cfg(target_os = "windows")]
+fn get_foreground_process_pid() -> Option<u32> {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
+    
+    unsafe {
+        let hwnd = GetForegroundWindow();
+        if hwnd == 0 {
+            return None;
+        }
+        
+        let mut pid: u32 = 0;
+        GetWindowThreadProcessId(hwnd, &mut pid);
+        Some(pid)
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn get_foreground_process_pid() -> Option<u32> {
+    None
 }
 
 pub fn list_process_names() -> Vec<String> {

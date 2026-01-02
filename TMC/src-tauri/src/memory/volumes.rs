@@ -3,7 +3,7 @@ use std::ptr::null_mut;
 use windows_sys::Win32::{
     Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE},
     Storage::FileSystem::{
-        CreateFileW, GetDriveTypeW, FILE_ATTRIBUTE_NORMAL,
+        CreateFileW, GetDriveTypeW, GetLogicalDrives, FILE_ATTRIBUTE_NORMAL,
         FILE_FLAG_NO_BUFFERING, FILE_GENERIC_READ, FILE_GENERIC_WRITE, FILE_SHARE_READ,
         FILE_SHARE_WRITE, OPEN_EXISTING,
     },
@@ -41,6 +41,29 @@ fn is_fixed_drive(letter: char) -> bool {
     let root = format!("{}:\\", letter);
     let root_w = to_wide(&root);
     unsafe { GetDriveTypeW(root_w.as_ptr()) == DRIVE_FIXED }
+}
+
+fn get_fixed_drives() -> Vec<char> {
+    let mut drives = Vec::new();
+    
+    unsafe {
+        let drive_mask = GetLogicalDrives();
+        if drive_mask == 0 {
+            return drives;
+        }
+        
+        // Check each bit position (A-Z)
+        for i in 0..26 {
+            if (drive_mask & (1 << i)) != 0 {
+                let letter = (b'A' + i) as char;
+                if is_fixed_drive(letter) {
+                    drives.push(letter);
+                }
+            }
+        }
+    }
+    
+    drives
 }
 
 fn open_volume(letter: char) -> Option<(HANDLE, u32)> {
@@ -100,10 +123,9 @@ pub fn flush_modified_file_cache_all() -> Result<()> {
     let mut any_success = false;
     let mut volumes_total = 0;
 
-    for letter in 'C'..='Z' {
-        if !is_fixed_drive(letter) {
-            continue;
-        }
+    // Iterate through all fixed drives dynamically
+    let drives = get_fixed_drives();
+    for letter in drives {
 
         if let Some((h, access)) = open_volume(letter) {
             volumes_total += 1;
