@@ -162,19 +162,41 @@ pub fn optimize_standby_list(low_priority: bool) -> Result<()> {
     
     // Use the original implementation to avoid recursion
     crate::antivirus::whitelist::safe_memory_operation(|| {
-        unsafe {
-            let cmd = if low_priority {
-                MEM_EMPTY_WORKING_SETS + 1 // Use different command for low priority
-            } else {
-                MEM_EMPTY_WORKING_SETS
-            };
-            
-            let result = nt_call_u32(SYS_MEMORY_LIST_INFORMATION, cmd);
-            match result {
-                Ok(_) => tracing::info!("Standby list optimization successful"),
-                Err(e) => tracing::warn!("Standby list optimization failed: {:?}", e),
+        // Try advanced function first, then fallback to standard
+        if low_priority {
+            match crate::memory::advanced::purge_standby_list_low_priority() {
+                Ok(_) => {
+                    tracing::info!("✓ Advanced low priority standby list purge successful");
+                    Ok(())
+                }
+                Err(e) => {
+                    tracing::warn!("⚠ Advanced low priority standby purge failed ({}), using standard API", e);
+                    let cmd = MEM_EMPTY_WORKING_SETS + 1; // Different command for low priority
+                    let result = nt_call_u32(SYS_MEMORY_LIST_INFORMATION, cmd);
+                    match &result {
+                        Ok(_) => tracing::info!("✓ Standard low priority standby list optimization successful"),
+                        Err(e) => tracing::warn!("Low priority standby list optimization failed: {:?}", e),
+                    }
+                    result
+                }
             }
-            Ok(())
+        } else {
+            match crate::memory::advanced::purge_standby_list() {
+                Ok(_) => {
+                    tracing::info!("✓ Advanced standby list purge successful");
+                    Ok(())
+                }
+                Err(e) => {
+                    tracing::warn!("⚠ Advanced standby purge failed ({}), using standard API", e);
+                    let cmd = MEM_EMPTY_WORKING_SETS;
+                    let result = nt_call_u32(SYS_MEMORY_LIST_INFORMATION, cmd);
+                    match &result {
+                        Ok(_) => tracing::info!("✓ Standard standby list optimization successful"),
+                        Err(e) => tracing::warn!("Standby list optimization failed: {:?}", e),
+                    }
+                    result
+                }
+            }
         }
     })
 }
@@ -184,24 +206,44 @@ pub fn optimize_modified_page_list() -> Result<()> {
     
     // Use the original implementation to avoid recursion
     crate::antivirus::whitelist::safe_memory_operation(|| {
-        nt_call_u32(SYS_MEMORY_LIST_INFORMATION, 3) // MEM_FLUSH_MODIFIED_LIST equivalent
+        // Try advanced aggressive flush first
+        match crate::memory::advanced::aggressive_modified_page_flush() {
+            Ok(_) => {
+                tracing::info!("✓ Advanced modified page list flush successful");
+                Ok(())
+            }
+            Err(e) => {
+                tracing::warn!("⚠ Advanced modified page flush failed ({}), using standard API", e);
+                nt_call_u32(SYS_MEMORY_LIST_INFORMATION, 3) // MEM_FLUSH_MODIFIED_LIST equivalent
+            }
+        }
     })
 }
 
 pub fn optimize_registry_cache() -> Result<()> {
     // Use the original implementation to avoid recursion
-    crate::antivirus::whitelist::safe_memory_operation(|| -> Result<(), anyhow::Error> {
-        unsafe {
-            let status = ntapi::ntexapi::NtSetSystemInformation(
-                155, // SYS_REGISTRY_RECONCILIATION_INFORMATION
-                ptr::null_mut(),
-                0,
-            );
-            if status < 0 {
-                tracing::warn!("Registry cache optimization not available: 0x{:x}", status);
+    crate::antivirus::whitelist::safe_memory_operation(|| {
+        // Try advanced registry optimization first
+        match crate::memory::advanced::optimize_registry_cache() {
+            Ok(_) => {
+                tracing::info!("✓ Advanced registry optimization successful");
+                Ok(())
+            }
+            Err(e) => {
+                tracing::warn!("⚠ Advanced registry optimization failed ({}), using standard API", e);
+                unsafe {
+                    let status = ntapi::ntexapi::NtSetSystemInformation(
+                        155, // SYS_REGISTRY_RECONCILIATION_INFORMATION
+                        ptr::null_mut(),
+                        0,
+                    );
+                    if status < 0 {
+                        tracing::warn!("Registry cache optimization not available: 0x{:x}", status);
+                    }
+                    Ok(())
+                }
             }
         }
-        Ok(())
     })
 }
 

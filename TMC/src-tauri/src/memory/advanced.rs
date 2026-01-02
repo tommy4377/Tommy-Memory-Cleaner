@@ -25,14 +25,9 @@ use windows_sys::Win32::{
     },
 };
 
-// Memory List Commands
-const MEMORY_FLUSH_MODIFIED_LIST: u32 = 2;
-const MEMORY_COMPRESSION_STORE_TRIM: u32 = 6;
-const MEMORY_PURGE_LOW_PRIORITY_STANDBY_LIST: u32 = 5;
-
+// Memory List Commands - Using enum values instead
 // Undocumented System Information Classes
 const SYSTEM_MEMORY_LIST_INFORMATION: u32 = 80;
-const SYSTEM_REGISTRY_RECONCILIATION_INFORMATION: u32 = 81;
 const PATTERN_JMP_SHORT: u8 = 0xEB;
 const PATTERN_JMP_LONG: u8 = 0xE9;
 const PATTERN_MOV_EAX: u8 = 0xB8;
@@ -47,13 +42,10 @@ const MAX_NEIGHBOR_SEARCH: usize = 500;
 #[repr(u32)]
 #[derive(Debug, Clone, Copy)]
 enum SystemMemoryListCommand {
-    MemoryCaptureAccessedBits = 0,
-    MemoryCaptureAndResetAccessedBits = 1,
     MemoryEmptyWorkingSets = 2,
     MemoryFlushModifiedList = 3,
     MemoryPurgeStandbyList = 4,
     MemoryPurgeLowPriorityStandbyList = 5,
-    MemoryCommandMax = 6,
 }
 
 /// RAII wrapper for token impersonation with automatic revert
@@ -811,20 +803,6 @@ struct IMAGE_NT_HEADERS64 {
     signature: u32,
     file_header: IMAGE_FILE_HEADER,
     optional_header: IMAGE_OPTIONAL_HEADER64,
-}
-
-#[repr(C)]
-struct IMAGE_SECTION_HEADER {
-    name: [u8; 8],
-    virtual_size: u32,
-    virtual_address: u32,
-    size_of_raw_data: u32,
-    pointer_to_raw_data: u32,
-    pointer_to_relocations: u32,
-    pointer_to_line_numbers: u32,
-    number_of_relocations: u16,
-    number_of_line_numbers: u16,
-    characteristics: u32,
 }
 
 #[cfg(test)]
