@@ -104,6 +104,8 @@ build-installer.bat
 # Test files
 *.test
 *.spec
+test_cli.sh
+output*.txt
 
 # Coverage
 coverage/
