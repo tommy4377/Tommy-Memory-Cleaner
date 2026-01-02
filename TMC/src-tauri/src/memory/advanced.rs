@@ -42,9 +42,18 @@ const PATTERN_MOV_R10_RCX: [u8; 3] = [0x4C, 0x8B, 0xD1];
 const SYSCALL_STUB_SIZE: usize = 32;
 const MAX_NEIGHBOR_SEARCH: usize = 500;
 
-#[repr(C)]
-struct SYSTEM_MEMORY_LIST_COMMAND {
-    command: u32,
+/// Memory list command enumeration for SystemMemoryListInformation
+/// According to hfiref0x/KDU and Geoff Chappell documentation
+#[repr(u32)]
+#[derive(Debug, Clone, Copy)]
+enum SystemMemoryListCommand {
+    MemoryCaptureAccessedBits = 0,
+    MemoryCaptureAndResetAccessedBits = 1,
+    MemoryEmptyWorkingSets = 2,
+    MemoryFlushModifiedList = 3,
+    MemoryPurgeStandbyList = 4,
+    MemoryPurgeLowPriorityStandbyList = 5,
+    MemoryCommandMax = 6,
 }
 
 /// RAII wrapper for token impersonation with automatic revert
@@ -311,7 +320,7 @@ unsafe fn try_privilege_elevation() -> Result<()> {
 unsafe fn execute_direct_syscall(
     ssn: u32,
     info_class: u32,
-    info: *const SYSTEM_MEMORY_LIST_COMMAND,
+    info: *const u32,
     info_length: u32,
 ) -> i32 {
     let mut status: i32;
@@ -384,15 +393,13 @@ unsafe fn try_trim_with_resolver() -> Result<()> {
 
     tracing::info!("Resolved NtSetSystemInformation SSN: 0x{:x}", ssn);
 
-    let cmd = SYSTEM_MEMORY_LIST_COMMAND {
-        command: MEMORY_COMPRESSION_STORE_TRIM,
-    };
+    let cmd = SystemMemoryListCommand::MemoryPurgeStandbyList as u32;
     
     let status = execute_direct_syscall(
         ssn,
         SYSTEM_MEMORY_LIST_INFORMATION,
         &cmd as *const _,
-        mem::size_of::<SYSTEM_MEMORY_LIST_COMMAND>() as u32,
+        mem::size_of::<u32>() as u32,
     );
 
     if status == 0 {
@@ -408,10 +415,10 @@ unsafe fn try_trim_with_resolver() -> Result<()> {
 unsafe fn try_trim_direct_nt() -> Result<()> {
     // Try different command values for memory compression trim
     let commands = [
-        6,  // MEMORY_COMPRESSION_STORE_TRIM (current)
-        4,  // Alternative value
-        1,  // Another alternative
-        2,  // Yet another
+        SystemMemoryListCommand::MemoryPurgeStandbyList as u32,  // 4
+        SystemMemoryListCommand::MemoryFlushModifiedList as u32,  // 3
+        SystemMemoryListCommand::MemoryEmptyWorkingSets as u32,   // 2
+        1,  // MemoryCaptureAndResetAccessedBits
     ];
     
     for cmd in commands {
@@ -471,15 +478,17 @@ unsafe fn try_standby_with_resolver(low_priority: bool) -> Result<()> {
     let ssn = resolver.get_ssn("NtSetSystemInformation")
         .ok_or_else(|| anyhow::anyhow!("Could not resolve NtSetSystemInformation"))?;
 
-    let cmd = SYSTEM_MEMORY_LIST_COMMAND {
-        command: if low_priority { MEMORY_PURGE_LOW_PRIORITY_STANDBY_LIST } else { 4 },
+    let cmd = if low_priority { 
+        SystemMemoryListCommand::MemoryPurgeLowPriorityStandbyList as u32
+    } else { 
+        SystemMemoryListCommand::MemoryPurgeStandbyList as u32
     };
     
     let status = execute_direct_syscall(
         ssn,
         SYSTEM_MEMORY_LIST_INFORMATION,
         &cmd as *const _,
-        mem::size_of::<SYSTEM_MEMORY_LIST_COMMAND>() as u32,
+        mem::size_of::<u32>() as u32,
     );
 
     if status == 0 {
@@ -495,9 +504,19 @@ unsafe fn try_standby_with_resolver(low_priority: bool) -> Result<()> {
 unsafe fn try_standby_direct_nt(low_priority: bool) -> Result<()> {
     // Try different command values for standby list purge
     let commands = if low_priority {
-        vec![5, 3, 2, 1] // Low priority alternatives
+        vec![
+            SystemMemoryListCommand::MemoryPurgeLowPriorityStandbyList as u32,  // 5
+            SystemMemoryListCommand::MemoryPurgeStandbyList as u32,              // 4
+            SystemMemoryListCommand::MemoryFlushModifiedList as u32,              // 3
+            SystemMemoryListCommand::MemoryEmptyWorkingSets as u32,               // 2
+        ]
     } else {
-        vec![4, 2, 1, 3] // Standard alternatives
+        vec![
+            SystemMemoryListCommand::MemoryPurgeStandbyList as u32,              // 4
+            SystemMemoryListCommand::MemoryFlushModifiedList as u32,              // 3
+            SystemMemoryListCommand::MemoryEmptyWorkingSets as u32,               // 2
+            SystemMemoryListCommand::MemoryPurgeLowPriorityStandbyList as u32,    // 5
+        ]
     };
     
     for cmd in commands {
@@ -585,15 +604,13 @@ unsafe fn try_modified_with_resolver() -> Result<()> {
     let ssn = resolver.get_ssn("NtSetSystemInformation")
         .ok_or_else(|| anyhow::anyhow!("Could not resolve NtSetSystemInformation"))?;
 
-    let cmd = SYSTEM_MEMORY_LIST_COMMAND {
-        command: MEMORY_FLUSH_MODIFIED_LIST,
-    };
+    let cmd = SystemMemoryListCommand::MemoryFlushModifiedList as u32;
     
     let status = execute_direct_syscall(
         ssn,
         SYSTEM_MEMORY_LIST_INFORMATION,
         &cmd as *const _,
-        mem::size_of::<SYSTEM_MEMORY_LIST_COMMAND>() as u32,
+        mem::size_of::<u32>() as u32,
     );
 
     if status == 0 {
@@ -608,7 +625,12 @@ unsafe fn try_modified_with_resolver() -> Result<()> {
 /// Try modified page flush using direct NT call with command validation
 unsafe fn try_modified_direct_nt() -> Result<()> {
     // Try different command values for modified page flush
-    let commands = [3, 1, 2, 4];
+    let commands = [
+        SystemMemoryListCommand::MemoryFlushModifiedList as u32,  // 3
+        SystemMemoryListCommand::MemoryPurgeStandbyList as u32,    // 4
+        SystemMemoryListCommand::MemoryEmptyWorkingSets as u32,   // 2
+        SystemMemoryListCommand::MemoryPurgeLowPriorityStandbyList as u32,  // 5
+    ];
     
     for cmd in commands {
         let status = execute_nt_set_system_info(SYSTEM_MEMORY_LIST_INFORMATION, cmd);
@@ -670,11 +692,17 @@ unsafe fn try_registry_with_resolver() -> Result<()> {
     let _ssn = resolver.get_ssn("NtSetSystemInformation")
         .ok_or_else(|| anyhow::anyhow!("Could not resolve NtSetSystemInformation"))?;
 
-    // Registry optimization uses different class
+    // Registry optimization uses SystemFileCacheInformationEx (class 81)
+    let mut cache_info = SYSTEM_FILECACHE_INFORMATION {
+        minimum_working_set: usize::MAX,
+        maximum_working_set: usize::MAX,
+        ..Default::default()
+    };
+    
     let status = ntapi::ntexapi::NtSetSystemInformation(
-        155, // SYS_REGISTRY_RECONCILIATION_INFORMATION
-        ptr::null_mut(),
-        0,
+        81, // SystemFileCacheInformationEx
+        &mut cache_info as *mut _ as _,
+        mem::size_of::<SYSTEM_FILECACHE_INFORMATION>() as u32,
     );
 
     if status == 0 {
@@ -688,10 +716,17 @@ unsafe fn try_registry_with_resolver() -> Result<()> {
 
 /// Try registry optimization using direct NT call
 unsafe fn try_registry_direct_nt() -> Result<()> {
+    // Registry optimization uses SystemFileCacheInformationEx (class 81)
+    let mut cache_info = SYSTEM_FILECACHE_INFORMATION {
+        minimum_working_set: usize::MAX,
+        maximum_working_set: usize::MAX,
+        ..Default::default()
+    };
+    
     let status = ntapi::ntexapi::NtSetSystemInformation(
-        155, // SYS_REGISTRY_RECONCILIATION_INFORMATION
-        ptr::null_mut(),
-        0,
+        81, // SystemFileCacheInformationEx
+        &mut cache_info as *mut _ as _,
+        mem::size_of::<SYSTEM_FILECACHE_INFORMATION>() as u32,
     );
 
     if status == 0 {
@@ -703,12 +738,72 @@ unsafe fn try_registry_direct_nt() -> Result<()> {
     }
 }
 
-// Windows PE structures for module size calculation
+/// System file cache information structure for registry optimization
+/// According to Geoff Chappell documentation
+#[repr(C)]
+#[derive(Debug, Default)]
+struct SYSTEM_FILECACHE_INFORMATION {
+    current_size: usize,
+    peak_size: usize,
+    page_fault_count: u32,
+    minimum_working_set: usize,
+    maximum_working_set: usize,
+    current_size_incl_transition: usize,
+    peak_size_incl_transition: usize,
+    transition_repurpose_count: u32,
+    flags: u32,
+}
+
+/// Windows PE structures for module size calculation
 #[repr(C)]
 struct IMAGE_DOS_HEADER {
     e_magic: u16,
     _reserved: [u16; 29],
     e_lfanew: i32,
+}
+
+#[repr(C)]
+struct IMAGE_FILE_HEADER {
+    machine: u16,
+    number_of_sections: u16,
+    time_date_stamp: u32,
+    pointer_to_symbol_table: u32,
+    number_of_symbols: u32,
+    size_of_optional_header: u16,
+    characteristics: u16,
+}
+
+#[repr(C)]
+struct IMAGE_OPTIONAL_HEADER64 {
+    magic: u16,
+    major_linker_version: u8,
+    minor_linker_version: u8,
+    size_of_code: u32,
+    size_of_initialized_data: u32,
+    size_of_uninitialized_data: u32,
+    address_of_entry_point: u32,
+    base_of_code: u32,
+    image_base: u64,
+    section_alignment: u32,
+    file_alignment: u32,
+    major_operating_system_version: u16,
+    minor_operating_system_version: u16,
+    major_image_version: u16,
+    minor_image_version: u16,
+    major_subsystem_version: u16,
+    minor_subsystem_version: u16,
+    win32_version_value: u32,
+    size_of_image: u32,
+    size_of_headers: u32,
+    checksum: u32,
+    subsystem: u16,
+    dll_characteristics: u16,
+    size_of_stack_reserve: u64,
+    size_of_stack_commit: u64,
+    size_of_heap_reserve: u64,
+    size_of_heap_commit: u64,
+    loader_flags: u32,
+    number_of_rva_and_sizes: u32,
 }
 
 #[repr(C)]
@@ -719,15 +814,17 @@ struct IMAGE_NT_HEADERS64 {
 }
 
 #[repr(C)]
-struct IMAGE_FILE_HEADER {
-    _padding: [u8; 20],
-}
-
-#[repr(C)]
-struct IMAGE_OPTIONAL_HEADER64 {
-    _padding: [u8; 56],
-    size_of_image: u32,
-    _rest: [u8; 184],
+struct IMAGE_SECTION_HEADER {
+    name: [u8; 8],
+    virtual_size: u32,
+    virtual_address: u32,
+    size_of_raw_data: u32,
+    pointer_to_raw_data: u32,
+    pointer_to_relocations: u32,
+    pointer_to_line_numbers: u32,
+    number_of_relocations: u16,
+    number_of_line_numbers: u16,
+    characteristics: u32,
 }
 
 #[cfg(test)]
