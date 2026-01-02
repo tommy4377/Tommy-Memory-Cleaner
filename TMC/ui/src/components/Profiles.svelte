@@ -8,7 +8,6 @@
   let cfg: Config | null = null
   let unsub: (() => void) | null = null
   let selected: Profile = 'Balanced'
-  let isChanging = false
 
   onMount(() => {
     unsub = config.subscribe((value) => {
@@ -27,10 +26,9 @@
   })
 
   async function selectProfile(profile: Profile) {
-    if (isChanging || selected === profile) return
+    if (selected === profile) return
 
-    // Prevent double-clicks with a very short lock
-    isChanging = true
+    // Update immediately - no blocking state
     selected = profile
 
     try {
@@ -41,9 +39,6 @@
       if (cfg) {
         selected = cfg.profile
       }
-    } finally {
-      // Quick release - no artificial delay
-      isChanging = false
     }
   }
 
@@ -83,7 +78,6 @@
       on:click={() => selectProfile('Normal')}
       on:dragstart={handleDragStart}
       on:selectstart={handleDragStart}
-      disabled={isChanging}
     >
       {$t('Normal')}
     </button>
@@ -92,7 +86,6 @@
       on:click={() => selectProfile('Balanced')}
       on:dragstart={handleDragStart}
       on:selectstart={handleDragStart}
-      disabled={isChanging}
     >
       {$t('Balanced')}
     </button>
@@ -101,7 +94,6 @@
       on:click={() => selectProfile('Gaming')}
       on:dragstart={handleDragStart}
       on:selectstart={handleDragStart}
-      disabled={isChanging}
     >
       {$t('Gaming')}
     </button>
@@ -179,7 +171,7 @@
     cursor: url('/cursors/dark/hand.cur'), pointer;
   }
 
-  .seg button:hover:not(.active):not(:disabled) {
+  .seg button:hover:not(.active) {
     background: var(--bar-track);
   }
 
@@ -188,11 +180,6 @@
     border-color: var(--btn-border);
     color: var(--btn-fg);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-
-  .seg button:disabled {
-    opacity: 0.9;
-    cursor: default;
   }
 
   .info {
