@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TMC Menu</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 160px;
+            height: 120px;
+            overflow: hidden;
+            background: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #f2f2f7;
+            user-select: none;
+            -webkit-user-select: none;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .menu-container {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            width: 160px;
+            height: 120px;
+            background: #1c1c1e;
+            border-radius: 8px;
+            overflow: hidden;
+            pointer-events: auto !important;
+            z-index: 1000;
+            top: 0;
+            left: 0;
+            cursor: default;
+        }
+
+        body[data-theme="light"] .menu-container {
+            background: #f5ebdc;
+        }
+
+        body[data-theme="light"] {
+            color: #2a1f12;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            flex: 1;
+            padding: 0 16px;
+            border: none;
+            background: transparent;
+            color: inherit;
+            text-align: left;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.12s ease;
+            font-family: inherit;
+            pointer-events: auto !important;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-app-region: no-drag;
+        }
+        
+        .menu-item:not(.danger) {
+            color: var(--main-color, inherit);
+        }
+
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        body[data-theme="light"] .menu-item:hover {
+            background: rgba(50, 38, 25, 0.06);
+        }
+
+        .menu-item:active {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        body[data-theme="light"] .menu-item:active {
+            background: rgba(50, 38, 25, 0.12);
+        }
+
+        .menu-item.danger {
+            color: #ff6b6b;
+        }
+
+        body[data-theme="light"] .menu-item.danger {
+            color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <div class="menu-container">
+        <button class="menu-item" data-action="open" data-i18n="Open TMC">Open TMC</button>
+        <button class="menu-item" data-action="optimize" data-i18n="Optimize Memory">Optimize Memory</button>
+        <button class="menu-item danger" data-action="exit" data-i18n="Exit">Exit</button>
+    </div>
+
+    <script type="module" src="/src/tray.ts"></script>
+</body>
+</html>
