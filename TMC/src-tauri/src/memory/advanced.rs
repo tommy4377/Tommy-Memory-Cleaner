@@ -332,6 +332,20 @@ unsafe fn execute_direct_syscall(
     status
 }
 
+/// Alternative approach using NtSetSystemInformation directly
+/// This bypasses the syscall resolver when it fails
+unsafe fn execute_nt_set_system_info(
+    info_class: u32,
+    command: u32,
+) -> i32 {
+    let mut cmd = command;
+    ntapi::ntexapi::NtSetSystemInformation(
+        info_class,
+        &mut cmd as *mut _ as _,
+        mem::size_of::<u32>() as u32,
+    )
+}
+
 /// Main optimization function: Trim Windows Memory Compression Store
 /// This recovers RAM that Windows considers "in use" but is just compressed
 pub fn trim_memory_compression_store() -> Result<()> {
@@ -342,58 +356,106 @@ pub fn trim_memory_compression_store() -> Result<()> {
         let _guard = impersonate_system_token()
             .context("Failed to acquire SYSTEM privileges")?;
         
-        // Initialize syscall resolver
-        let resolver = SyscallResolver::new()
-            .context("Failed to initialize syscall resolver")?;
-
-        // Resolve NtSetSystemInformation dynamically
-        let ssn = resolver.get_ssn("NtSetSystemInformation")
-            .ok_or_else(|| anyhow::anyhow!("Could not resolve NtSetSystemInformation SSN"))?;
-
-        tracing::info!("Resolved NtSetSystemInformation SSN: 0x{:x}", ssn);
-
-        // Prepare memory list command
-        let cmd = SYSTEM_MEMORY_LIST_COMMAND {
-            command: MEMORY_COMPRESSION_STORE_TRIM,
-        };
-        
-        // Execute syscall
-        let result = crate::memory::ops::nt_call_u32(SYSTEM_MEMORY_LIST_INFORMATION, cmd.command);
-        match result {
-            Ok(_) => tracing::info!("✓ Memory Compression Store trimmed successfully"),
-            Err(e) => tracing::warn!("Trim returned error: {:?}", e),
+        // Try multiple approaches
+        // Approach 1: Direct syscall with resolver
+        if let Ok(()) = try_trim_with_resolver() {
+            return Ok(());
         }
+        
+        // Approach 2: Direct NtSetSystemInformation
+        tracing::info!("Resolver approach failed, trying direct NT call");
+        if let Ok(()) = try_trim_direct_nt() {
+            return Ok(());
+        }
+        
+        // Approach 3: Fallback to standard API
+        tracing::info!("Direct NT failed, using standard API");
+        crate::memory::ops::optimize_system_file_cache()
+    }
+}
+
+/// Try trimming using syscall resolver
+unsafe fn try_trim_with_resolver() -> Result<()> {
+    let resolver = SyscallResolver::new()
+        .context("Failed to initialize syscall resolver")?;
+
+    let ssn = resolver.get_ssn("NtSetSystemInformation")
+        .ok_or_else(|| anyhow::anyhow!("Could not resolve NtSetSystemInformation SSN"))?;
+
+    tracing::info!("Resolved NtSetSystemInformation SSN: 0x{:x}", ssn);
+
+    let cmd = SYSTEM_MEMORY_LIST_COMMAND {
+        command: MEMORY_COMPRESSION_STORE_TRIM,
+    };
+    
+    let status = execute_direct_syscall(
+        ssn,
+        SYSTEM_MEMORY_LIST_INFORMATION,
+        &cmd as *const _,
+        mem::size_of::<SYSTEM_MEMORY_LIST_COMMAND>() as u32,
+    );
+
+    if status == 0 {
+        tracing::info!("✓ Memory Compression Store trimmed successfully");
         Ok(())
+    } else {
+        tracing::warn!("Direct syscall returned NTSTATUS: 0x{:08X}", status as u32);
+        Err(anyhow::anyhow!("Direct syscall failed"))
+    }
+}
+
+/// Try trimming using direct NtSetSystemInformation
+unsafe fn try_trim_direct_nt() -> Result<()> {
+    let status = execute_nt_set_system_info(
+        SYSTEM_MEMORY_LIST_INFORMATION,
+        MEMORY_COMPRESSION_STORE_TRIM,
+    );
+
+    if status == 0 {
+        tracing::info!("✓ Memory Compression Store trimmed via direct NT call");
+        Ok(())
+    } else {
+        tracing::warn!("Direct NT call returned NTSTATUS: 0x{:08X}", status as u32);
+        Err(anyhow::anyhow!("Direct NT call failed"))
     }
 }
 
 /// Purge standby list with multi-tier approach
 /// 1. Try advanced syscall with SYSTEM privileges
-/// 2. Fall back to standard Windows API
-/// 3. Fall back to basic approach
+/// 2. Try direct NT call
+/// 3. Fall back to standard Windows API
 pub fn purge_standby_list() -> Result<()> {
     tracing::warn!("Executing standby list purge with fallback strategy");
     
-    // Tier 1: Try advanced syscall approach
-    if let Ok(()) = unsafe { try_advanced_standby_purge() } {
-        return Ok(());
+    unsafe {
+        // Try to get SYSTEM privileges but continue even if not available
+        let _guard = match impersonate_system_token() {
+            Ok(guard) => guard,
+            Err(e) => {
+                tracing::warn!("Could not acquire SYSTEM privileges: {}. Using standard API.", e);
+                return crate::memory::ops::optimize_standby_list(false);
+            }
+        };
+        
+        // Approach 1: Direct syscall with resolver
+        if let Ok(()) = try_standby_with_resolver(false) {
+            return Ok(());
+        }
+        
+        // Approach 2: Direct NT call
+        tracing::info!("Resolver approach failed, trying direct NT call");
+        if let Ok(()) = try_standby_direct_nt(false) {
+            return Ok(());
+        }
+        
+        // Approach 3: Fallback to standard API
+        tracing::info!("Direct NT failed, using standard API");
+        crate::memory::ops::optimize_standby_list(false)
     }
-    
-    // Tier 2: Fall back to standard Windows API
-    tracing::info!("Advanced approach failed, trying standard Windows API");
-    if let Ok(()) = unsafe { try_standard_standby_purge() } {
-        return Ok(());
-    }
-    
-    // Tier 3: Basic approach
-    tracing::info!("Standard approach failed, using basic optimization");
-    Ok(())
 }
 
-/// Advanced approach using direct syscalls
-unsafe fn try_advanced_standby_purge() -> Result<()> {
-    let _guard = impersonate_system_token()?;
-    
+/// Try standby purge using resolver
+unsafe fn try_standby_with_resolver(low_priority: bool) -> Result<()> {
     let resolver = SyscallResolver::new()
         .context("Failed to initialize syscall resolver")?;
     
@@ -401,7 +463,7 @@ unsafe fn try_advanced_standby_purge() -> Result<()> {
         .ok_or_else(|| anyhow::anyhow!("Could not resolve NtSetSystemInformation"))?;
 
     let cmd = SYSTEM_MEMORY_LIST_COMMAND {
-        command: MEMORY_PURGE_LOW_PRIORITY_STANDBY_LIST,
+        command: if low_priority { MEMORY_PURGE_LOW_PRIORITY_STANDBY_LIST } else { 4 },
     };
     
     let status = execute_direct_syscall(
@@ -420,91 +482,84 @@ unsafe fn try_advanced_standby_purge() -> Result<()> {
     }
 }
 
-/// Standard approach using Windows API
-unsafe fn try_standard_standby_purge() -> Result<()> {
-    // Use the existing implementation from ops.rs as fallback
-    crate::memory::ops::optimize_standby_list(false)
+/// Try standby purge using direct NT call
+unsafe fn try_standby_direct_nt(low_priority: bool) -> Result<()> {
+    let cmd = if low_priority { MEMORY_PURGE_LOW_PRIORITY_STANDBY_LIST } else { 4 };
+    let status = execute_nt_set_system_info(SYSTEM_MEMORY_LIST_INFORMATION, cmd);
+
+    if status == 0 {
+        tracing::info!("✓ Standby list purged via direct NT call");
+        Ok(())
+    } else {
+        tracing::warn!("Direct NT call returned NTSTATUS: 0x{:08X}", status as u32);
+        Err(anyhow::anyhow!("Direct NT call failed"))
+    }
 }
 
 /// Purge low priority standby list with fallback
 pub fn purge_standby_list_low_priority() -> Result<()> {
     tracing::warn!("Executing low priority standby list purge with fallback");
     
-    // Tier 1: Try advanced syscall approach
-    if let Ok(()) = unsafe { try_advanced_standby_purge_low_priority() } {
-        return Ok(());
+    unsafe {
+        // Try to get SYSTEM privileges but continue even if not available
+        let _guard = match impersonate_system_token() {
+            Ok(guard) => guard,
+            Err(e) => {
+                tracing::warn!("Could not acquire SYSTEM privileges: {}. Using standard API.", e);
+                return crate::memory::ops::optimize_standby_list(true);
+            }
+        };
+        
+        // Approach 1: Direct syscall with resolver
+        if let Ok(()) = try_standby_with_resolver(true) {
+            return Ok(());
+        }
+        
+        // Approach 2: Direct NT call
+        tracing::info!("Resolver approach failed, trying direct NT call");
+        if let Ok(()) = try_standby_direct_nt(true) {
+            return Ok(());
+        }
+        
+        // Approach 3: Fallback to standard API
+        tracing::info!("Direct NT failed, using standard API");
+        crate::memory::ops::optimize_standby_list(true)
     }
-    
-    // Tier 2: Fall back to standard Windows API
-    tracing::info!("Advanced approach failed, trying standard Windows API");
-    if let Ok(()) = unsafe { try_standard_standby_purge_low_priority() } {
-        return Ok(());
-    }
-    
-    // Tier 3: Basic approach
-    tracing::info!("Standard approach failed, using basic optimization");
-    Ok(())
-}
-
-/// Advanced approach for low priority
-unsafe fn try_advanced_standby_purge_low_priority() -> Result<()> {
-    let _guard = impersonate_system_token()?;
-    
-    let resolver = SyscallResolver::new()
-        .context("Failed to initialize syscall resolver")?;
-    
-    let ssn = resolver.get_ssn("NtSetSystemInformation")
-        .ok_or_else(|| anyhow::anyhow!("Could not resolve NtSetSystemInformation"))?;
-
-    let cmd = SYSTEM_MEMORY_LIST_COMMAND {
-        command: MEMORY_PURGE_LOW_PRIORITY_STANDBY_LIST,
-    };
-    
-    let status = execute_direct_syscall(
-        ssn,
-        SYSTEM_MEMORY_LIST_INFORMATION,
-        &cmd as *const _,
-        mem::size_of::<SYSTEM_MEMORY_LIST_COMMAND>() as u32,
-    );
-
-    if status == 0 {
-        tracing::info!("✓ Advanced low priority standby list purge successful");
-        Ok(())
-    } else {
-        tracing::warn!("Advanced low priority purge returned NTSTATUS: 0x{:08X}", status as u32);
-        Err(anyhow::anyhow!("Advanced approach failed"))
-    }
-}
-
-/// Standard approach for low priority
-unsafe fn try_standard_standby_purge_low_priority() -> Result<()> {
-    crate::memory::ops::optimize_standby_list(true)
 }
 
 /// Aggressive modified page list flush with fallback
 pub fn aggressive_modified_page_flush() -> Result<()> {
     tracing::warn!("Executing aggressive modified page list flush with fallback");
     
-    // Tier 1: Try advanced syscall approach
-    if let Ok(()) = unsafe { try_advanced_modified_page_flush() } {
-        return Ok(());
+    unsafe {
+        // Try to get SYSTEM privileges but continue even if not available
+        let _guard = match impersonate_system_token() {
+            Ok(guard) => guard,
+            Err(e) => {
+                tracing::warn!("Could not acquire SYSTEM privileges: {}. Using standard API.", e);
+                return crate::memory::ops::optimize_modified_page_list();
+            }
+        };
+        
+        // Approach 1: Direct syscall with resolver
+        if let Ok(()) = try_modified_with_resolver() {
+            return Ok(());
+        }
+        
+        // Approach 2: Direct NT call
+        tracing::info!("Resolver approach failed, trying direct NT call");
+        if let Ok(()) = try_modified_direct_nt() {
+            return Ok(());
+        }
+        
+        // Approach 3: Fallback to standard API
+        tracing::info!("Direct NT failed, using standard API");
+        crate::memory::ops::optimize_modified_page_list()
     }
-    
-    // Tier 2: Fall back to standard Windows API
-    tracing::info!("Advanced approach failed, trying standard Windows API");
-    if let Ok(()) = unsafe { try_standard_modified_page_flush() } {
-        return Ok(());
-    }
-    
-    // Tier 3: Basic approach
-    tracing::info!("Standard approach failed, using basic optimization");
-    Ok(())
 }
 
-/// Advanced approach using direct syscalls
-unsafe fn try_advanced_modified_page_flush() -> Result<()> {
-    let _guard = impersonate_system_token()?;
-    
+/// Try modified page flush using resolver
+unsafe fn try_modified_with_resolver() -> Result<()> {
     let resolver = SyscallResolver::new()
         .context("Failed to initialize syscall resolver")?;
     
@@ -531,9 +586,17 @@ unsafe fn try_advanced_modified_page_flush() -> Result<()> {
     }
 }
 
-/// Standard approach using Windows API
-unsafe fn try_standard_modified_page_flush() -> Result<()> {
-    crate::memory::ops::optimize_modified_page_list()
+/// Try modified page flush using direct NT call
+unsafe fn try_modified_direct_nt() -> Result<()> {
+    let status = execute_nt_set_system_info(SYSTEM_MEMORY_LIST_INFORMATION, MEMORY_FLUSH_MODIFIED_LIST);
+
+    if status == 0 {
+        tracing::info!("✓ Modified page list flushed via direct NT call");
+        Ok(())
+    } else {
+        tracing::warn!("Direct NT call returned NTSTATUS: 0x{:08X}", status as u32);
+        Err(anyhow::anyhow!("Direct NT call failed"))
+    }
 }
 
 /// Initialize advanced optimization features
@@ -546,32 +609,42 @@ pub fn init_advanced_features() -> Result<()> {
 pub fn optimize_registry_cache() -> Result<()> {
     tracing::warn!("Executing registry cache optimization with fallback");
     
-    // Tier 1: Try advanced syscall approach
-    if let Ok(()) = unsafe { try_advanced_registry_optimization() } {
-        return Ok(());
+    unsafe {
+        // Try to get SYSTEM privileges but continue even if not available
+        let _guard = match impersonate_system_token() {
+            Ok(guard) => guard,
+            Err(e) => {
+                tracing::warn!("Could not acquire SYSTEM privileges: {}. Using standard API.", e);
+                return crate::memory::ops::optimize_registry_cache();
+            }
+        };
+        
+        // Approach 1: Direct syscall with resolver
+        if let Ok(()) = try_registry_with_resolver() {
+            return Ok(());
+        }
+        
+        // Approach 2: Direct NT call
+        tracing::info!("Resolver approach failed, trying direct NT call");
+        if let Ok(()) = try_registry_direct_nt() {
+            return Ok(());
+        }
+        
+        // Approach 3: Fallback to standard API
+        tracing::info!("Direct NT failed, using standard API");
+        crate::memory::ops::optimize_registry_cache()
     }
-    
-    // Tier 2: Fall back to standard Windows API
-    tracing::info!("Advanced approach failed, trying standard Windows API");
-    if let Ok(()) = unsafe { try_standard_registry_optimization() } {
-        return Ok(());
-    }
-    
-    // Tier 3: Basic approach
-    tracing::info!("Standard approach failed, using basic optimization");
-    Ok(())
 }
 
-/// Advanced approach using direct syscalls
-unsafe fn try_advanced_registry_optimization() -> Result<()> {
-    let _guard = impersonate_system_token()?;
-    
+/// Try registry optimization using resolver
+unsafe fn try_registry_with_resolver() -> Result<()> {
     let resolver = SyscallResolver::new()
         .context("Failed to initialize syscall resolver")?;
     
     let _ssn = resolver.get_ssn("NtSetSystemInformation")
         .ok_or_else(|| anyhow::anyhow!("Could not resolve NtSetSystemInformation"))?;
 
+    // Registry optimization uses different class
     let status = ntapi::ntexapi::NtSetSystemInformation(
         155, // SYS_REGISTRY_RECONCILIATION_INFORMATION
         ptr::null_mut(),
@@ -587,9 +660,21 @@ unsafe fn try_advanced_registry_optimization() -> Result<()> {
     }
 }
 
-/// Standard approach using Windows API
-unsafe fn try_standard_registry_optimization() -> Result<()> {
-    crate::memory::ops::optimize_registry_cache()
+/// Try registry optimization using direct NT call
+unsafe fn try_registry_direct_nt() -> Result<()> {
+    let status = ntapi::ntexapi::NtSetSystemInformation(
+        155, // SYS_REGISTRY_RECONCILIATION_INFORMATION
+        ptr::null_mut(),
+        0,
+    );
+
+    if status == 0 {
+        tracing::info!("✓ Registry optimized via direct NT call");
+        Ok(())
+    } else {
+        tracing::warn!("Direct NT call returned NTSTATUS: 0x{:08X}", status as u32);
+        Err(anyhow::anyhow!("Direct NT call failed"))
+    }
 }
 
 // Windows PE structures for module size calculation
