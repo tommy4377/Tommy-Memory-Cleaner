@@ -271,13 +271,16 @@ pub fn update_tray_icon(app: &AppHandle, mem_percent: u8) {
     
     let icon = create_tray_icon(mem_percent, bg, &tray_cfg.text_color_hex, tray_cfg.transparent_bg);
     
-    // Try to get translated tooltip, fallback to English
+    // Try to get translated tooltip, fallback to English if translation not found or empty
     let tooltip = {
-        match crate::commands::get_translation(&state.translations, "RAM: %d%") {
-            translated if translated != "RAM: %d%" => {
-                translated.replace("%d%", &mem_percent.to_string())
-            }
-            _ => format!("RAM: {}%", mem_percent)
+        let translated = crate::commands::get_translation(&state.translations, "RAM: %d%");
+        
+        // If translation is the same as key (not found) or empty, use English format
+        if translated == "RAM: %d%" || translated.is_empty() {
+            format!("RAM: {}%", mem_percent)
+        } else {
+            // Replace placeholder with actual percentage
+            translated.replace("%d%", &mem_percent.to_string())
         }
     };
     

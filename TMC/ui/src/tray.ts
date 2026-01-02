@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { listen } from '@tauri-apps/api/event';
 import { areasForProfile, areasToString } from './lib/profiles';
-import { dict, setLanguage, lang, t } from './i18n';
+import { dict, setLanguage, lang } from './i18n';
 import { get } from 'svelte/store';
 
 const win = getCurrentWebviewWindow();
@@ -12,17 +12,30 @@ const win = getCurrentWebviewWindow();
 
 // Funzione per aggiornare le traduzioni nel DOM usando il sistema i18n
 function updateTrayTranslations() {
-    // Ottieni la funzione di traduzione dallo store
-    const translate = get(t);
+    // Ottieni il dizionario delle traduzioni
+    const translations = get(dict);
+    
+    console.log('=== TRAY TRANSLATIONS DEBUG ===');
+    console.log('Current language:', get(lang));
+    console.log('Dict sample:', {
+        'Open TMC': translations['Open TMC'],
+        'Optimize Memory': translations['Optimize Memory'],
+        'Exit': translations['Exit']
+    });
     
     // Traduci tutti gli elementi con data-i18n
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
-        if (key) {
-            // Usa la funzione t() per tradurre
-            el.textContent = translate(key);
+        if (key && translations[key]) {
+            console.log(`✓ Translating "${key}" -> "${translations[key]}"`);
+            el.textContent = translations[key];
+        } else if (key && !translations[key]) {
+            // Fallback: mostra la chiave se la traduzione non esiste
+            console.warn(`✗ Missing translation for "${key}" in language ${get(lang)}`);
+            el.textContent = key;
         }
     });
+    console.log('=== END DEBUG ===');
 }
 
 // Registra i listener eventi una sola volta all'avvio
@@ -32,6 +45,8 @@ async function setupEventListeners() {
         const newLanguage = event.payload;
         console.log('Language changed in tray:', newLanguage);
         await setLanguage(newLanguage);
+        // Aspetta che le traduzioni siano caricate
+        await new Promise(resolve => setTimeout(resolve, 50));
         updateTrayTranslations();
     });
     
@@ -58,6 +73,9 @@ async function reloadTrayConfig() {
         // Imposta la lingua usando il sistema i18n
         await setLanguage(config.language || 'en');
         
+        // Aspetta che le traduzioni siano caricate prima di aggiornare
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
         // Aggiorna subito le traduzioni
         updateTrayTranslations();
     } catch (err: any) {
@@ -70,13 +88,11 @@ async function loadConfig() {
         await reloadTrayConfig();
         
         // Ascolta i cambiamenti futuri del dizionario
-        const unsubscribeDict = dict.subscribe(() => {
-            updateTrayTranslations();
-        });
-        
-        // Ascolta anche i cambiamenti della funzione t
-        const unsubscribeT = t.subscribe(() => {
-            updateTrayTranslations();
+        const unsubscribe = dict.subscribe(() => {
+            // Aspetta un tick per assicurarsi che il DOM sia aggiornato
+            requestAnimationFrame(() => {
+                updateTrayTranslations();
+            });
         });
     } catch (err: any) {
         console.error('Config load failed:', err);
