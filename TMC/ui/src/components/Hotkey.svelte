@@ -231,12 +231,12 @@
 
   .mod-box {
     flex: 1;
-    padding: 6px;
+    padding: 8px 12px;
     border: 2px solid var(--border);
     border-radius: 10px;
     text-align: center;
     cursor: url('/cursors/light/hand.cur'), pointer;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 500;
     background: var(--bg);
     color: var(--fg);
@@ -255,11 +255,11 @@
 
   .key-input {
     width: 100%;
-    padding: 6px;
+    padding: 8px;
     border: 2px solid var(--border);
     border-radius: 10px;
     text-align: center;
-    font-size: 10px;
+    font-size: 11px;
     text-transform: uppercase;
     background: var(--bg);
     color: var(--fg);
@@ -273,12 +273,12 @@
 
   button {
     flex: 1;
-    padding: 5px;
+    padding: 7px;
     background: var(--btn-bg);
     color: white;
     border: none;
     border-radius: 10px;
-    font-size: 10px;
+    font-size: 11px;
     cursor: pointer;
     position: relative;
     overflow: hidden;

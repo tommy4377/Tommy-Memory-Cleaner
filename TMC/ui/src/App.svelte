@@ -30,6 +30,7 @@
     getSafeLanguage,
     stopMemoryRefresh,
   } from './lib/store'
+  import { applyThemeColors } from './lib/themeManager'
   import { getConfig } from './lib/api'
   import { setLanguage } from './i18n/index'
   import { memoryInfo } from './lib/api'
@@ -53,10 +54,10 @@
 
   // Window dimensions
   const WINDOW_SIZES = {
-    full: { width: 490, height: 690 },
+    full: { width: 500, height: 700 },
     compact: { width: 380, height: 90 },
     min: { width: 360, height: 90 },
-    max: { width: 490, height: 690 },
+    max: { width: 500, height: 700 },
   } as const
 
   // ========== LIFECYCLE ==========
@@ -83,6 +84,8 @@
       configUnsub = config.subscribe(async (value) => {
         cfg = value
         if (value) {
+          // Applica i colori centralizzati
+          applyThemeColors(value)
           await handleConfigChange(value)
         }
       })
@@ -93,46 +96,6 @@
         if (isAppInitialized()) {
           await initApp()
           // La config verrà aggiornata automaticamente tramite il subscribe sopra
-        }
-      })
-
-      // Listen for config-updated event (emesso dal backend dopo setup)
-      window.addEventListener('config-updated', async () => {
-        // Ricarica la configurazione e applica tutte le impostazioni
-        try {
-          const cfg = await getConfig()
-          if (cfg) {
-            // Applica il tema
-            const theme = cfg.theme === 'light' ? 'light' : 'dark'
-            document.documentElement.setAttribute('data-theme', theme)
-            localStorage.setItem('tmc_theme', theme)
-
-            // Applica il colore principale corretto per il tema
-            let mainColor: string
-            if (theme === 'light') {
-              mainColor = cfg.main_color_hex_light || '#9a8a72'
-            } else {
-              mainColor = cfg.main_color_hex_dark || '#0a84ff'
-            }
-
-            const root = document.documentElement
-            root.style.setProperty('--btn-bg', mainColor)
-            root.style.setProperty('--bar-fill', mainColor)
-            root.style.setProperty('--input-focus', mainColor)
-
-            // Applica la lingua
-            const validLang = getSafeLanguage(cfg.language)
-            await setLanguage(validLang)
-
-            // Aggiorna lo store (questo aggiornerà anche always_on_top e altre impostazioni)
-            config.set(cfg)
-          }
-        } catch (error) {
-          console.error('Failed to reload config after setup:', error)
-          // Fallback: ricarica tutto
-          if (isAppInitialized()) {
-            await initApp()
-          }
         }
       })
 
@@ -218,14 +181,6 @@
         await appWindow.setAlwaysOnTop(newConfig.always_on_top)
       } catch (error) {
         console.error('Failed to set always on top:', error)
-      }
-    }
-
-    // Handle theme
-    if (newConfig.theme) {
-      const currentTheme = document.documentElement.getAttribute('data-theme')
-      if (currentTheme !== newConfig.theme) {
-        document.documentElement.setAttribute('data-theme', newConfig.theme)
       }
     }
   }

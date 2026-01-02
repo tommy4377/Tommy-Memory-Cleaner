@@ -67,14 +67,14 @@ pub fn show_or_create_window(app: &AppHandle) {
         let _ = window.center();
     } else {
         tracing::info!("Creating new main window...");
-        tracing::info!("Window dimensions will be: 490x690");
+        tracing::info!("Window dimensions will be: 500x700");
         let result = tauri::WebviewWindowBuilder::new(
             app,
             "main",
             tauri::WebviewUrl::App("index.html".into())
         )
         .title("Tommy Memory Cleaner")
-        .inner_size(490.0, 690.0)
+        .inner_size(500.0, 700.0)
         .resizable(false)
         .shadow(true)  // Enable shadow for rounded corners
         .center()

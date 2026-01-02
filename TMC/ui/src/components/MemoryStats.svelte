@@ -138,7 +138,7 @@
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, #4CAF50, #8BC34A, #CDDC39);
+    background: linear-gradient(90deg, var(--btn-bg), var(--btn-bg), var(--bar-fill));
     border-radius: 12px 12px 0 0;
   }
 
@@ -181,7 +181,7 @@
   .total-value {
     font-size: 24px;
     font-weight: 700;
-    color: var(--accent);
+    color: var(--btn-bg);
     margin-bottom: 2px;
     font-variant-numeric: tabular-nums;
   }
@@ -202,7 +202,7 @@
   }
 
   .last-freed {
-    background: linear-gradient(135deg, var(--accent), #4CAF50);
+    background: linear-gradient(135deg, var(--btn-bg), var(--bar-fill));
     color: white;
     padding: 8px 12px;
     border-radius: 8px;

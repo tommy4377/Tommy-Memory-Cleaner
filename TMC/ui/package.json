@@ -17,6 +17,7 @@
     "type-check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
+    "@floating-ui/dom": "^1.7.4",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-global-shortcut": "^2.0.0",
     "@tauri-apps/plugin-notification": "^2.0.0",

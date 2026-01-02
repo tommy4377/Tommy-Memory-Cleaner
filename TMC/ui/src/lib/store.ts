@@ -469,6 +469,8 @@ export function startMemoryRefresh(intervalMs: number = MEMORY_REFRESH_INTERVAL)
       memory.set(mem)
 
       // Adaptive refresh: adjust interval based on memory usage
+      // DISABILITATO: causa troppi riavvii dell'interval
+      /*
       const usagePercent = mem.physical.used.percentage
       let newInterval = intervalMs
 
@@ -484,6 +486,7 @@ export function startMemoryRefresh(intervalMs: number = MEMORY_REFRESH_INTERVAL)
         appState.refreshInterval = window.setInterval(refresh, newInterval)
         console.debug(`Adaptive refresh: ${newInterval}ms (memory: ${usagePercent.toFixed(1)}%)`)
       }
+      */
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Failed to refresh memory info:', error)

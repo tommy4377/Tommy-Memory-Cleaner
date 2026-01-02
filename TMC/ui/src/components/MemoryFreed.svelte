@@ -94,7 +94,7 @@
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     background: var(--btn-bg);
-    color: var(--text-primary);
+    color: white;
     border-radius: 6px;
     text-align: center;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
@@ -105,12 +105,7 @@
   }
 
   :global([data-theme="dark"]) .val {
-    background: #2170c0;
     cursor: url('/cursors/dark/arrow.cur'), auto;
-  }
-
-  :global([data-theme="light"]) .val {
-    color: white;
   }
 
   .val:hover {

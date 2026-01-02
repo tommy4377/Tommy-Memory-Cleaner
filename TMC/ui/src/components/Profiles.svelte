@@ -184,11 +184,12 @@
 
   .info {
     margin-top: 10px;
-    padding: 10px;
-    background: #EBE1D3;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.04);
     border-radius: 8px;
     font-size: 11px;
     line-height: 1.6;
+    transition: background 0.2s ease;
   }
 
   :global([data-theme="dark"]) .info {
@@ -197,13 +198,9 @@
 
   .info-title {
     font-weight: 600;
-    color: var(--btn-bg);
+    color: color-mix(in srgb, var(--btn-bg) 80%, white 20%);
     margin-bottom: 4px;
-    font-size: 12px;
-  }
-
-  :global([data-theme="dark"]) .info-title {
-    color: #2170c0;
+    font-size: 14px;
   }
 
   .areas-list {

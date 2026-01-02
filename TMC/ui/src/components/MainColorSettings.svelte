@@ -1,88 +1,198 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
   import { config, updateConfig } from '../lib/store'
+  import { debounce, currentMainColor } from '../lib/themeManager'
   import type { Config } from '../lib/types'
+  import ColorPicker from './ColorPicker.svelte'
   import { t } from '../i18n/index'
 
   let cfg: Config | null = null
   let unsub: (() => void) | null = null
+  
+  // Valore locale per l'input color
+  let localColor = '#2f58c1'
+  
+  // Stato per il reset
+  let isResetting = false
+  
+  // Flag per impedire aggiornamenti backend durante il drag
+  let isDraggingFromPicker = false
+  
+  // Stati per il drag system come nella tray
+  let isDragging = false
+  let pendingColor: string | null = null
+  
+  // Debounce più reattivo per evitare rate limiting
+  const debouncedColorChange = debounce(async (color: string) => {
+    if (!cfg) return
+    
+    const theme = cfg.theme === 'light' ? 'light' : 'dark'
+    
+    // Usa updateConfig diretto
+    const updates: Partial<Config> = theme === 'light'
+      ? { main_color_hex_light: color }
+      : { main_color_hex_dark: color }
+    
+    await updateConfig(updates)
+  }, 100) // Ridotto da 300ms a 100ms per più fluidità
 
   onMount(() => {
-    unsub = config.subscribe((v) => (cfg = v))
-    applyMainColor()
+    unsub = config.subscribe((v) => {
+      cfg = v
+      if (v) {
+        updateLocalColor()
+      }
+    })
   })
 
   onDestroy(() => {
     if (unsub) unsub()
   })
 
-  function applyMainColor() {
+  function updateLocalColor() {
     if (!cfg) return
+    
+    // Se stiamo draggando dal picker, non aggiornare!
+    if (isDraggingFromPicker) {
+      return
+    }
+    
     const theme = cfg.theme === 'light' ? 'light' : 'dark'
-    const mainColor =
-      theme === 'light'
-        ? cfg.main_color_hex_light || cfg.main_color_hex || '#9a8a72'
-        : cfg.main_color_hex_dark || cfg.main_color_hex || '#0a84ff'
+    const newColor = theme === 'light'
+      ? cfg.main_color_hex_light || cfg.main_color_hex || '#9a8a72'
+      : cfg.main_color_hex_dark || cfg.main_color_hex || '#1363b4'
+    
+    if (newColor !== localColor) {
+      localColor = newColor
+      
+      // Applica le CSS variables
+      const root = document.documentElement
+      root.style.setProperty('--btn-bg', newColor)
+      root.style.setProperty('--bar-fill', newColor)
+      root.style.setProperty('--input-focus', newColor)
+      currentMainColor.set(newColor)
+    }
+  }
 
+  function onColorChange(e: Event | CustomEvent) {
+    // Handle both standard DOM events and custom events from ColorPicker
+    let color: string
+    
+    if ('detail' in e && e.detail) {
+      // Custom event from ColorPicker dispatch
+      color = e.detail.value
+    } else if ('target' in e && e.target) {
+      // Standard DOM event from native input
+      const target = e.target as HTMLInputElement
+      color = target.value
+    } else {
+      console.error('Unknown event type:', e)
+      return
+    }
+    
+    // Imposta flag per indicare che stiamo draggendo dal picker
+    isDraggingFromPicker = true
+    
+    // Applica subito il colore per feedback immediato (CSS variables)
     const root = document.documentElement
-    root.style.setProperty('--btn-bg', mainColor)
-    root.style.setProperty('--bar-fill', mainColor)
-    root.style.setProperty('--input-focus', mainColor)
-  }
-
-  function onColorChange(e: Event) {
-    const target = e.target as HTMLInputElement
-    const color = target.value
-    const theme = cfg?.theme === 'light' ? 'light' : 'dark'
-
-    // Salva nel campo corretto in base al tema
-    if (theme === 'light') {
-      updateConfig({ main_color_hex_light: color })
-    } else {
-      updateConfig({ main_color_hex_dark: color })
+    root.style.setProperty('--btn-bg', color)
+    root.style.setProperty('--bar-fill', color)
+    root.style.setProperty('--input-focus', color)
+    currentMainColor.set(color)
+    
+    // Durante il drag, accumula il colore come nella tray
+    pendingColor = color
+    
+    // Se non stiamo draggando, salva subito
+    if (!isDragging) {
+      debouncedColorChange(color)
     }
-
-    applyMainColor()
+    
+    // Resetta il flag dopo un breve ritardo
+    setTimeout(() => {
+      isDraggingFromPicker = false
+    }, 150)
   }
 
-  function resetColor() {
-    const theme = cfg?.theme === 'light' ? 'light' : 'dark'
-    const defaultColor = theme === 'dark' ? '#0a84ff' : '#9a8a72'
-
-    if (theme === 'light') {
-      updateConfig({ main_color_hex_light: defaultColor })
-    } else {
-      updateConfig({ main_color_hex_dark: defaultColor })
+  async function resetColor() {
+    if (!cfg) return
+    
+    // Se è già in stato di reset, fai un fake click (non fare nulla)
+    if (isResetting) {
+      return
     }
-
-    applyMainColor()
+    
+    isResetting = true
+    
+    // Esegui il reset immediatamente
+    setTimeout(() => {
+      try {
+        // Colori originali del main
+        const theme = cfg.theme === 'light' ? 'light' : 'dark'
+        const defaultMainColor = theme === 'light' ? '#9a8a72' : '#1363b4'
+        
+        // Aggiorna subito il locale per feedback istantaneo
+        localColor = defaultMainColor
+        
+        // Applica subito le CSS variables
+        const root = document.documentElement
+        root.style.setProperty('--btn-bg', defaultMainColor)
+        root.style.setProperty('--bar-fill', defaultMainColor)
+        root.style.setProperty('--input-focus', defaultMainColor)
+        currentMainColor.set(defaultMainColor)
+        
+        // Salva nel config
+        const updates: Partial<Config> = theme === 'light'
+          ? { main_color_hex_light: defaultMainColor }
+          : { main_color_hex_dark: defaultMainColor }
+        
+        console.log('🔄 [RESET COLOR] Resetting to:', updates)
+        updateConfig(updates)
+        
+      } catch (error) {
+        console.error('Failed to reset color:', error)
+      } finally {
+        isResetting = false
+      }
+    }, 0) // Timeout 0 per eseguire dopo il ciclo di render corrente
   }
-
-  // Reapplica quando cambia il tema o il colore
-  $: if (cfg) {
-    setTimeout(applyMainColor, 100)
+  
+  function handlePointerDown() {
+    isDragging = true
   }
+  
+  function handlePointerUp() {
+    if (!isDragging) return
+    
+    isDragging = false
+    
+    // Salva il colore pendente se esiste
+    if (pendingColor) {
+      const theme = cfg.theme === 'light' ? 'light' : 'dark'
+      const updates: Partial<Config> = theme === 'light'
+        ? { main_color_hex_light: pendingColor }
+        : { main_color_hex_dark: pendingColor }
+      
+      updateConfig(updates)
+      pendingColor = null
+    }
+    
+    // Resetta il flag di dragging dal picker
+    isDraggingFromPicker = false
+  }
+  
+  // Aggiungi listener globali per pointer up
+  onMount(() => {
+    window.addEventListener('pointerup', handlePointerUp)
+    return () => window.removeEventListener('pointerup', handlePointerUp)
+  })
 </script>
 
 <div class="group">
   <div class="title">{$t('Main Color')}</div>
 
   <div class="row">
-    <input
-      type="color"
-      value={(() => {
-        if (!cfg)
-          return document.documentElement.getAttribute('data-theme') === 'dark'
-            ? '#0a84ff'
-            : '#9a8a72'
-        const theme = cfg.theme === 'light' ? 'light' : 'dark'
-        return theme === 'light'
-          ? cfg.main_color_hex_light || cfg.main_color_hex || '#9a8a72'
-          : cfg.main_color_hex_dark || cfg.main_color_hex || '#0a84ff'
-      })()}
-      on:input={onColorChange}
-      class="color-input"
-    />
+    <ColorPicker bind:value={localColor} on:input={onColorChange} on:pointerdown={handlePointerDown} />
     <button on:click={resetColor}>{$t('Reset')}</button>
   </div>
 
@@ -153,16 +263,6 @@
   button:hover {
     opacity: 0.9;
     transform: translateY(-1px);
-  }
-
-  .color-input {
-    width: 45px;
-    height: 30px;
-    padding: 0;
-    border: 1px solid var(--border);
-    background: var(--input-bg);
-    cursor: pointer;
-    border-radius: 10px;
   }
 
   .hint {
