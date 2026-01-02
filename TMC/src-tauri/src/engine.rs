@@ -9,7 +9,7 @@ use crate::memory::ops::{
     optimize_standby_list, optimize_system_file_cache, optimize_working_set,
 };
 use crate::memory::advanced::{
-    trim_memory_compression_store, aggressive_modified_page_flush,
+    trim_memory_compression_store,
 };
 use crate::memory::types::{Areas, MemoryInfo, Reason};
 use crate::os;
@@ -473,9 +473,7 @@ impl Engine {
                 optimize_system_file_cache()
             }
             "ModifiedPageList" => {
-                // Always use aggressive flush with thread suspension
-                tracing::warn!("Using aggressive Modified Page List flush");
-                aggressive_modified_page_flush()?;
+                // Use the optimized modified page list function (includes advanced flush with fallback)
                 optimize_modified_page_list()
             }
             "StandbyList" => {
