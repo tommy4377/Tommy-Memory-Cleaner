@@ -33,6 +33,8 @@ fn to_wide(s: &str) -> Vec<u16> {
 
 const FSCTL_DISCARD_VOLUME_CACHE: u32 = 0x00090054;
 const FSCTL_RESET_WRITE_ORDER: u32 = 0x000900F8;
+const FSCTL_LOCK_VOLUME: u32 = 0x00090018;
+const FSCTL_UNLOCK_VOLUME: u32 = 0x0009001C;
 const DRIVE_FIXED: u32 = 3;
 
 fn is_fixed_drive(letter: char) -> bool {
@@ -41,27 +43,27 @@ fn is_fixed_drive(letter: char) -> bool {
     unsafe { GetDriveTypeW(root_w.as_ptr()) == DRIVE_FIXED }
 }
 
-fn open_volume(letter: char) -> Option<HANDLE> {
+fn open_volume(letter: char) -> Option<(HANDLE, u32)> {
     // Try multiple approaches to open the volume
     let path = format!(r"\\.\{}:", letter);
     let path_w = to_wide(&path);
     
     // Strategy 1: Standard approach with minimal rights
     if let Some(handle) = try_open_volume(&path_w, FILE_GENERIC_READ | FILE_GENERIC_WRITE, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_NO_BUFFERING) {
-        return Some(handle);
+        return Some((handle, FILE_GENERIC_READ | FILE_GENERIC_WRITE));
     }
     
     // Strategy 2: Query-only access (read-only)
     tracing::debug!("Retrying volume {} with query-only access", letter);
     if let Some(handle) = try_open_volume(&path_w, 0, FILE_ATTRIBUTE_NORMAL) {
         tracing::info!("Successfully opened volume {} with query-only access", letter);
-        return Some(handle);
+        return Some((handle, 0));
     }
     
     // Strategy 3: Attempt with different sharing flags
     tracing::debug!("Retrying volume {} with exclusive access", letter);
     if let Some(handle) = try_open_volume(&path_w, FILE_GENERIC_READ | FILE_GENERIC_WRITE, FILE_ATTRIBUTE_NORMAL) {
-        return Some(handle);
+        return Some((handle, FILE_GENERIC_READ | FILE_GENERIC_WRITE));
     }
     
     tracing::warn!("Failed to open volume {} after all attempts", letter);
@@ -104,26 +106,56 @@ pub fn flush_modified_file_cache_all() -> Result<()> {
             continue;
         }
 
-        if let Some(h) = open_volume(letter) {
+        if let Some((h, access)) = open_volume(letter) {
             volumes_total += 1;
             unsafe {
                 let mut _ret: u32 = 0;
                 let mut volume_success = false;
 
-                // First flush any pending writes
-                let flush_result = FlushFileBuffers(h);
-                if flush_result == 0 {
-                    let error = GetLastError();
-                    // Don't log ERROR_INVALID_HANDLE as debug, it's expected in some scenarios
-                    if error != 6 {
-                        tracing::debug!("FlushFileBuffers failed for {}: {}", letter, error);
+                // Strategy 1: Try to lock/unlock volume (this flushes cache automatically)
+                let lock_result = DeviceIoControl(
+                    h,
+                    FSCTL_LOCK_VOLUME,
+                    null_mut(),
+                    0,
+                    null_mut(),
+                    0,
+                    &mut _ret,
+                    null_mut(),
+                );
+                
+                if lock_result != 0 {
+                    // Successfully locked, now unlock
+                    let unlock_result = DeviceIoControl(
+                        h,
+                        FSCTL_UNLOCK_VOLUME,
+                        null_mut(),
+                        0,
+                        null_mut(),
+                        0,
+                        &mut _ret,
+                        null_mut(),
+                    );
+                    if unlock_result != 0 {
+                        tracing::debug!("Volume {} flushed via lock/unlock", letter);
+                        volume_success = true;
                     }
                 } else {
-                    volume_success = true;
+                    // Lock failed, try traditional FlushFileBuffers
+                    let flush_result = FlushFileBuffers(h);
+                    if flush_result == 0 {
+                        let error = GetLastError();
+                        // Don't log ERROR_ACCESS_DENIED (5) as debug, it's expected with query-only access
+                        if error != 5 && error != 6 {
+                            tracing::debug!("FlushFileBuffers failed for {}: {}", letter, error);
+                        }
+                    } else {
+                        volume_success = true;
+                    }
                 }
 
-                // Then reset write order (only if we have proper privileges)
-                if privileges_acquired {
+                // Skip FSCTL operations on query-only handles as they require write access
+                if privileges_acquired && access != 0 {
                     let result1 = DeviceIoControl(
                         h,
                         FSCTL_RESET_WRITE_ORDER,
@@ -148,8 +180,8 @@ pub fn flush_modified_file_cache_all() -> Result<()> {
                     }
                 }
 
-                // Finally discard volume cache (only if we have proper privileges)
-                if privileges_acquired {
+                // Skip FSCTL operations on query-only handles as they require write access
+                if privileges_acquired && access != 0 {
                     let result2 = DeviceIoControl(
                         h,
                         FSCTL_DISCARD_VOLUME_CACHE,
