@@ -153,7 +153,7 @@ TommyMemoryCleaner.exe /?
 ### Manual Optimization
 - **GUI**: Click "Optimize" button in main window
 - **System Tray**: Right-click tray icon → "Optimize Memory"
-- **Hotkey**: Press `Ctrl+Alt+O` (default)
+- **Hotkey**: Press `Ctrl+Alt+N` (default)
 
 ### Automatic Optimization
 Configure in **Settings → Auto Optimization**:
@@ -172,7 +172,7 @@ Configure in **Settings → Auto Optimization**:
 
 ### Custom Hotkeys
 - **Format**: `Ctrl+Alt+Key` or `Ctrl+Shift+Key`
-- **Examples**: `Ctrl+Alt+O`, `Ctrl+Shift+M`, `F12`
+- **Examples**: `Ctrl+Alt+N`, `Ctrl+Shift+M`, `F12`
 - Configure in **Settings → Hotkey**
 
 ### Theme Customization
