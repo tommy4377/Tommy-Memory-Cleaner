@@ -9,6 +9,7 @@
   let unsub: (() => void) | null = null
   let selected: Profile = 'Balanced'
   let isChanging = false
+  let changeTimeout: number | null = null
 
   onMount(() => {
     unsub = config.subscribe((value) => {
@@ -24,24 +25,38 @@
       unsub()
       unsub = null
     }
+    if (changeTimeout) {
+      clearTimeout(changeTimeout)
+      changeTimeout = null
+    }
   })
 
   async function selectProfile(profile: Profile) {
     if (isChanging || selected === profile) return
 
+    // Clear any existing timeout
+    if (changeTimeout) {
+      clearTimeout(changeTimeout)
+    }
+
     isChanging = true
-    selected = profile
+    // Don't update selected immediately to avoid visual flicker
+    const previousSelected = selected
 
     try {
       await applyProfile(profile)
+      // Only update after successful apply
+      selected = profile
     } catch (error) {
       console.error('Failed to apply profile:', error)
       // Rollback on error
-      if (cfg) {
-        selected = cfg.profile
-      }
+      selected = previousSelected
     } finally {
-      isChanging = false
+      // Add a small delay to prevent rapid clicking
+      changeTimeout = setTimeout(() => {
+        isChanging = false
+        changeTimeout = null
+      }, 200) as unknown as number
     }
   }
 
@@ -189,8 +204,28 @@
   }
 
   .seg button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+    opacity: 0.7;
+    cursor: wait;
+    position: relative;
+  }
+
+  /* Add loading spinner for disabled state */
+  .seg button:disabled::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
+    border: 2px solid transparent;
+    border-top-color: var(--btn-bg);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 
   .info {
