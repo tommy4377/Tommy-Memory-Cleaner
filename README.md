@@ -78,7 +78,7 @@ Optimizes 8 distinct memory areas using professional-grade techniques:
 #### User Interface
 - **Modern Design**: Rounded windows with transparency
 - **System Tray**: Real-time memory monitoring
-- **Global Hotkeys**: Quick optimization (default: `Ctrl+Alt+O`)
+- **Global Hotkeys**: Quick optimization (default: `Ctrl+Alt+N`)
 - **Multi-Language**: 10+ languages supported
 - **Theme Support**: Light/dark with custom colors
 
