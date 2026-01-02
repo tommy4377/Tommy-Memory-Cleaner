@@ -404,20 +404,29 @@ unsafe fn try_trim_with_resolver() -> Result<()> {
     }
 }
 
-/// Try trimming using direct NtSetSystemInformation
+/// Try trimming using direct NT call with command validation
 unsafe fn try_trim_direct_nt() -> Result<()> {
-    let status = execute_nt_set_system_info(
-        SYSTEM_MEMORY_LIST_INFORMATION,
-        MEMORY_COMPRESSION_STORE_TRIM,
-    );
-
-    if status == 0 {
-        tracing::info!("✓ Memory Compression Store trimmed via direct NT call");
-        Ok(())
-    } else {
-        tracing::warn!("Direct NT call returned NTSTATUS: 0x{:08X}", status as u32);
-        Err(anyhow::anyhow!("Direct NT call failed"))
+    // Try different command values for memory compression trim
+    let commands = [
+        6,  // MEMORY_COMPRESSION_STORE_TRIM (current)
+        4,  // Alternative value
+        1,  // Another alternative
+        2,  // Yet another
+    ];
+    
+    for cmd in commands {
+        let status = execute_nt_set_system_info(SYSTEM_MEMORY_LIST_INFORMATION, cmd);
+        
+        if status == 0 {
+            tracing::info!("✓ Memory Compression Store trimmed via direct NT call (cmd={})", cmd);
+            return Ok(());
+        } else if status as u32 != 0xC000000D {
+            // If it's not STATUS_INVALID_PARAMETER, it might be a different issue
+            tracing::warn!("Direct NT call returned NTSTATUS: 0x{:08X} (cmd={})", status as u32, cmd);
+        }
     }
+    
+    Err(anyhow::anyhow!("Direct NT call failed with all commands"))
 }
 
 /// Purge standby list with multi-tier approach
@@ -482,18 +491,28 @@ unsafe fn try_standby_with_resolver(low_priority: bool) -> Result<()> {
     }
 }
 
-/// Try standby purge using direct NT call
+/// Try standby purge using direct NT call with command validation
 unsafe fn try_standby_direct_nt(low_priority: bool) -> Result<()> {
-    let cmd = if low_priority { MEMORY_PURGE_LOW_PRIORITY_STANDBY_LIST } else { 4 };
-    let status = execute_nt_set_system_info(SYSTEM_MEMORY_LIST_INFORMATION, cmd);
-
-    if status == 0 {
-        tracing::info!("✓ Standby list purged via direct NT call");
-        Ok(())
+    // Try different command values for standby list purge
+    let commands = if low_priority {
+        vec![5, 3, 2, 1] // Low priority alternatives
     } else {
-        tracing::warn!("Direct NT call returned NTSTATUS: 0x{:08X}", status as u32);
-        Err(anyhow::anyhow!("Direct NT call failed"))
+        vec![4, 2, 1, 3] // Standard alternatives
+    };
+    
+    for cmd in commands {
+        let status = execute_nt_set_system_info(SYSTEM_MEMORY_LIST_INFORMATION, cmd);
+        
+        if status == 0 {
+            tracing::info!("✓ Standby list purged via direct NT call (cmd={})", cmd);
+            return Ok(());
+        } else if status as u32 != 0xC000000D {
+            // If it's not STATUS_INVALID_PARAMETER, it might be a different issue
+            tracing::warn!("Direct NT call returned NTSTATUS: 0x{:08X} (cmd={})", status as u32, cmd);
+        }
     }
+    
+    Err(anyhow::anyhow!("Direct NT call failed with all commands"))
 }
 
 /// Purge low priority standby list with fallback
@@ -586,17 +605,24 @@ unsafe fn try_modified_with_resolver() -> Result<()> {
     }
 }
 
-/// Try modified page flush using direct NT call
+/// Try modified page flush using direct NT call with command validation
 unsafe fn try_modified_direct_nt() -> Result<()> {
-    let status = execute_nt_set_system_info(SYSTEM_MEMORY_LIST_INFORMATION, MEMORY_FLUSH_MODIFIED_LIST);
-
-    if status == 0 {
-        tracing::info!("✓ Modified page list flushed via direct NT call");
-        Ok(())
-    } else {
-        tracing::warn!("Direct NT call returned NTSTATUS: 0x{:08X}", status as u32);
-        Err(anyhow::anyhow!("Direct NT call failed"))
+    // Try different command values for modified page flush
+    let commands = [3, 1, 2, 4];
+    
+    for cmd in commands {
+        let status = execute_nt_set_system_info(SYSTEM_MEMORY_LIST_INFORMATION, cmd);
+        
+        if status == 0 {
+            tracing::info!("✓ Modified page list flushed via direct NT call (cmd={})", cmd);
+            return Ok(());
+        } else if status as u32 != 0xC000000D {
+            // If it's not STATUS_INVALID_PARAMETER, it might be a different issue
+            tracing::warn!("Direct NT call returned NTSTATUS: 0x{:08X} (cmd={})", status as u32, cmd);
+        }
     }
+    
+    Err(anyhow::anyhow!("Direct NT call failed with all commands"))
 }
 
 /// Initialize advanced optimization features
