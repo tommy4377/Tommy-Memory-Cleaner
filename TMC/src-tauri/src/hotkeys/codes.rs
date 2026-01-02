@@ -1,23 +1,22 @@
 /// Hotkey code conversion utilities.
-/// 
+///
 /// This module provides functionality to convert string representations
 /// of keyboard keys to their corresponding Code enum values used by
 /// the global shortcut plugin.
-
 use tauri_plugin_global_shortcut::Code;
 
 /// Converts a string representation of a key to a Code enum value.
-/// 
-/// This function parses keyboard key strings (e.g., "A", "F1", "0") 
+///
+/// This function parses keyboard key strings (e.g., "A", "F1", "0")
 /// into the corresponding Code enum variants used for global shortcuts.
 /// The comparison is case-insensitive.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `s` - The string representation of the key
-/// 
+///
 /// # Returns
-/// 
+///
 /// Returns `Ok(Code)` if the key is supported, or an error string
 /// if the key is not recognized.
 pub fn code_from_str(s: &str) -> Result<Code, String> {

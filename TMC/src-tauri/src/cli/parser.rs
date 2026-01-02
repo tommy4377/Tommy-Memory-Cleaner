@@ -1,24 +1,59 @@
 /// Command-line argument parser and console mode executor.
-/// 
+///
 /// This module handles parsing of command-line arguments for memory optimization
 /// and executes the optimization in console mode without GUI. It supports both
 /// individual memory area selection and predefined profiles.
-
 use crate::config::{Config, Profile};
 use crate::engine::Engine;
 use crate::memory::types::{Areas, Reason};
 use std::sync::{Arc, Mutex};
 
 /// Runs the application in console mode with command-line arguments.
-/// 
+///
 /// Parses the provided arguments to determine which memory areas to optimize
 /// or which profile to use, then executes the optimization and reports results.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `args` - Slice of command-line arguments
 pub fn run_console_mode(args: &[String]) {
-    use std::io::{self, Write};
+    // Global function to write to console on Windows
+    #[cfg(windows)]
+    fn console_print(text: &str) {
+        unsafe {
+            use std::ptr;
+            use std::sync::atomic::{AtomicPtr, Ordering};
+            use windows_sys::Win32::System::Console::STD_OUTPUT_HANDLE;
+            use windows_sys::Win32::System::Console::{GetStdHandle, WriteConsoleW};
+
+            static CONSOLE_HANDLE: AtomicPtr<std::ffi::c_void> = AtomicPtr::new(ptr::null_mut());
+
+            // Initialize console handle if not done yet
+            let handle = CONSOLE_HANDLE.load(Ordering::Relaxed);
+            if handle.is_null() {
+                use windows_sys::Win32::System::Console::{AttachConsole, ATTACH_PARENT_PROCESS};
+                AttachConsole(ATTACH_PARENT_PROCESS);
+                let new_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+                if new_handle != 0 && new_handle != !0 {
+                    CONSOLE_HANDLE.store(new_handle as *mut std::ffi::c_void, Ordering::Relaxed);
+                }
+            }
+
+            // Write to console if handle is available
+            let handle = CONSOLE_HANDLE.load(Ordering::Relaxed);
+            if !handle.is_null() {
+                let wide_text: Vec<u16> = text.encode_utf16().chain(std::iter::once(0)).collect();
+                let mut written = 0u32;
+                WriteConsoleW(
+                    handle as windows_sys::Win32::Foundation::HANDLE,
+                    wide_text.as_ptr() as *const _,
+                    wide_text.len() as u32 - 1,
+                    &mut written,
+                    ptr::null_mut(),
+                );
+            }
+        }
+    }
 
     // Parse command-line arguments
     let mut areas = Areas::empty();
@@ -28,27 +63,53 @@ pub fn run_console_mode(args: &[String]) {
     for arg in args {
         match arg.as_str() {
             "/?" | "/help" | "-h" | "--help" => {
-                println!("Tommy Memory Cleaner - Console Mode");
-                println!();
-                println!("Usage: tmc.exe [OPTIONS]");
-                println!();
-                println!("Options:");
-                println!("  /WorkingSet              Optimize Working Set");
-                println!("  /ModifiedPageList        Optimize Modified Page List");
-                println!("  /StandbyList             Optimize Standby List");
-                println!("  /StandbyListLow          Optimize Low Priority Standby List");
-                println!("  /SystemFileCache         Optimize System File Cache");
-                println!("  /CombinedPageList        Optimize Combined Page List");
-                println!("  /ModifiedFileCache       Optimize Modified File Cache");
-                println!("  /RegistryCache           Optimize Registry Cache");
-                println!("  /Profile:Normal          Use Normal profile");
-                println!("  /Profile:Balanced        Use Balanced profile");
-                println!("  /Profile:Gaming          Use Gaming profile");
-                println!("  /?                       Show this help");
-                println!();
-                println!("Examples:");
-                println!("  tmc.exe /WorkingSet /StandbyList");
-                println!("  tmc.exe /Profile:Balanced");
+                #[cfg(windows)]
+                {
+                    console_print("Tommy Memory Cleaner - Console Mode\n\n");
+                    console_print("Usage: tmc.exe [OPTIONS]\n\n");
+                    console_print("Options:\n");
+                    console_print("  /WorkingSet              Optimize Working Set\n");
+                    console_print("  /ModifiedPageList        Optimize Modified Page List\n");
+                    console_print("  /StandbyList             Optimize Standby List\n");
+                    console_print(
+                        "  /StandbyListLow          Optimize Low Priority Standby List\n",
+                    );
+                    console_print("  /SystemFileCache         Optimize System File Cache\n");
+                    console_print("  /CombinedPageList        Optimize Combined Page List\n");
+                    console_print("  /ModifiedFileCache       Optimize Modified File Cache\n");
+                    console_print("  /RegistryCache           Optimize Registry Cache\n");
+                    console_print("  /Profile:Normal          Use Normal profile\n");
+                    console_print("  /Profile:Balanced        Use Balanced profile\n");
+                    console_print("  /Profile:Gaming          Use Gaming profile\n");
+                    console_print("  /?                       Show this help\n\n");
+                    console_print("Examples:\n");
+                    console_print("  tmc.exe /WorkingSet /StandbyList\n");
+                    console_print("  tmc.exe /Profile:Balanced\n");
+                }
+                #[cfg(not(windows))]
+                {
+                    println!("Tommy Memory Cleaner - Console Mode");
+                    println!();
+                    println!("Usage: tmc.exe [OPTIONS]");
+                    println!();
+                    println!("Options:");
+                    println!("  /WorkingSet              Optimize Working Set");
+                    println!("  /ModifiedPageList        Optimize Modified Page List");
+                    println!("  /StandbyList             Optimize Standby List");
+                    println!("  /StandbyListLow          Optimize Low Priority Standby List");
+                    println!("  /SystemFileCache         Optimize System File Cache");
+                    println!("  /CombinedPageList        Optimize Combined Page List");
+                    println!("  /ModifiedFileCache       Optimize Modified File Cache");
+                    println!("  /RegistryCache           Optimize Registry Cache");
+                    println!("  /Profile:Normal          Use Normal profile");
+                    println!("  /Profile:Balanced        Use Balanced profile");
+                    println!("  /Profile:Gaming          Use Gaming profile");
+                    println!("  /?                       Show this help");
+                    println!();
+                    println!("Examples:");
+                    println!("  tmc.exe /WorkingSet /StandbyList");
+                    println!("  tmc.exe /Profile:Balanced");
+                }
                 return;
             }
             arg if arg.starts_with("/Profile:") => {
@@ -64,8 +125,16 @@ pub fn run_console_mode(args: &[String]) {
             "/ModifiedFileCache" => areas |= Areas::MODIFIED_FILE_CACHE,
             "/RegistryCache" => areas |= Areas::REGISTRY_CACHE,
             _ => {
-                eprintln!("Unknown argument: {}", arg);
-                eprintln!("Use /? for help");
+                #[cfg(windows)]
+                {
+                    console_print(&format!("Unknown argument: {}\n", arg));
+                    console_print("Use /? for help\n");
+                }
+                #[cfg(not(windows))]
+                {
+                    eprintln!("Unknown argument: {}", arg);
+                    eprintln!("Use /? for help");
+                }
                 std::process::exit(1);
             }
         }
@@ -78,25 +147,59 @@ pub fn run_console_mode(args: &[String]) {
             "Balanced" => Profile::Balanced,
             "Gaming" => Profile::Gaming,
             _ => {
-                eprintln!(
-                    "Invalid profile: {}. Use Normal, Balanced, or Gaming",
-                    profile_name
-                );
+                #[cfg(windows)]
+                {
+                    console_print(&format!(
+                        "Invalid profile: {}. Use Normal, Balanced, or Gaming\n",
+                        profile_name
+                    ));
+                }
+                #[cfg(not(windows))]
+                {
+                    eprintln!(
+                        "Invalid profile: {}. Use Normal, Balanced, or Gaming",
+                        profile_name
+                    );
+                }
                 std::process::exit(1);
             }
         };
         areas = profile.get_memory_areas();
-        println!("Using profile: {:?}", profile);
+        #[cfg(windows)]
+        {
+            console_print(&format!("Using profile: {:?}\n", profile));
+        }
+        #[cfg(not(windows))]
+        {
+            println!("Using profile: {:?}", profile);
+        }
     }
 
     // If no areas are specified, use Balanced profile by default
     if areas.is_empty() {
         areas = Profile::Balanced.get_memory_areas();
-        println!("No areas specified, using Balanced profile");
+        #[cfg(windows)]
+        {
+            console_print("No areas specified, using Balanced profile\n");
+        }
+        #[cfg(not(windows))]
+        {
+            println!("No areas specified, using Balanced profile");
+        }
     }
 
-    println!("Optimizing memory areas: {:?}", areas.get_names());
-    io::stdout().flush().unwrap();
+    #[cfg(windows)]
+    {
+        console_print(&format!(
+            "Optimizing memory areas: {:?}\n",
+            areas.get_names()
+        ));
+    }
+    #[cfg(not(windows))]
+    {
+        println!("Optimizing memory areas: {:?}", areas.get_names());
+        io::stdout().flush().unwrap();
+    }
 
     // Execute optimization synchronously in console mode
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -105,8 +208,16 @@ pub fn run_console_mode(args: &[String]) {
         let cfg = match Config::load() {
             Ok(c) => c,
             Err(e) => {
-                eprintln!("Failed to load config: {}", e);
-                eprintln!("Using default configuration");
+                #[cfg(windows)]
+                {
+                    console_print(&format!("Failed to load config: {}\n", e));
+                    console_print("Using default configuration\n");
+                }
+                #[cfg(not(windows))]
+                {
+                    eprintln!("Failed to load config: {}", e);
+                    eprintln!("Using default configuration");
+                }
                 Config::default()
             }
         };
@@ -119,22 +230,51 @@ pub fn run_console_mode(args: &[String]) {
         match engine.optimize::<fn(u8, u8, String)>(Reason::Manual, areas, None) {
             Ok(result) => {
                 let freed_mb = result.freed_physical_bytes.abs() as f64 / 1024.0 / 1024.0;
-                println!("Optimization completed successfully");
-                println!("Freed: {:.2} MB", freed_mb);
+                #[cfg(windows)]
+                {
+                    console_print("Optimization completed successfully\n");
+                    console_print(&format!("Freed: {:.2} MB\n", freed_mb));
+                }
+                #[cfg(not(windows))]
+                {
+                    println!("Optimization completed successfully");
+                    println!("Freed: {:.2} MB", freed_mb);
+                }
 
                 // Display results for each optimized area
                 for area in result.areas {
                     if let Some(error) = area.error {
-                        eprintln!("  {}: FAILED - {}", area.name, error);
+                        #[cfg(windows)]
+                        {
+                            console_print(&format!("  {}: FAILED - {}\n", area.name, error));
+                        }
+                        #[cfg(not(windows))]
+                        {
+                            eprintln!("  {}: FAILED - {}", area.name, error);
+                        }
                     } else {
-                        println!("  {}: OK", area.name);
+                        #[cfg(windows)]
+                        {
+                            console_print(&format!("  {}: OK\n", area.name));
+                        }
+                        #[cfg(not(windows))]
+                        {
+                            println!("  {}: OK", area.name);
+                        }
                     }
                 }
 
                 std::process::exit(0);
             }
             Err(e) => {
-                eprintln!("Optimization failed: {}", e);
+                #[cfg(windows)]
+                {
+                    console_print(&format!("Optimization failed: {}\n", e));
+                }
+                #[cfg(not(windows))]
+                {
+                    eprintln!("Optimization failed: {}", e);
+                }
                 std::process::exit(1);
             }
         }

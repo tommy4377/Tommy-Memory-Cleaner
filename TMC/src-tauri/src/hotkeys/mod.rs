@@ -1,6 +1,6 @@
 //! Hotkeys Submodule Entry Point
-//! 
-//! This module exports the global shortcut management logic, providing 
+//!
+//! This module exports the global shortcut management logic, providing
 //! both the internal registration functions and the Tauri-exposed commands.
 //! It serves as the public interface for the application's hotkey system.
 

@@ -1,17 +1,16 @@
 /// Memory management commands for the Tauri backend.
-/// 
+///
 /// This module provides Tauri commands for memory optimization operations,
 /// including memory information retrieval, process listing, and both synchronous
 /// and asynchronous memory optimization functionality.
-
 use crate::memory::types::{Areas, Reason};
 use std::time::Duration;
 use tauri::{AppHandle, Manager, State};
 
 /// Retrieves current memory usage information.
-/// 
+///
 /// # Returns
-/// 
+///
 /// Returns a `MemoryInfo` struct containing detailed memory statistics
 /// for physical and virtual memory, or an error string if the operation fails.
 #[tauri::command]
@@ -22,9 +21,9 @@ pub fn cmd_memory_info(
 }
 
 /// Retrieves a list of all running process names.
-/// 
+///
 /// # Returns
-/// 
+///
 /// Returns a vector containing the names of all currently running processes
 /// on the system.
 #[tauri::command]
@@ -33,12 +32,12 @@ pub fn cmd_list_process_names() -> Result<Vec<String>, String> {
 }
 
 /// Retrieves a list of critical system processes.
-/// 
+///
 /// These processes should not be terminated during memory optimization
 /// to maintain system stability.
-/// 
+///
 /// # Returns
-/// 
+///
 /// Returns a vector containing the names of critical system processes
 /// that are protected from optimization.
 #[tauri::command]
@@ -47,19 +46,19 @@ pub fn cmd_get_critical_processes() -> Result<Vec<String>, String> {
 }
 
 /// Executes memory optimization asynchronously.
-/// 
+///
 /// This command initiates memory optimization in a background task,
 /// allowing the UI to remain responsive during the operation.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `app` - The application handle for window management
 /// * `state` - The application state containing the engine and configuration
 /// * `reason` - The reason for optimization (manual, scheduled, low memory)
 /// * `areas` - String representation of memory areas to optimize
-/// 
+///
 /// # Returns
-/// 
+///
 /// Returns `Ok(())` if the optimization task is started successfully,
 /// or an error string if rate limiting is exceeded.
 #[tauri::command]

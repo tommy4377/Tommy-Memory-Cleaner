@@ -4,7 +4,7 @@
 )]
 
 /// Tommy Memory Cleaner - Main Application Entry Point
-/// 
+///
 /// This is the main entry point for the Tommy Memory Cleaner application.
 /// It initializes all subsystems including:
 /// - Memory optimization engine
@@ -13,7 +13,6 @@
 /// - Auto-optimization scheduler
 /// - Notification system
 /// - Security checks
-
 mod antivirus;
 mod auto_optimizer;
 mod cli;
@@ -83,7 +82,7 @@ fn to_wide(s: &str) -> Vec<u16> {
 
 // ============= PRIVILEGE MANAGEMENT =============
 /// Initialize required Windows privileges for memory optimization
-/// 
+///
 /// This function ensures the process has the necessary privileges
 /// to perform advanced memory operations on other processes.
 fn ensure_privileges_initialized() -> Result<(), String> {
@@ -139,7 +138,7 @@ fn ensure_privileges_initialized() -> Result<(), String> {
 // Tray menu is managed directly in the builder, see ui::tray::build()
 
 /// Refresh the tray icon based on current memory usage
-/// 
+///
 /// This function updates the system tray icon to reflect current memory
 /// usage when enabled in settings. Uses non-blocking locks to prevent deadlocks.
 fn refresh_tray_icon(app: &AppHandle) {
@@ -220,7 +219,7 @@ fn parse_areas_string(areas_str: &str) -> Areas {
 
 // ============= OPTIMIZATION LOGIC =============
 /// Perform memory optimization with specified parameters
-/// 
+///
 /// This is the core optimization function that:
 /// - Checks if optimization is already running
 /// - Ensures proper privileges are acquired
@@ -786,9 +785,7 @@ fn main() {
     {
         use crate::system::is_app_elevated;
         if !is_app_elevated() {
-            eprintln!(
-                "CRITICAL ERROR: Tommy Memory Cleaner must be run as Administrator!"
-            );
+            eprintln!("CRITICAL ERROR: Tommy Memory Cleaner must be run as Administrator!");
             eprintln!("CRITICAL ERROR: Tommy Memory Cleaner must be run as Administrator!");
 
             // Show error message to user
@@ -806,12 +803,11 @@ fn main() {
                     MessageBoxW, MB_ICONERROR, MB_OK,
                 };
 
-                let title: Vec<u16> = std::ffi::OsStr::new(
-                    "Tommy Memory Cleaner - Privileges Required",
-                )
-                .encode_wide()
-                .chain(std::iter::once(0))
-                .collect();
+                let title: Vec<u16> =
+                    std::ffi::OsStr::new("Tommy Memory Cleaner - Privileges Required")
+                        .encode_wide()
+                        .chain(std::iter::once(0))
+                        .collect();
 
                 let msg: Vec<u16> = std::ffi::OsStr::new(&error_msg)
                     .encode_wide()

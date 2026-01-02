@@ -1,7 +1,7 @@
 //! Global Shortcut Management Module
 //!
 //! This module handles the registration and parsing of system-wide hotkeys
-//! using the Tauri v2 Global Shortcut plugin. It provides utilities to 
+//! using the Tauri v2 Global Shortcut plugin. It provides utilities to
 //! convert string representations of shortcuts into hardware-level key codes
 //! and modifier bitflags.
 

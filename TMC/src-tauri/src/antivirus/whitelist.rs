@@ -1,18 +1,17 @@
 /// Antivirus whitelist management for Windows Defender integration.
-/// 
+///
 /// This module provides functionality to register the application with
 /// antivirus software and implement memory operations that avoid triggering
 /// false positive detections.
-
 use anyhow;
 
 /// Registers the application as trusted with Windows Defender.
-/// 
+///
 /// Attempts to add the executable to Windows Defender's exclusion list.
 /// Note: Full implementation requires administrator privileges.
-/// 
+///
 /// # Returns
-/// 
+///
 /// Returns `Ok(())` if the registration process completes without errors,
 /// even if the actual registration fails due to insufficient privileges.
 pub fn register_as_trusted() -> Result<(), Box<dyn std::error::Error>> {
@@ -40,17 +39,17 @@ pub fn register_as_trusted() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Executes memory operations with randomized timing to avoid antivirus detection.
-/// 
+///
 /// This wrapper function adds a random delay before executing the provided
 /// operation to help prevent pattern-based detection by antivirus software.
-/// 
+///
 /// # Type Parameters
-/// 
+///
 /// * `F` - A closure that performs the memory operation
 /// * `R` - The return type of the operation
-/// 
+///
 /// # Returns
-/// 
+///
 /// Returns the result of the operation or an error if it fails.
 pub fn safe_memory_operation<F, R>(operation: F) -> Result<R, anyhow::Error>
 where

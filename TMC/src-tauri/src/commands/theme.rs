@@ -1,5 +1,5 @@
 /// Retrieves the current system theme from Windows registry.
-/// 
+///
 /// Reads the AppsUseLightTheme value from Windows Personalization settings.
 /// Returns "dark" or "light" based on the system preference.
 /// Defaults to "dark" theme if detection fails.
@@ -48,7 +48,7 @@ pub fn cmd_get_system_theme() -> Result<String, String> {
             }
 
             if read_result == 0 && value_type == REG_DWORD {
-        // Registry value: 0 = dark theme, 1 = light theme
+                // Registry value: 0 = dark theme, 1 = light theme
                 return Ok(if value_data == 0 {
                     "dark".to_string()
                 } else {
@@ -63,7 +63,7 @@ pub fn cmd_get_system_theme() -> Result<String, String> {
 }
 
 /// Retrieves the system language from Windows registry.
-/// 
+///
 /// Reads the LocaleName value from Windows international settings.
 /// Maps the locale to supported language codes.
 /// Defaults to "en" (English) if detection fails.

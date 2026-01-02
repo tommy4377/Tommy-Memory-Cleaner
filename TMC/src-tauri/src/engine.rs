@@ -1,8 +1,7 @@
 /// Memory optimization engine
-/// 
+///
 /// This module contains the core engine responsible for performing
 /// memory optimization operations on Windows systems.
-
 use crate::config::Config;
 use crate::logging::event_viewer::{log_error_event, log_optimization_event};
 use crate::memory::ops::{
@@ -51,7 +50,7 @@ impl Engine {
     }
 
     /// Perform memory optimization on specified areas
-    /// 
+    ///
     /// This is the main optimization method that:
     /// - Acquires necessary privileges before starting
     /// - Optimizes each specified memory area

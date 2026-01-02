@@ -2,12 +2,12 @@ use crate::config::Priority;
 use tauri::{AppHandle, State};
 
 /// System configuration commands for the Tommy Memory Cleaner application.
-/// 
+///
 /// This module provides Tauri commands to manage system-level settings
 /// including process priority, startup behavior, and window properties.
 
 /// Sets the application process priority.
-/// 
+///
 /// Updates both the current process priority and persists the setting
 /// in the application configuration for future sessions.
 #[tauri::command]
@@ -26,7 +26,7 @@ pub fn cmd_set_priority(
 }
 
 /// Configures the application to run automatically on system startup.
-/// 
+///
 /// Attempts to set the startup preference in Windows registry and verifies
 /// the operation was successful. Persists the setting in the application
 /// configuration for consistency.
@@ -55,7 +55,7 @@ pub fn cmd_run_on_startup(enable: bool, state: State<'_, crate::AppState>) -> Re
 }
 
 /// Controls the window's "always on top" behavior.
-/// 
+///
 /// Sets or removes the always-on-top property for the application window
 /// and persists this preference in the configuration for future sessions.
 #[tauri::command]

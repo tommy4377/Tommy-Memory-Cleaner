@@ -1,12 +1,11 @@
 /// UI-related commands for window management and notifications.
-/// 
+///
 /// This module provides Tauri commands for showing windows,
 /// displaying notifications, and positioning UI elements.
-
 use tauri::{AppHandle, Manager, State};
 
 /// Shows the main window or creates it if it doesn't exist.
-/// 
+///
 /// This command delegates to the helper function to handle both
 /// showing existing windows and creating new ones if needed.
 #[tauri::command]
@@ -15,19 +14,19 @@ pub fn cmd_show_or_create_window(app: AppHandle) {
 }
 
 /// Displays a system notification with the specified title and message.
-/// 
+///
 /// Uses the current theme from configuration to style the notification.
 /// Falls back to dark theme if configuration is unavailable.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `app` - The application handle for displaying notifications
 /// * `title` - The notification title
 /// * `message` - The notification message
 /// * `state` - The application state containing the configuration
-/// 
+///
 /// # Returns
-/// 
+///
 /// Returns `Ok(())` if the notification is displayed successfully,
 /// or an error string if the operation fails.
 #[tauri::command]
@@ -52,7 +51,7 @@ pub fn cmd_show_notification(
 }
 
 /// Helper function to show or create the main application window.
-/// 
+///
 /// This function is accessible from main.rs and handles both
 /// showing existing windows and creating new ones if needed.
 pub fn show_or_create_window(app: &AppHandle) {
@@ -96,12 +95,12 @@ pub fn show_or_create_window(app: &AppHandle) {
 }
 
 /// Positions the tray menu relative to the system tray icon.
-/// 
+///
 /// This function calculates the optimal position for the tray menu
 /// based on the cursor position and taskbar location.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `window` - The tray menu window to position
 pub fn position_tray_menu(window: &tauri::WebviewWindow) {
     // Get the menu dimensions
@@ -162,7 +161,7 @@ pub fn position_tray_menu(window: &tauri::WebviewWindow) {
                     && cursor_y >= m_top
                     && cursor_y < m_bottom
                 {
-                // Log before moving m
+                    // Log before moving m
                     tracing::debug!(
                         "Found monitor containing cursor: {}x{} at {:?}",
                         m_size.width,
@@ -293,7 +292,7 @@ pub fn position_tray_menu(window: &tauri::WebviewWindow) {
 }
 
 /// Retrieves the Windows taskbar rectangle coordinates.
-/// 
+///
 /// Returns (left, top, right, bottom) of the taskbar area.
 /// Only available on Windows.
 #[cfg(windows)]

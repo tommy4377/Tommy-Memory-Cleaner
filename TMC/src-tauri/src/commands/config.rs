@@ -1,15 +1,14 @@
 /// Configuration management commands.
-/// 
+///
 /// This module provides Tauri commands for managing application configuration,
 /// including loading, saving, and updating various settings such as profiles,
 /// memory areas, themes, and system preferences.
-
 use crate::config::{Config, Priority, Profile};
 use crate::memory::types::Areas;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 /// Exits the application gracefully.
-/// 
+///
 /// This command terminates the application process after logging the exit event.
 #[tauri::command]
 pub fn cmd_exit(_app: AppHandle) {
@@ -18,9 +17,9 @@ pub fn cmd_exit(_app: AppHandle) {
 }
 
 /// Retrieves the current application configuration.
-/// 
+///
 /// # Returns
-/// 
+///
 /// Returns a clone of the current configuration or an error if the
 /// configuration lock is poisoned.
 #[tauri::command]
@@ -33,18 +32,18 @@ pub fn cmd_get_config(state: State<'_, crate::AppState>) -> Result<Config, Strin
 }
 
 /// Saves configuration changes from JSON data.
-/// 
+///
 /// This command updates the application configuration based on the provided
 /// JSON value. It includes rate limiting to prevent excessive updates.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `app` - The application handle for emitting events
 /// * `state` - The application state containing the configuration
 /// * `cfg_json` - JSON value containing the configuration changes
-/// 
+///
 /// # Returns
-/// 
+///
 /// Returns `Ok(())` if the configuration is saved successfully,
 /// or an error string if the operation fails.
 #[tauri::command]
@@ -286,20 +285,20 @@ pub fn cmd_save_config(
 }
 
 /// Completes the setup wizard with provided configuration.
-/// 
+///
 /// This command applies the initial configuration settings chosen during
 /// the first-time setup, including startup preferences, theme, language,
 /// and window behavior. It also handles the transition from setup window
 /// to the main application window.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `app` - The application handle for window management
 /// * `state` - The application state containing the configuration
 /// * `setup_data` - JSON value containing the setup configuration
-/// 
+///
 /// # Returns
-/// 
+///
 /// Returns `Ok(())` if setup is completed successfully,
 /// or an error string if the operation fails.
 #[tauri::command]

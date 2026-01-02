@@ -1,8 +1,7 @@
 /// Configuration management module
-/// 
+///
 /// Handles loading, saving, and validating application configuration
 /// with support for portable installations and proper data directory handling.
-
 use crate::memory::types::Areas;
 use crate::security::{
     contains_injection_patterns, is_valid_hex_color, sanitize_hotkey, sanitize_process_name,
@@ -146,7 +145,7 @@ impl Profile {
     pub fn get_memory_areas(&self) -> Areas {
         match self {
             Profile::Normal => {
-        // Light profile: Essential and safest areas only
+                // Light profile: Essential and safest areas only
                 // - WORKING_SET: Core optimization, high impact, safe (critical processes protected)
                 // - MODIFIED_PAGE_LIST: Very safe, clears pages waiting for disk write
                 // - REGISTRY_CACHE: Lightweight, very safe, cache rebuilds automatically
@@ -155,7 +154,7 @@ impl Profile {
                 Areas::WORKING_SET | Areas::MODIFIED_PAGE_LIST | Areas::REGISTRY_CACHE
             }
             Profile::Balanced => {
-        // Balanced profile: Good balance between memory freed and system performance
+                // Balanced profile: Good balance between memory freed and system performance
                 // Includes all Normal areas plus:
                 // - STANDBY_LIST: High memory freed, safe, low-medium performance impact
                 // - SYSTEM_FILE_CACHE: High memory freed, safe with auto-rebuild
@@ -177,7 +176,7 @@ impl Profile {
                 areas
             }
             Profile::Gaming => {
-        // Aggressive profile: All available areas for maximum memory freeing
+                // Aggressive profile: All available areas for maximum memory freeing
                 // Suitable for gaming and resource-intensive applications
                 // Includes all areas from Balanced plus:
                 // - STANDBY_LIST_LOW: Low-priority standby memory (if available)
