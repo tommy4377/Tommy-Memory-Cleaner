@@ -21,7 +21,7 @@
 use crate::memory::privileges::ensure_privileges;
 use crate::memory::types::{mk_stats, MemoryInfo};
 use anyhow::{bail, Result};
-use std::{ffi::OsString, mem::size_of, os::windows::ffi::OsStringExt, ptr};
+use std::{ffi::OsString, mem, os::windows::ffi::OsStringExt, ptr};
 use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
 
 use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, HANDLE, INVALID_HANDLE_VALUE};
@@ -39,7 +39,7 @@ use std::collections::HashSet;
 use std::sync::RwLock;
 use std::time::{Duration, Instant};
 
-const SYS_MEMORY_LIST_INFORMATION: u32 = 80;
+pub const SYS_MEMORY_LIST_INFORMATION: u32 = 80;
 const SYS_COMBINE_PHYSICAL_MEMORY_INFORMATION: u32 = 101;
 
 const MEM_EMPTY_WORKING_SETS: u32 = 2;
@@ -482,20 +482,33 @@ pub fn optimize_combined_page_list() -> Result<()> {
                 flags: 0,
             };
 
-            let status = ntapi::ntexapi::NtSetSystemInformation(
+            let status = NtSetSystemInformation(
                 SYS_COMBINE_PHYSICAL_MEMORY_INFORMATION,
-                (&mut info as *mut MEMORY_COMBINE_INFORMATION_EX) as _,
-                std::mem::size_of::<MEMORY_COMBINE_INFORMATION_EX>() as u32,
+                &mut info as *mut _ as _,
+                mem::size_of::<MEMORY_COMBINE_INFORMATION_EX>() as u32,
             );
 
             if status < 0 {
-                // Non far crashare, solo log warning e continua
+                // Check for Windows 11 24H2+ compatibility issue
+                if status as u32 == 0xC0000003 {
+                    // STATUS_INVALID_INFO_CLASS - Windows 11 24H2+ changed the API
+                    tracing::debug!(
+                        "Combined page list not supported on Windows 11 24H2+ (STATUS_INVALID_INFO_CLASS). \
+                        This is expected and not an error."
+                    );
+                    return Ok(());
+                }
+                
                 tracing::warn!(
-                    "Combined page list optimization not available on this system (0x{:x})",
+                    "Combined page list optimization failed: 0x{:x} (this may be normal on newer Windows versions)",
                     status
                 );
+                return Ok(()); // Don't fail the entire optimization
             }
+
+            tracing::info!("Combined {} pages", info.pages_combined);
         }
+
         Ok(())
     })
 }

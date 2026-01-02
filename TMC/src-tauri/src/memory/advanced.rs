@@ -12,7 +12,7 @@
 /// Requires Administrator privileges and may trigger security software.
 
 use anyhow::{Result, bail, Context};
-use std::{ptr, mem, ffi::CString};
+use std::{ptr, mem, ffi::CString, sync::OnceLock};
 use windows_sys::Win32::{
     Foundation::{HANDLE, CloseHandle},
     Security::{
@@ -36,6 +36,9 @@ const PATTERN_MOV_R10_RCX: [u8; 3] = [0x4C, 0x8B, 0xD1];
 // Syscall stub size in bytes (Windows x64 convention)
 const SYSCALL_STUB_SIZE: usize = 32;
 const MAX_NEIGHBOR_SEARCH: usize = 500;
+
+// SSN Cache for performance optimization
+static NTSETSYSTEMINFO_SSN: OnceLock<u32> = OnceLock::new();
 
 /// Memory list command enumeration for SystemMemoryListInformation
 /// According to hfiref0x/KDU and Geoff Chappell documentation
@@ -101,6 +104,18 @@ impl SyscallResolver {
                 ntdll_size: size,
             })
         }
+    }
+
+    /// Get cached SSN for NtSetSystemInformation
+    fn get_cached_ssn(&self) -> Result<u32> {
+        Ok(*NTSETSYSTEMINFO_SSN.get_or_init(|| {
+            tracing::debug!("Resolving SSN for NtSetSystemInformation for the first time...");
+            unsafe {
+                self.get_ssn("NtSetSystemInformation")
+                    .ok_or_else(|| anyhow::anyhow!("Could not resolve NtSetSystemInformation"))
+                    .unwrap()
+            }
+        }))
     }
 
     /// Tartarus' Gate implementation: Extended hook detection with multiple patterns
@@ -467,8 +482,8 @@ unsafe fn try_standby_with_resolver(low_priority: bool) -> Result<()> {
     let resolver = SyscallResolver::new()
         .context("Failed to initialize syscall resolver")?;
     
-    let ssn = resolver.get_ssn("NtSetSystemInformation")
-        .ok_or_else(|| anyhow::anyhow!("Could not resolve NtSetSystemInformation"))?;
+    let ssn = resolver.get_cached_ssn()
+        .context("Could not resolve NtSetSystemInformation")?;
 
     let cmd = if low_priority { 
         SystemMemoryListCommand::MemoryPurgeLowPriorityStandbyList as u32
@@ -567,7 +582,8 @@ pub fn aggressive_modified_page_flush() -> Result<()> {
             Ok(guard) => guard,
             Err(e) => {
                 tracing::warn!("Could not acquire SYSTEM privileges: {}. Using standard API.", e);
-                return crate::memory::ops::optimize_modified_page_list();
+                // Use direct NT call instead of recursive call to ops.rs
+                return crate::memory::ops::nt_call_u32(crate::memory::ops::SYS_MEMORY_LIST_INFORMATION, 3);
             }
         };
         
@@ -584,7 +600,7 @@ pub fn aggressive_modified_page_flush() -> Result<()> {
         
         // Approach 3: Fallback to standard API
         tracing::info!("Direct NT failed, using standard API");
-        crate::memory::ops::optimize_modified_page_list()
+        crate::memory::ops::nt_call_u32(crate::memory::ops::SYS_MEMORY_LIST_INFORMATION, 3)
     }
 }
 
@@ -593,8 +609,8 @@ unsafe fn try_modified_with_resolver() -> Result<()> {
     let resolver = SyscallResolver::new()
         .context("Failed to initialize syscall resolver")?;
     
-    let ssn = resolver.get_ssn("NtSetSystemInformation")
-        .ok_or_else(|| anyhow::anyhow!("Could not resolve NtSetSystemInformation"))?;
+    let ssn = resolver.get_cached_ssn()
+        .context("Could not resolve NtSetSystemInformation")?;
 
     let cmd = SystemMemoryListCommand::MemoryFlushModifiedList as u32;
     
@@ -681,8 +697,8 @@ unsafe fn try_registry_with_resolver() -> Result<()> {
     let resolver = SyscallResolver::new()
         .context("Failed to initialize syscall resolver")?;
     
-    let _ssn = resolver.get_ssn("NtSetSystemInformation")
-        .ok_or_else(|| anyhow::anyhow!("Could not resolve NtSetSystemInformation"))?;
+    let _ssn = resolver.get_cached_ssn()
+        .context("Could not resolve NtSetSystemInformation")?;
 
     // Registry optimization uses SystemFileCacheInformationEx (class 81)
     let mut cache_info = SYSTEM_FILECACHE_INFORMATION {
