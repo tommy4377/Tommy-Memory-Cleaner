@@ -6,7 +6,6 @@
   import type { MemoryInfo, Config } from '../lib/types'
   import { t } from '../i18n/index'
   import { areasForProfile } from '../lib/profiles'
-  import MemoryStats from './MemoryStats.svelte'
 
   let memInfo: MemoryInfo | null = null
   let cfg: Config | null = null
@@ -14,15 +13,35 @@
   let memUnsub: (() => void) | null = null
   let cfgUnsub: (() => void) | null = null
   let progUnsub: (() => void) | null = null
-
-  // Compact mode prop
-  export let compact = true
+  let totalFreedGB = 0
+  let lastFreedMB = 0
 
   onMount(() => {
     memUnsub = memory.subscribe((v) => (memInfo = v))
     cfgUnsub = config.subscribe((v) => (cfg = v))
-    // FIX: Usa lo store progress invece di una variabile locale per mantenere lo stato durante il cambio di vista
     progUnsub = progress.subscribe((v) => (prog = v))
+    
+    // Load memory stats
+    loadMemoryStats()
+    
+    // Listen for optimization events
+    if (typeof window !== 'undefined' && window.__TAURI__) {
+      import('@tauri-apps/api/event').then(({ listen }) => {
+        listen('optimization-completed', (event: any) => {
+          const payload = event.payload as { freed_physical_mb: number }
+          if (payload.freed_physical_mb > 0) {
+            lastFreedMB = payload.freed_physical_mb
+            totalFreedGB += payload.freed_physical_mb / 1024
+            saveMemoryStats()
+            
+            // Reset after 5 seconds
+            setTimeout(() => {
+              lastFreedMB = 0
+            }, 5000)
+          }
+        })
+      })
+    }
   })
 
   onDestroy(() => {
@@ -30,6 +49,34 @@
     if (cfgUnsub) cfgUnsub()
     if (progUnsub) progUnsub()
   })
+
+  async function loadMemoryStats() {
+    try {
+      if (typeof window !== 'undefined' && window.__TAURI__) {
+        const { invoke } = await import('@tauri-apps/api/core')
+        const stats = await invoke('get_memory_stats') as { total_freed_gb: number } | null
+        if (stats) {
+          totalFreedGB = stats.total_freed_gb
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load memory stats:', error)
+    }
+  }
+
+  async function saveMemoryStats() {
+    try {
+      if (typeof window !== 'undefined' && window.__TAURI__) {
+        const { invoke } = await import('@tauri-apps/api/core')
+        await invoke('save_memory_stats', {
+          totalFreedGB,
+          lastUpdated: new Date().toISOString()
+        })
+      }
+    } catch (error) {
+      console.error('Failed to save memory stats:', error)
+    }
+  }
 
   async function optimize() {
     // FIX: Usa prog?.running invece di optimizing locale per mantenere lo stato
@@ -54,13 +101,18 @@
 
   // Helper per ottenere il testo del bottone tradotto (reattivo)
   $: buttonText = prog?.running ? $t('Optimizing...') : $t('Optimize')
+
+  function formatMB(mb: number) {
+    return `${mb.toFixed(1)} MB`
+  }
+
+  function formatGB(gb: number) {
+    return `${gb.toFixed(1)} GB`
+  }
 </script>
 
 <div class="compact">
-  <div class="left-section">
-    <MemoryStats compact={compact} />
-  </div>
-  <div class="right-section" class:compact-right={compact}>
+  <div class="bar-container">
     <div class="bar">
       <div
         class="fill"
@@ -73,39 +125,52 @@
         <span class="percent">{memInfo?.physical.used.percentage ?? 0}%</span>
       </div>
     </div>
-    <button on:click={optimize} disabled={prog?.running}>
-      {buttonText}
-    </button>
+    
+    <!-- Small memory freed indicator -->
+    {#if lastFreedMB > 0}
+    <div class="freed-indicator">
+      <span class="freed-value">+{formatMB(lastFreedMB)}</span>
+    </div>
+    {/if}
   </div>
+  
+  <div class="stats-row">
+    <div class="stat-item">
+      <span class="stat-label">{$t('Free')}</span>
+      <span class="stat-value">
+        {memInfo ? `${memInfo.physical.free.value.toFixed(1)} ${memInfo.physical.free.unit}` : '--'}
+      </span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">{$t('Total')}</span>
+      <span class="stat-value">
+        {formatGB(totalFreedGB)}
+      </span>
+    </div>
+  </div>
+  
+  <button on:click={optimize} disabled={prog?.running}>
+    {buttonText}
+  </button>
 </div>
 
 <style>
   .compact {
     padding: 16px 20px;
     display: flex;
-    align-items: center;
-    gap: 16px;
+    flex-direction: column;
+    gap: 12px;
     height: calc(100% - 36px);
   }
 
-  .left-section {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .right-section {
+  .bar-container {
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: 12px;
-    align-items: stretch;
-    min-width: 200px;
-  }
-
-  .right-section.compact-right {
-    min-width: 150px;
   }
 
   .bar {
+    flex: 1;
     height: 28px;
     background: var(--bar-track);
     border-radius: 14px;
@@ -120,42 +185,73 @@
     top: 0;
     bottom: 0;
     background: var(--bar-fill);
-    transition:
-      width 0.3s ease,
-      background 0.3s ease;
+    transition: width 0.3s ease;
     border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  }
-
-  .fill.warning {
-    background: linear-gradient(90deg, #ff9900, #ff6600);
-  }
-
-  .fill.danger {
-    background: linear-gradient(90deg, #ff3030, #cc0000);
   }
 
   .percent {
-    color: white;
-    font-weight: 600;
-    font-size: 13px;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+
+  .freed-indicator {
+    background: linear-gradient(135deg, var(--accent), #4CAF50);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    animation: slideIn 0.3s ease-out;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .freed-value {
+    color: white;
+  }
+
+  .stats-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--text-secondary);
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .stat-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
   }
 
   button {
-    background: var(--btn-bg);
+    padding: 8px 16px;
+    background: var(--accent);
     color: white;
     border: none;
-    padding: 8px 20px;
-    border-radius: 14px;
-    cursor: pointer;
+    border-radius: 8px;
     font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
     font-size: 13px;
     min-width: fit-content;
     width: auto;
