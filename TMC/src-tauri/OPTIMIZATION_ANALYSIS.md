@@ -1,6 +1,38 @@
 # Tommy Memory Cleaner - Optimization Analysis
 ## Issues and Areas for Improvement
 
+## COMPILATION WARNINGS
+
+### Current Status: 10 warnings (no errors)
+
+#### Source Files and Warnings:
+
+1. **`src/memory/advanced.rs`**:
+   - `constant MEMORY_PURGE_LOW_PRIORITY_STANDBY_LIST is never used` (line 31)
+   - `constant SYSTEM_REGISTRY_RECONCILIATION_INFORMATION is never used` (line 35)
+   - `function purge_standby_list is never used` (line 436)
+   - `function try_standby_with_resolver is never used` (line 467)
+   - `function try_standby_direct_nt is never used` (line 495)
+   - `function purge_standby_list_low_priority is never used` (line 519)
+   - `function optimize_registry_cache is never used` (line 635)
+   - `function try_registry_with_resolver is never used` (line 666)
+   - `function try_registry_direct_nt is never used` (line 690)
+
+2. **`src/memory/ops.rs`**:
+   - `unnecessary unsafe block` (line 165)
+
+#### Warning Analysis:
+- **Unused Constants**: Constants defined but not referenced
+- **Unused Functions**: Functions implemented but not called directly
+- **Issue**: These are advanced functions that should be integrated with the main optimization flow
+
+#### Solutions Needed:
+- [ ] Integrate advanced functions with main optimization engine
+- [ ] Remove unused constants or use them properly
+- [ ] Fix unnecessary unsafe blocks
+
+---
+
 ### 1. MEMORY COMPRESSION STORE TRIM
 **File**: `src/memory/advanced.rs`
 **Function**: `trim_memory_compression_store()`
@@ -195,7 +227,7 @@ struct SYSTEM_MEMORY_LIST_COMMAND {
 ## COMPILATION STATUS
 
 - ✅ 0 errors
-- ⚠️ 10 warnings (unused functions)
+- ⚠️ 10 warnings (unused functions/constants)
 - ✅ All functions compile successfully
 
 ---
