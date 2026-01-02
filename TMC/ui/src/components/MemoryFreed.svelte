@@ -1,30 +1,35 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
   import { invoke } from '@tauri-apps/api/core'
+  import { listen } from '@tauri-apps/api/event'
   import { t } from '../i18n/index'
 
   let totalFreedGB = 0
   let isLoading = true
+  let unlisten: (() => void) | null = null
 
   onMount(async () => {
+    // Load initial stats
     await loadStats()
     isLoading = false
     
-    // Listen for optimization events
-    if (typeof window !== 'undefined' && window.__TAURI__) {
-      const { listen } = await import('@tauri-apps/api/event')
-      
-      const unlisten = await listen('optimization-completed', (event: any) => {
+    // Set up event listener
+    try {
+      unlisten = await listen('optimization-completed', (event: any) => {
         const payload = event.payload as { freed_physical_mb: number }
         if (payload.freed_physical_mb > 0) {
           totalFreedGB += payload.freed_physical_mb / 1024
           saveStats()
         }
       })
-      
-      onDestroy(() => {
-        unlisten()
-      })
+    } catch (error) {
+      console.error('Failed to set up event listener:', error)
+    }
+  })
+
+  onDestroy(() => {
+    if (unlisten) {
+      unlisten()
     }
   })
 
@@ -80,7 +85,7 @@
   .row {
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: 10px;
+    gap: 6px;
     align-items: center;
     margin: 0;
   }
@@ -96,7 +101,7 @@
     font-weight: 600;
     font-size: 14px;
     font-variant-numeric: tabular-nums;
-    background: var(--accent);
+    background: var(--btn-bg);
     color: var(--text-primary);
     padding: 6px 12px;
     border-radius: 8px;
@@ -105,6 +110,11 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     transition: all 0.2s ease;
     justify-self: end;
+  }
+
+  /* Light mode: make text white */
+  :global([data-theme="light"]) .val {
+    color: white;
   }
 
   .val:hover {

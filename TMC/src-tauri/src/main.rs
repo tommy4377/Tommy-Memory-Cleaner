@@ -411,9 +411,10 @@ async fn perform_optimization(
                     .replace("%s", &profile_name);
 
                 // Emit event to frontend for memory stats tracking
-                let _ = app.emit("optimization-completed", serde_json::json!({
+                let event_result = app.emit("optimization-completed", serde_json::json!({
                     "freed_physical_mb": freed_mb.abs()
                 }));
+                tracing::debug!("Emitted optimization-completed event with {} MB freed, result: {:?}", freed_mb.abs(), event_result);
                 // Get current theme from configuration
                 let theme = {
                     let state = app.state::<AppState>();
