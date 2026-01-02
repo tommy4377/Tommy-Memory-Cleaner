@@ -378,24 +378,42 @@
 
   .dropdown-container {
     position: relative;
-    flex: 1; /* Aggiunto - prende tutto lo spazio disponibile */
-    max-width: 600px; /* Aggiunto - limita la larghezza massima */
+    flex: 1; /* Takes all available space */
+    min-width: 200px; /* Minimum width for shorter text */
   }
 
   .row {
     display: flex;
     align-items: center;
-    gap: 8px; /* Aumentato da 6px */
+    gap: 8px;
   }
 
   input {
     flex: 1;
-    padding: 7px 10px; /* Aumentato padding */
-    font-size: 13px; /* Aumentato da 12px */
+    width: 100%; /* Ensure full width */
+    min-width: 0; /* Allows input to shrink */
+    padding: 7px 10px;
+    font-size: 13px;
     border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--input-bg);
     color: var(--fg);
+    text-overflow: ellipsis; /* Add ellipsis for overflow */
+  }
+
+  /* Responsive placeholder using CSS */
+  input::placeholder {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  /* For smaller screens, adjust font size */
+  @media (max-width: 480px) {
+    input {
+      font-size: 12px;
+      padding: 6px 8px;
+    }
   }
 
   input:focus {
@@ -407,18 +425,17 @@
     position: absolute;
     bottom: 100%;
     left: 0;
-    right: 0; /* Cambiato da "right: 60px" - ora usa tutta la larghezza */
-    min-width: 400px; /* Aggiunto - larghezza minima */
-    max-width: 600px; /* Aggiunto - larghezza massima */
-    max-height: 350px; /* Aumentato da 300px */
+    right: 0; /* Uses full width of container */
+    min-width: 300px; /* Minimum width */
+    max-height: 350px;
     overflow-y: auto;
     overflow-x: hidden;
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 10px; /* Aumentato da 6px */
+    border-radius: 10px;
     margin-bottom: 4px;
     z-index: 1000;
-    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.2); /* Ombra più pronunciata */
+    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.2);
   }
 
   .dropdown::-webkit-scrollbar {
