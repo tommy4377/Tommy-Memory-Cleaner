@@ -230,10 +230,22 @@ unsafe fn execute_indirect_syscall_empty_working_set(ssn: u32, process_handle: w
     
     let func_addr = func_ptr.unwrap() as *const u8;
     
-    // Find syscall instruction in the function
+    // Find syscall instruction in the function with bounds checking
     let mut syscall_addr = None;
-    for i in 0..50 {
+    let resolver = SyscallResolver::new()?;
+    let ntdll_base = resolver.ntdll_base as usize;
+    let ntdll_end = ntdll_base + resolver.ntdll_size;
+    
+    // Standard syscall stub size is 32 bytes, but search up to 50 for safety
+    for i in 0..32 {
         let addr = func_addr.add(i);
+        let addr_val = addr as usize;
+        
+        // Check bounds before reading
+        if addr_val + 2 > ntdll_end {
+            break;
+        }
+        
         if *addr == 0x0F && *addr.add(1) == 0x05 {
             // syscall instruction found (0F 05)
             syscall_addr = Some(addr);
@@ -283,8 +295,8 @@ unsafe fn execute_direct_syscall_empty_working_set(ssn: u32, process_handle: win
 
 /// Enhanced syscall resolver with Tartarus' Gate technique
 struct SyscallResolver {
-    ntdll_base: *const u8,
-    ntdll_size: usize,
+    pub ntdll_base: *const u8,
+    pub ntdll_size: usize,
 }
 
 impl SyscallResolver {

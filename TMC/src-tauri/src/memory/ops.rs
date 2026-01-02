@@ -352,23 +352,40 @@ pub fn optimize_system_file_cache() -> Result<()> {
 
 #[cfg(target_os = "windows")]
 pub fn process_list() -> Vec<(u32, String)> {
+    const CACHE_DURATION: Duration = Duration::from_secs(5);
+
+    // Double-checked locking pattern to avoid race conditions
+    {
+        let cache = PROCESS_CACHE.read();
+        if cache.last_update.elapsed() < CACHE_DURATION {
+            return cache.list.clone();
+        }
+    } // Read lock released here
+
+    // Update cache - acquire write lock only if needed
+    // Check again after acquiring write lock
+    let mut cache = PROCESS_CACHE.write();
+    if cache.last_update.elapsed() < CACHE_DURATION {
+        // Another thread updated while we waited for write lock
+        return cache.list.clone();
+    }
+    
+    // Now update the cache
+    let processes = fetch_process_list();
+    cache.list = processes.clone();
+    cache.last_update = Instant::now();
+
+    processes
+}
+
+/// Helper function to fetch process list from system
+#[cfg(target_os = "windows")]
+fn fetch_process_list() -> Vec<(u32, String)> {
     use windows_sys::Win32::System::Diagnostics::ToolHelp::{
         CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
         TH32CS_SNAPPROCESS,
     };
 
-    const CACHE_DURATION: Duration = Duration::from_secs(5);
-
-    // Try read cache first
-    {
-        let cache = PROCESS_CACHE.read();
-
-        if cache.last_update.elapsed() < CACHE_DURATION {
-            return cache.list.clone();
-        }
-    }
-
-    // Update cache
     let mut out = Vec::with_capacity(256);
 
     unsafe {
@@ -411,13 +428,6 @@ pub fn process_list() -> Vec<(u32, String)> {
                 }
             }
         }
-    }
-
-    // Update cache
-    {
-        let mut cache = PROCESS_CACHE.write();
-        cache.list = out.clone();
-        cache.last_update = Instant::now();
     }
 
     out
