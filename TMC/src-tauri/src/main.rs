@@ -409,6 +409,11 @@ async fn perform_optimization(
                     .replace("%.1f", &format!("{:.1}", freed_mb.abs()))
                     .replace("%.2f", &format!("{:.2}", free_gb))
                     .replace("%s", &profile_name);
+
+                // Emit event to frontend for memory stats tracking
+                let _ = app.emit("optimization-completed", serde_json::json!({
+                    "freed_physical_mb": freed_mb.abs()
+                }));
                 // Get current theme from configuration
                 let theme = {
                     let state = app.state::<AppState>();
@@ -939,6 +944,9 @@ fn main() {
             commands::memory::cmd_list_process_names,
             commands::memory::cmd_get_critical_processes,
             commands::memory::cmd_optimize_async,
+            // Commands from memory_stats module
+            commands::memory_stats::get_memory_stats,
+            commands::memory_stats::save_memory_stats,
             // Commands from system module
             commands::system::cmd_run_on_startup,
             commands::system::cmd_set_always_on_top,

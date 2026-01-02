@@ -6,6 +6,7 @@
   import type { MemoryInfo, Config } from '../lib/types'
   import { t } from '../i18n/index'
   import { areasForProfile } from '../lib/profiles'
+  import MemoryStats from './MemoryStats.svelte'
 
   let memInfo: MemoryInfo | null = null
   let cfg: Config | null = null
@@ -13,6 +14,9 @@
   let memUnsub: (() => void) | null = null
   let cfgUnsub: (() => void) | null = null
   let progUnsub: (() => void) | null = null
+
+  // Compact mode prop
+  export let compact = true
 
   onMount(() => {
     memUnsub = memory.subscribe((v) => (memInfo = v))
@@ -53,21 +57,26 @@
 </script>
 
 <div class="compact">
-  <div class="bar">
-    <div
-      class="fill"
-      class:warning={memInfo &&
-        memInfo.physical.used.percentage >= 80 &&
-        memInfo.physical.used.percentage < 90}
-      class:danger={memInfo && memInfo.physical.used.percentage >= 90}
-      style="width: {memInfo?.physical.used.percentage ?? 0}%"
-    >
-      <span class="percent">{memInfo?.physical.used.percentage ?? 0}%</span>
-    </div>
+  <div class="left-section">
+    <MemoryStats compact={compact} />
   </div>
-  <button on:click={optimize} disabled={prog?.running}>
-    {buttonText}
-  </button>
+  <div class="right-section" class:compact-right={compact}>
+    <div class="bar">
+      <div
+        class="fill"
+        class:warning={memInfo &&
+          memInfo.physical.used.percentage >= 80 &&
+          memInfo.physical.used.percentage < 90}
+        class:danger={memInfo && memInfo.physical.used.percentage >= 90}
+        style="width: {memInfo?.physical.used.percentage ?? 0}%"
+      >
+        <span class="percent">{memInfo?.physical.used.percentage ?? 0}%</span>
+      </div>
+    </div>
+    <button on:click={optimize} disabled={prog?.running}>
+      {buttonText}
+    </button>
+  </div>
 </div>
 
 <style>
@@ -79,8 +88,24 @@
     height: calc(100% - 36px);
   }
 
-  .bar {
+  .left-section {
     flex: 1;
+    min-width: 0;
+  }
+
+  .right-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+    min-width: 200px;
+  }
+
+  .right-section.compact-right {
+    min-width: 150px;
+  }
+
+  .bar {
     height: 28px;
     background: var(--bar-track);
     border-radius: 14px;

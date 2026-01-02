@@ -93,5 +93,10 @@
   "Welcome to Tommy Memory Cleaner": "欢迎使用 Tommy Memory Cleaner",
   "Complete Setup": "完成设置",
   "Saving...": "保存中...",
-  "Run on Windows startup": "Windows启动时运行"
+  "Run on Windows startup": "在 Windows 启动时运行",
+  
+  "Memory Freed": "已释放内存",
+  "Since installation": "自安装以来",
+  "Total freed": "总计释放",
+  "Just now": "刚刚"
 }

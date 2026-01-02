@@ -6,6 +6,7 @@
 pub mod config;
 pub mod i18n;
 pub mod memory;
+pub mod memory_stats;
 pub mod system;
 pub mod theme;
 pub mod ui;

@@ -94,5 +94,10 @@
   "Welcome to Tommy Memory Cleaner": "مرحباً بك في Tommy Memory Cleaner",
   "Complete Setup": "إكمال الإعداد",
   "Saving...": "جاري الحفظ...",
-  "Run on Windows startup": "التشغيل عند بدء Windows"
+  "Run on Windows startup": "تشغيل عند بدء تشغيل Windows",
+  
+  "Memory Freed": "الذاكرة المحررة",
+  "Since installation": "منذ التثبيت",
+  "Total freed": "إجمالي المحرر",
+  "Just now": "الآن"
 }

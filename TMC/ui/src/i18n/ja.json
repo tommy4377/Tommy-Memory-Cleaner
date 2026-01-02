@@ -94,5 +94,10 @@
   "Welcome to Tommy Memory Cleaner": "Tommy Memory Cleanerへようこそ",
   "Complete Setup": "セットアップを完了",
   "Saving...": "保存中...",
-  "Run on Windows startup": "Windows起動時に実行"
+  "Run on Windows startup": "Windows起動時に実行",
+  
+  "Memory Freed": "解放されたメモリ",
+  "Since installation": "インストール以来",
+  "Total freed": "合計解放量",
+  "Just now": "たった今"
 }
