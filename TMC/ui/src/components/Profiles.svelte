@@ -185,10 +185,14 @@
   .info {
     margin-top: 10px;
     padding: 10px;
-    background: var(--bar-track);
-    border-radius: 6px;
+    background: #EBE1D3;
+    border-radius: 8px;
     font-size: 11px;
     line-height: 1.6;
+  }
+
+  :global([data-theme="dark"]) .info {
+    background: #4B4B4D;
   }
 
   .info-title {
@@ -196,6 +200,10 @@
     color: var(--btn-bg);
     margin-bottom: 4px;
     font-size: 12px;
+  }
+
+  :global([data-theme="dark"]) .info-title {
+    color: #2170c0;
   }
 
   .areas-list {

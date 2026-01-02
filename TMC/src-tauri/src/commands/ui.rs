@@ -56,6 +56,10 @@ pub fn cmd_show_notification(
 /// showing existing windows and creating new ones if needed.
 pub fn show_or_create_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        tracing::info!("Found existing main window");
+        if let Ok(size) = window.inner_size() {
+            tracing::info!("Current window size: {}x{}", size.width, size.height);
+        }
         let _: Result<(), _> = window.set_skip_taskbar(false); // Show in taskbar
         let _ = window.show();
         let _ = window.unminimize();
@@ -63,13 +67,14 @@ pub fn show_or_create_window(app: &AppHandle) {
         let _ = window.center();
     } else {
         tracing::info!("Creating new main window...");
+        tracing::info!("Window dimensions will be: 490x690");
         let result = tauri::WebviewWindowBuilder::new(
             app,
             "main",
             tauri::WebviewUrl::App("index.html".into())
         )
         .title("Tommy Memory Cleaner")
-        .inner_size(480.0, 680.0)
+        .inner_size(490.0, 690.0)
         .resizable(false)
         .shadow(true)  // Enable shadow for rounded corners
         .center()
@@ -80,6 +85,9 @@ pub fn show_or_create_window(app: &AppHandle) {
         match result {
             Ok(window) => {
                 tracing::info!("Window created successfully");
+                if let Ok(size) = window.inner_size() {
+                    tracing::info!("Actual window size: {}x{}", size.width, size.height);
+                }
                 let _ = window.set_skip_taskbar(false);
                 if let Err(e) = window.show() {
                     tracing::error!("Failed to show newly created window: {:?}", e);

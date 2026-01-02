@@ -441,7 +441,7 @@ pub fn cmd_complete_setup(
             tauri::WebviewUrl::App("index.html".into()),
         )
         .title("Tommy Memory Cleaner")
-        .inner_size(480.0, 680.0)
+        .inner_size(490.0, 690.0)
         .resizable(false)
         .center()
         .skip_taskbar(false)

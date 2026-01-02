@@ -82,6 +82,10 @@
     transition: background 0.2s ease;
   }
 
+  :global([data-theme="dark"]) .row-wrapper {
+    background: #4B4B4D;
+  }
+
   .label-section {
     font-size: 12.5px;
     font-weight: 500;
@@ -100,20 +104,23 @@
     transition: all 0.2s ease;
     cursor: default;
     /* Maggiore margine per staccare dai bordi */
-    margin: 4px; 
+    margin: 4px;
   }
 
   :global([data-theme="light"]) .val {
     color: white;
   }
 
+  :global([data-theme="dark"]) .val {
+    background: #2170c0;
+  }
+
   .val:hover {
     transform: translateY(-1px);
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
-    filter: brightness(1.08);
   }
 
   .row-wrapper:hover {
-    background: rgba(0, 0, 0, 0.06);
+    /* Rimuovuto l'effetto hover */
   }
 </style>

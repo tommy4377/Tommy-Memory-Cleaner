@@ -1,25 +1,26 @@
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte'
+  import { onMount, onDestroy } from 'svelte'
   import Profiles from './Profiles.svelte'
   import MemoryBars from './MemoryBars.svelte'
   import MemoryFreed from './MemoryFreed.svelte'
+  import AutoOptimization from './AutoOptimization.svelte'
   import BasicSettings from './BasicSettings.svelte'
   import ProcessExclusions from './ProcessExclusions.svelte'
-  import AutoOptimization from './AutoOptimization.svelte'
-  import ProgressFooter from './ProgressFooter.svelte'
   import Hotkey from './Hotkey.svelte'
-  import TraySettings from './TraySettings.svelte'
   import MainColorSettings from './MainColorSettings.svelte'
-  import { config } from '../lib/store'
-  import { optimizeAsync } from '../lib/api'
+  import TraySettings from './TraySettings.svelte'
+  import ProgressFooter from './ProgressFooter.svelte'
+  import { t } from '../i18n/index'
   import { Reason, AreasFlag } from '../lib/types'
   import type { Config } from '../lib/types'
-  import { t } from '../i18n/index'
   import { areasForProfile } from '../lib/profiles'
+  import { config } from '../lib/store'
+  import { optimizeAsync } from '../lib/api'
 
+  let activeTab: 'main' | 'settings' | 'customization' = 'main'
+  let hideTabs = false // Mostra i tabs
   let cfg: Config | null = null
   let unsub: (() => void) | null = null
-  let activeTab: 'main' | 'settings' | 'customization' = 'main'
 
   onMount(() => {
     unsub = config.subscribe((v) => (cfg = v))
@@ -51,6 +52,7 @@
 </script>
 
 <div class="container">
+  {#if !hideTabs}
   <div class="tabs">
     <button class="tab" class:active={activeTab === 'main'} on:click={() => (activeTab = 'main')}>
       {$t('Main')}
@@ -70,15 +72,17 @@
       {$t('Customization')}
     </button>
   </div>
+  {/if}
 
   <div class="content">
-    <div class="tab-content" class:active={activeTab === 'main'}>
+    <div class="tab-content" class:active={activeTab === 'main' || hideTabs}>
       <Profiles />
       <MemoryBars />
       <MemoryFreed />
       <AutoOptimization />
     </div>
 
+    {#if !hideTabs}
     <div class="tab-content" class:active={activeTab === 'settings'}>
       <BasicSettings />
       <ProcessExclusions />
@@ -89,6 +93,7 @@
       <MainColorSettings />
       <TraySettings />
     </div>
+    {/if}
   </div>
 
   <div class="footer">
@@ -98,7 +103,7 @@
 
 <style>
   .container {
-    height: calc(100vh - 32px);
+    height: 100%;
     display: flex;
     flex-direction: column;
     overflow: hidden;

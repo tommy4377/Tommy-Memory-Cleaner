@@ -28,7 +28,7 @@ html[data-theme='dark'] {
   --bar-track: rgba(255, 255, 255, 0.15);
   --bar-fill: #0a84ff;
   --bar-free: #0a84ff; /* Stesso colore del main */
-  --btn-bg: #0a84ff;
+  --btn-bg: #2170c0;
   --btn-fg: #ffffff;
   --btn-border: transparent;
   --tab-active: rgba(58, 58, 60, 1);

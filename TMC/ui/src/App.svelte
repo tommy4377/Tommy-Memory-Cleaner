@@ -47,17 +47,29 @@
   let configUnsub: (() => void) | null = null
   let resizeUnlisten: UnlistenFn | null = null
   let moveUnlisten: UnlistenFn | null = null
+  
+  // Listener per resize
+  let handleResize: () => void
 
   // Window dimensions
   const WINDOW_SIZES = {
-    full: { width: 480, height: 680 },
+    full: { width: 490, height: 690 },
     compact: { width: 380, height: 90 },
     min: { width: 360, height: 90 },
-    max: { width: 480, height: 680 },
+    max: { width: 490, height: 690 },
   } as const
 
   // ========== LIFECYCLE ==========
   onMount(async () => {
+    // Log della dimensione della finestra
+    console.log(`Window size: ${window.innerWidth}x${window.innerHeight}px`)
+    
+    // Listener per resize
+    handleResize = () => {
+      console.log(`Window resized to: ${window.innerWidth}x${window.innerHeight}px`)
+    }
+    window.addEventListener('resize', handleResize)
+    
     try {
       // Inizializza app solo se non già inizializzata
       if (!isAppInitialized()) {
@@ -158,6 +170,9 @@
       moveUnlisten()
       moveUnlisten = null
     }
+    
+    // Rimuovi il listener per resize
+    window.removeEventListener('resize', handleResize)
 
     // Cleanup memory refresh e app state
     stopMemoryRefresh()
@@ -274,11 +289,14 @@
 
   // ========== ERROR RECOVERY ==========
   async function retryInit() {
-    isLoading = true
-    initError = null
-
+    onMount(async () => {
+    // Log della dimensione della finestra
+    console.log(`Window size: ${window.innerWidth}x${window.innerHeight}px`)
+    
+    // Inizializzazione app
     try {
       await initApp()
+      isLoading = false
       await setupWindow()
       isLoading = false
     } catch (error) {
@@ -286,6 +304,7 @@
       initError = error instanceof Error ? error.message : 'Retry failed'
       isLoading = false
     }
+  })
   }
 
   // ========== KEYBOARD SHORTCUTS ==========
