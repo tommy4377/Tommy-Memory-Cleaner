@@ -21,17 +21,18 @@ use windows_sys::Win32::{
     },
     System::{
         Threading::{OpenProcess, OpenProcessToken, PROCESS_QUERY_INFORMATION},
-        LibraryLoader::{GetModuleHandleA, GetProcAddress},
+        LibraryLoader::GetProcAddress,
     },
 };
 
+// Memory List Commands
+const MEMORY_FLUSH_MODIFIED_LIST: u32 = 2;
+const MEMORY_COMPRESSION_STORE_TRIM: u32 = 6;
+const MEMORY_PURGE_LOW_PRIORITY_STANDBY_LIST: u32 = 5;
+
 // Undocumented System Information Classes
 const SYSTEM_MEMORY_LIST_INFORMATION: u32 = 80;
-const MEMORY_PURGE_LOW_PRIORITY_STANDBY_LIST: u32 = 5;
-const MEMORY_COMPRESSION_STORE_TRIM: u32 = 6;
-const MEMORY_FLUSH_MODIFIED_LIST: u32 = 2;
-
-// Hook detection patterns
+const SYSTEM_REGISTRY_RECONCILIATION_INFORMATION: u32 = 81;
 const PATTERN_JMP_SHORT: u8 = 0xEB;
 const PATTERN_JMP_LONG: u8 = 0xE9;
 const PATTERN_MOV_EAX: u8 = 0xB8;
@@ -47,7 +48,7 @@ struct SYSTEM_MEMORY_LIST_COMMAND {
 }
 
 /// RAII wrapper for token impersonation with automatic revert
-struct TokenImpersonationGuard {
+pub struct TokenImpersonationGuard {
     active: bool,
 }
 
@@ -92,7 +93,7 @@ impl SyscallResolver {
             // Get module size for bounds checking
             let dos_header = h_ntdll as *const IMAGE_DOS_HEADER;
             let nt_header = (h_ntdll as usize + (*dos_header).e_lfanew as usize) as *const IMAGE_NT_HEADERS64;
-            let size = (*nt_header).OptionalHeader.SizeOfImage as usize;
+            let size = (*nt_header).optional_header.size_of_image as usize;
 
             Ok(Self {
                 ntdll_base: h_ntdll as *const u8,
@@ -224,25 +225,6 @@ impl SyscallResolver {
         let addr_val = addr as usize;
         let base = self.ntdll_base as usize;
         addr_val >= base && addr_val + size <= base + self.ntdll_size
-    }
-
-    /// Find syscall gadget for indirect syscall execution
-    unsafe fn find_syscall_gadget(&self) -> Option<*const u8> {
-        // Search for "syscall ; ret" pattern (0x0F 0x05 0xC3)
-        let search_range = std::cmp::min(self.ntdll_size, 1024 * 1024); // Search first 1MB
-        
-        for i in 0..search_range - 3 {
-            let ptr = self.ntdll_base.add(i);
-            if ptr::read(ptr) == 0x0F && 
-               ptr::read(ptr.add(1)) == 0x05 && 
-               ptr::read(ptr.add(2)) == 0xC3 {
-                tracing::debug!("Found syscall gadget at offset 0x{:x}", i);
-                return Some(ptr);
-            }
-        }
-        
-        tracing::warn!("No syscall gadget found in ntdll");
-        None
     }
 }
 
@@ -403,6 +385,39 @@ pub fn purge_standby_list() -> Result<()> {
     }
 }
 
+/// Purge low priority standby list
+pub fn purge_standby_list_low_priority() -> Result<()> {
+    tracing::warn!("Executing low priority standby list purge");
+    
+    unsafe {
+        let _guard = impersonate_system_token()
+            .context("Failed to acquire SYSTEM privileges")?;
+        
+        let resolver = SyscallResolver::new()?;
+        let ssn = resolver.get_ssn("NtSetSystemInformation")
+            .ok_or_else(|| anyhow::anyhow!("Could not resolve NtSetSystemInformation"))?;
+
+        let cmd = SYSTEM_MEMORY_LIST_COMMAND {
+            command: MEMORY_PURGE_LOW_PRIORITY_STANDBY_LIST,
+        };
+        
+        let status = execute_direct_syscall(
+            ssn,
+            SYSTEM_MEMORY_LIST_INFORMATION,
+            &cmd as *const _,
+            mem::size_of::<SYSTEM_MEMORY_LIST_COMMAND>() as u32,
+        );
+
+        if status == 0 {
+            tracing::info!("✓ Low priority standby list purged successfully");
+            Ok(())
+        } else {
+            tracing::warn!("Low priority purge returned NTSTATUS: 0x{:08X}", status as u32);
+            Ok(())
+        }
+    }
+}
+
 /// Aggressive modified page list flush with thread suspension
 /// For production use, this uses the standard approach
 pub fn aggressive_modified_page_flush() -> Result<()> {
@@ -443,6 +458,37 @@ pub fn init_advanced_features() -> Result<()> {
     Ok(())
 }
 
+/// Optimize registry cache using advanced techniques
+/// This flushes registry hive caches to free memory
+pub fn optimize_registry_cache() -> Result<()> {
+    tracing::warn!("Executing registry cache optimization");
+    
+    unsafe {
+        let _guard = impersonate_system_token()
+            .context("Failed to acquire SYSTEM privileges")?;
+        
+        let resolver = SyscallResolver::new()?;
+        let ssn = resolver.get_ssn("NtSetSystemInformation")
+            .ok_or_else(|| anyhow::anyhow!("Could not resolve NtSetSystemInformation"))?;
+
+        // Execute registry reconciliation
+        let status = execute_direct_syscall(
+            ssn,
+            SYSTEM_REGISTRY_RECONCILIATION_INFORMATION,
+            ptr::null(),
+            0,
+        );
+
+        if status == 0 {
+            tracing::info!("✓ Registry cache optimized successfully");
+            Ok(())
+        } else {
+            tracing::warn!("Registry optimization returned NTSTATUS: 0x{:08X}", status as u32);
+            Ok(())
+        }
+    }
+}
+
 // Windows PE structures for module size calculation
 #[repr(C)]
 struct IMAGE_DOS_HEADER {
@@ -453,9 +499,9 @@ struct IMAGE_DOS_HEADER {
 
 #[repr(C)]
 struct IMAGE_NT_HEADERS64 {
-    Signature: u32,
-    FileHeader: IMAGE_FILE_HEADER,
-    OptionalHeader: IMAGE_OPTIONAL_HEADER64,
+    signature: u32,
+    file_header: IMAGE_FILE_HEADER,
+    optional_header: IMAGE_OPTIONAL_HEADER64,
 }
 
 #[repr(C)]
@@ -466,7 +512,7 @@ struct IMAGE_FILE_HEADER {
 #[repr(C)]
 struct IMAGE_OPTIONAL_HEADER64 {
     _padding: [u8; 56],
-    SizeOfImage: u32,
+    size_of_image: u32,
     _rest: [u8; 184],
 }
 

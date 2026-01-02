@@ -9,7 +9,7 @@ use crate::memory::ops::{
     optimize_standby_list, optimize_system_file_cache, optimize_working_set,
 };
 use crate::memory::advanced::{
-    trim_memory_compression_store, aggressive_modified_page_flush, 
+    trim_memory_compression_store, aggressive_modified_page_flush,
 };
 use crate::memory::types::{Areas, MemoryInfo, Reason};
 use crate::os;

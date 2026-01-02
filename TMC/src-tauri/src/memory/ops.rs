@@ -21,7 +21,7 @@
 use crate::memory::privileges::ensure_privileges;
 use crate::memory::types::{mk_stats, MemoryInfo};
 use anyhow::{bail, Result};
-use std::{ffi::OsString, mem::size_of, os::windows::ffi::OsStringExt, ptr::null_mut};
+use std::{ffi::OsString, mem::size_of, os::windows::ffi::OsStringExt};
 use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
 
 use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, HANDLE, INVALID_HANDLE_VALUE};
@@ -40,13 +40,11 @@ use std::sync::RwLock;
 use std::time::{Duration, Instant};
 
 const SYS_MEMORY_LIST_INFORMATION: u32 = 80;
-const SYS_REGISTRY_RECONCILIATION_INFORMATION: u32 = 155;
-const SYS_COMBINE_PHYSICAL_MEMORY_INFORMATION: u32 = 130;
+const SYS_PROCESS_INFORMATION: u32 = 5;
+const SYS_FILE_CACHE_INFORMATION: u32 = 21;
+const SYS_COMBINE_PHYSICAL_MEMORY_INFORMATION: u32 = 101;
 
 const MEM_EMPTY_WORKING_SETS: u32 = 2;
-const MEM_FLUSH_MODIFIED_LIST: u32 = 3;
-const MEM_PURGE_STANDBY_LIST: u32 = 4;
-const MEM_PURGE_LOW_PRI_STANDBY_LIST: u32 = 5;
 
 const SE_DEBUG_NAME: &str = "SeDebugPrivilege";
 const SE_INC_QUOTA_NAME: &str = "SeIncreaseQuotaPrivilege";
@@ -163,37 +161,30 @@ fn nt_call_u32(class: u32, command: u32) -> Result<()> {
 
 pub fn optimize_standby_list(low_priority: bool) -> Result<()> {
     ensure_privileges(&[SE_PROFILE_SINGLE_PROCESS_NAME])?;
-    let cmd = if low_priority {
-        MEM_PURGE_LOW_PRI_STANDBY_LIST
-    } else {
-        MEM_PURGE_STANDBY_LIST
-    };
-
-    // Usa safe_memory_operation per evitare rilevamenti antivirus
+    
+    // Usa la funzione avanzata per purge standby list
     crate::antivirus::whitelist::safe_memory_operation(|| {
-        nt_call_u32(SYS_MEMORY_LIST_INFORMATION, cmd)
+        if low_priority {
+            crate::memory::advanced::purge_standby_list_low_priority()
+        } else {
+            crate::memory::advanced::purge_standby_list()
+        }
     })
 }
 
 pub fn optimize_modified_page_list() -> Result<()> {
     ensure_privileges(&[SE_PROFILE_SINGLE_PROCESS_NAME])?;
+    
+    // Usa la funzione avanzata per modified page list
     crate::antivirus::whitelist::safe_memory_operation(|| {
-        nt_call_u32(SYS_MEMORY_LIST_INFORMATION, MEM_FLUSH_MODIFIED_LIST)
+        crate::memory::advanced::aggressive_modified_page_flush()
     })
 }
 
 pub fn optimize_registry_cache() -> Result<()> {
-    crate::antivirus::whitelist::safe_memory_operation(|| -> Result<(), anyhow::Error> {
-        unsafe {
-            let status =
-                NtSetSystemInformation(SYS_REGISTRY_RECONCILIATION_INFORMATION, null_mut(), 0);
-            if status < 0 {
-                tracing::warn!("Registry cache optimization not available: 0x{:x}", status);
-                // Non far crashare
-                return Ok(());
-            }
-        }
-        Ok(())
+    // Usa la funzione avanzata per registry cache
+    crate::antivirus::whitelist::safe_memory_operation(|| {
+        crate::memory::advanced::optimize_registry_cache()
     })
 }
 
