@@ -1,67 +1,95 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import { config, updateConfig } from '../lib/store';
-  import type { Config } from '../lib/types';
-  import { t } from '../i18n/index';
+  import { onMount, onDestroy } from 'svelte'
+  import { config, updateConfig } from '../lib/store'
+  import type { Config } from '../lib/types'
+  import { t } from '../i18n/index'
 
-  let cfg: Config | null = null;
-  let unsub: (() => void) | null = null;
+  let cfg: Config | null = null
+  let unsub: (() => void) | null = null
 
   onMount(() => {
-    unsub = config.subscribe((v) => (cfg = v));
-    applyMainColor();
-  });
+    unsub = config.subscribe((v) => (cfg = v))
+    applyMainColor()
+  })
 
   onDestroy(() => {
-    if (unsub) unsub();
-  });
+    if (unsub) unsub()
+  })
 
   function applyMainColor() {
-    if (!cfg) return;
-    const theme = cfg.theme === 'light' ? 'light' : 'dark';
-    const mainColor = theme === 'light'
-      ? (cfg.main_color_hex_light || cfg.main_color_hex || '#9a8a72')
-      : (cfg.main_color_hex_dark || cfg.main_color_hex || '#0a84ff');
-    
-    const root = document.documentElement;
-    root.style.setProperty('--btn-bg', mainColor);
-    root.style.setProperty('--bar-fill', mainColor);
-    root.style.setProperty('--input-focus', mainColor);
+    if (!cfg) return
+    const theme = cfg.theme === 'light' ? 'light' : 'dark'
+    const mainColor =
+      theme === 'light'
+        ? cfg.main_color_hex_light || cfg.main_color_hex || '#9a8a72'
+        : cfg.main_color_hex_dark || cfg.main_color_hex || '#0a84ff'
+
+    const root = document.documentElement
+    root.style.setProperty('--btn-bg', mainColor)
+    root.style.setProperty('--bar-fill', mainColor)
+    root.style.setProperty('--input-focus', mainColor)
   }
 
   function onColorChange(e: Event) {
-    const target = e.target as HTMLInputElement;
-    const color = target.value;
-    const theme = cfg?.theme === 'light' ? 'light' : 'dark';
-    
+    const target = e.target as HTMLInputElement
+    const color = target.value
+    const theme = cfg?.theme === 'light' ? 'light' : 'dark'
+
     // Salva nel campo corretto in base al tema
     if (theme === 'light') {
-      updateConfig({ main_color_hex_light: color });
+      updateConfig({ main_color_hex_light: color })
     } else {
-      updateConfig({ main_color_hex_dark: color });
+      updateConfig({ main_color_hex_dark: color })
     }
-    
-    applyMainColor();
+
+    applyMainColor()
   }
 
   function resetColor() {
-    const theme = cfg?.theme === 'light' ? 'light' : 'dark';
-    const defaultColor = theme === 'dark' ? '#0a84ff' : '#9a8a72';
-    
+    const theme = cfg?.theme === 'light' ? 'light' : 'dark'
+    const defaultColor = theme === 'dark' ? '#0a84ff' : '#9a8a72'
+
     if (theme === 'light') {
-      updateConfig({ main_color_hex_light: defaultColor });
+      updateConfig({ main_color_hex_light: defaultColor })
     } else {
-      updateConfig({ main_color_hex_dark: defaultColor });
+      updateConfig({ main_color_hex_dark: defaultColor })
     }
-    
-    applyMainColor();
+
+    applyMainColor()
   }
 
   // Reapplica quando cambia il tema o il colore
   $: if (cfg) {
-    setTimeout(applyMainColor, 100);
+    setTimeout(applyMainColor, 100)
   }
 </script>
+
+<div class="group">
+  <div class="title">{$t('Main Color')}</div>
+
+  <div class="row">
+    <input
+      type="color"
+      value={(() => {
+        if (!cfg)
+          return document.documentElement.getAttribute('data-theme') === 'dark'
+            ? '#0a84ff'
+            : '#9a8a72'
+        const theme = cfg.theme === 'light' ? 'light' : 'dark'
+        return theme === 'light'
+          ? cfg.main_color_hex_light || cfg.main_color_hex || '#9a8a72'
+          : cfg.main_color_hex_dark || cfg.main_color_hex || '#0a84ff'
+      })()}
+      on:input={onColorChange}
+      class="color-input"
+    />
+    <button on:click={resetColor}>{$t('Reset')}</button>
+  </div>
+
+  <div class="hint">
+    {$t('This color will be used for buttons, progress bars, and accents throughout the app')}
+  </div>
+</div>
 
 <style>
   .group {
@@ -95,7 +123,7 @@
     position: relative;
     overflow: hidden;
   }
-  
+
   button::after {
     content: '';
     position: absolute;
@@ -103,14 +131,23 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+    background: linear-gradient(
+      135deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 70%
+    );
     animation: shimmer 2s infinite;
     pointer-events: none;
   }
-  
+
   @keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
   }
 
   button:hover {
@@ -135,28 +172,3 @@
     line-height: 1.4;
   }
 </style>
-
-<div class="group">
-  <div class="title">{$t('Main Color')}</div>
-  
-  <div class="row">
-    <input
-      type="color"
-      value={(() => {
-        if (!cfg) return document.documentElement.getAttribute('data-theme') === 'dark' ? '#0a84ff' : '#9a8a72';
-        const theme = cfg.theme === 'light' ? 'light' : 'dark';
-        return theme === 'light'
-          ? (cfg.main_color_hex_light || cfg.main_color_hex || '#9a8a72')
-          : (cfg.main_color_hex_dark || cfg.main_color_hex || '#0a84ff');
-      })()}
-      on:input={onColorChange}
-      class="color-input"
-    />
-    <button on:click={resetColor}>{$t('Reset')}</button>
-  </div>
-  
-  <div class="hint">
-    {$t('This color will be used for buttons, progress bars, and accents throughout the app')}
-  </div>
-</div>
-

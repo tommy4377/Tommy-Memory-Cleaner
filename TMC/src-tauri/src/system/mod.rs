@@ -1,7 +1,7 @@
 // src-tauri/src/system/mod.rs
+pub mod priority;
 pub mod startup;
 pub mod window;
-pub mod priority;
 
 /// Verifica se il processo corrente è eseguito con privilegi amministratore
 #[cfg(windows)]
@@ -12,22 +12,22 @@ pub fn is_app_elevated() -> bool {
             Security::TOKEN_QUERY,
             System::Threading::GetCurrentProcess,
         };
-        
+
         #[repr(C)]
         #[allow(non_snake_case)]
         struct TokenElevation {
             TokenIsElevated: u32, // Must match Windows API structure name
         }
-        
+
         const TOKEN_ELEVATION: u32 = 20; // TOKEN_INFORMATION_CLASS::TokenElevation
-        
+
         extern "system" {
             fn OpenProcessToken(
                 ProcessHandle: HANDLE,
                 DesiredAccess: u32,
                 TokenHandle: *mut HANDLE,
             ) -> i32;
-            
+
             fn GetTokenInformation(
                 TokenHandle: HANDLE,
                 TokenInformationClass: u32,
@@ -36,14 +36,14 @@ pub fn is_app_elevated() -> bool {
                 ReturnLength: *mut u32,
             ) -> i32;
         }
-        
+
         let process = GetCurrentProcess();
         let mut token: HANDLE = 0;
-        
+
         if OpenProcessToken(process, TOKEN_QUERY, &mut token) == 0 {
             return false;
         }
-        
+
         // Usa scopeguard per garantire la chiusura del token
         // HANDLE in windows-sys is isize, so compare with 0
         let _guard = scopeguard::guard(token, |t| {
@@ -51,10 +51,10 @@ pub fn is_app_elevated() -> bool {
                 CloseHandle(t);
             }
         });
-        
+
         let mut elevation = TokenElevation { TokenIsElevated: 0 };
         let mut ret_len = 0u32;
-        
+
         let success = GetTokenInformation(
             token,
             TOKEN_ELEVATION,
@@ -62,7 +62,7 @@ pub fn is_app_elevated() -> bool {
             std::mem::size_of::<TokenElevation>() as u32,
             &mut ret_len,
         ) != 0;
-        
+
         success && elevation.TokenIsElevated != 0
     }
 }

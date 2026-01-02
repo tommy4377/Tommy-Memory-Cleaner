@@ -6,16 +6,16 @@
   "Optimizing...": "Optimierung...",
   "Ready": "Bereit",
   "Done": "Fertig",
-  
+
   "Physical": "Physisch",
   "Free": "Frei",
   "Commit": "Virtuell",
-  
+
   "Open TMC": "TMC Öffnen",
   "Dashboard": "Dashboard",
   "Optimize Memory": "Speicher Optimieren",
   "Exit": "Beenden",
-  
+
   "Working Set": "Arbeitssatz",
   "Modified Pages": "Geänderte Seiten",
   "Standby List": "Bereitschaftsliste",
@@ -24,22 +24,22 @@
   "Combined Pages": "Kombinierte Seiten",
   "File Cache": "Dateicache",
   "Registry Cache": "Registrierungscache",
-  
+
   "Normal": "Normal",
   "Balanced": "Ausgeglichen",
   "Gaming": "Spielen",
-  
+
   "Full view": "Vollansicht",
   "Compact view": "Kompaktansicht",
   "Minimize": "Minimieren",
   "Minimize to tray": "In Taskleiste minimieren",
   "Close": "Schließen",
-  
+
   "Process Exclusions": "Prozessausschlüsse",
   "These processes will not have their memory optimized": "Diese Prozesse werden nicht optimiert",
   "Type process name...": "Prozessname eingeben...",
   "Add": "Hinzufügen",
-  
+
   "Auto optimize every": "Automatisch optimieren alle",
   "hours": "Stunden",
   "When free RAM below": "Wenn freier RAM unter",
@@ -48,33 +48,33 @@
   "Disabled": "Deaktiviert",
   "Will optimize every X hours": "Wird alle %hours% Stunden optimieren",
   "5 minute cooldown between optimizations": "5 Minuten Pause zwischen Optimierungen",
-  
+
   "Always on top": "Immer im Vordergrund",
   "Auto update": "Automatische Aktualisierung",
   "Close after optimization": "Nach Optimierung schließen",
   "Close to notification area": "In Benachrichtigungsbereich schließen",
   "Show optimization notifications": "Optimierungsbenachrichtigungen anzeigen",
   "Run on startup": "Beim Start ausführen",
-  
+
   "TMC • Optimization completed": "TMC • Optimierung abgeschlossen",
   "TMC • Scheduled optimization": "TMC • Geplante Optimierung",
   "TMC • Low memory optimization": "TMC • Optimierung bei wenig Speicher",
   "TMC • Hotkey optimization": "TMC • Hotkey-Optimierung",
-  
+
   "Priority": "Priorität",
   "Low": "Niedrig",
   "High": "Hoch",
-  
+
   "Language": "Sprache",
   "Theme": "Thema",
   "Light": "Hell",
   "Dark": "Dunkel",
-  
+
   "Global Hotkey": "Globale Tastenkombination",
   "Key (A-Z, 0-9, F1-F12)": "Taste (A-Z, 0-9, F1-F12)",
   "Default": "Standard",
   "Apply": "Anwenden",
-  
+
   "Tray Icon Settings": "Taskleistensymbol-Einstellungen",
   "Show memory percentage in tray icon": "Speicherprozentsatz im Symbol anzeigen",
   "Transparent background (numbers only)": "Transparenter Hintergrund (nur Zahlen)",
@@ -82,15 +82,15 @@
   "Background": "Hintergrund",
   "Warning": "Warnung",
   "Danger": "Gefahr",
-  
+
   "Main Color": "Hauptfarbe",
   "Color": "Farbe",
   "Reset": "Zurücksetzen",
   "Reset Colors": "Farben Zurücksetzen",
   "This color will be used for buttons, progress bars, and accents throughout the app": "Diese Farbe wird für Schaltflächen, Fortschrittsbalken und Akzente in der gesamten App verwendet",
-  
+
   "Active areas": "Aktive Bereiche",
-  
+
   "Welcome to Tommy Memory Cleaner": "Willkommen bei Tommy Memory Cleaner",
   "Complete Setup": "Einrichtung Abschließen",
   "Saving...": "Speichern...",

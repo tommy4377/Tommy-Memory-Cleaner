@@ -1,10 +1,10 @@
 /* Default light theme - Sepia/Warm tone, più saturo e appariscente */
 :root,
-[data-theme="light"] {
+[data-theme='light'] {
   --bg: #e5d9c8;
   --fg: #2a1f12;
   --card: rgba(245, 235, 220, 0.98);
-  --border: rgba(50, 38, 25, 0.20);
+  --border: rgba(50, 38, 25, 0.2);
   --bar-track: rgba(50, 38, 25, 0.22);
   --bar-fill: #9a8a72;
   --bar-free: #9a8a72; /* Stesso colore del main */
@@ -12,14 +12,14 @@
   --btn-fg: #ffffff;
   --btn-border: transparent;
   --tab-active: rgba(245, 235, 220, 1);
-  
+
   /* Inputs e selects */
   --input-bg: rgba(252, 245, 230, 0.95);
   --input-border: rgba(50, 38, 25, 0.28);
   --input-focus: #9a8a72;
 }
 
-html[data-theme="dark"] {
+html[data-theme='dark'] {
   /* Dark theme */
   --bg: #1c1c1e;
   --fg: #f2f2f7;
@@ -32,7 +32,7 @@ html[data-theme="dark"] {
   --btn-fg: #ffffff;
   --btn-border: transparent;
   --tab-active: rgba(58, 58, 60, 1);
-  
+
   /* Inputs e selects per dark mode */
   --input-bg: rgba(58, 58, 60, 0.8);
   --input-border: rgba(255, 255, 255, 0.12);
@@ -45,14 +45,15 @@ html[data-theme="dark"] {
   padding: 0;
 }
 
-html, body {
+html,
+body {
   height: 100%;
   width: 100%;
   overflow: hidden;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   background: var(--bg);
@@ -60,24 +61,26 @@ body {
   cursor: url('/cursors/light/arrow.cur'), auto !important;
 }
 
-html[data-theme="dark"] body {
+html[data-theme='dark'] body {
   cursor: url('/cursors/dark/arrow.cur'), auto !important;
 }
 
 /* Cursore personalizzato per tutti gli elementi interattivi */
-a, [role="button"], [tabindex]:not([tabindex="-1"]) {
+a,
+[role='button'],
+[tabindex]:not([tabindex='-1']) {
   cursor: url('/cursors/light/hand.cur'), pointer !important;
 }
 
-html[data-theme="dark"] a,
-html[data-theme="dark"] [role="button"],
-html[data-theme="dark"] [tabindex]:not([tabindex="-1"]) {
+html[data-theme='dark'] a,
+html[data-theme='dark'] [role='button'],
+html[data-theme='dark'] [tabindex]:not([tabindex='-1']) {
   cursor: url('/cursors/dark/hand.cur'), pointer !important;
 }
 
 /* Input e Select globali - IMPORTANTE: permettere interazioni */
-input[type="text"],
-input[type="number"],
+input[type='text'],
+input[type='number'],
 textarea {
   -webkit-user-select: auto !important;
   user-select: auto !important;
@@ -85,9 +88,9 @@ textarea {
   cursor: url('/cursors/light/nwpen.cur'), text !important;
 }
 
-html[data-theme="dark"] input[type="text"],
-html[data-theme="dark"] input[type="number"],
-html[data-theme="dark"] textarea {
+html[data-theme='dark'] input[type='text'],
+html[data-theme='dark'] input[type='number'],
+html[data-theme='dark'] textarea {
   cursor: url('/cursors/dark/nwpen.cur'), text !important;
 }
 
@@ -99,13 +102,13 @@ button {
   cursor: url('/cursors/light/hand.cur'), pointer !important;
 }
 
-html[data-theme="dark"] select,
-html[data-theme="dark"] button {
+html[data-theme='dark'] select,
+html[data-theme='dark'] button {
   cursor: url('/cursors/dark/hand.cur'), pointer !important;
 }
 
-input[type="text"],
-input[type="number"],
+input[type='text'],
+input[type='number'],
 select,
 textarea {
   background: var(--input-bg);
@@ -117,8 +120,8 @@ textarea {
   transition: all 0.2s;
 }
 
-input[type="text"]:focus,
-input[type="number"]:focus,
+input[type='text']:focus,
+input[type='number']:focus,
 select:focus,
 textarea:focus {
   outline: none;
@@ -126,17 +129,17 @@ textarea:focus {
 }
 
 /* Box shadow per focus - usa il colore del tema */
-[data-theme="light"] input[type="text"]:focus,
-[data-theme="light"] input[type="number"]:focus,
-[data-theme="light"] select:focus,
-[data-theme="light"] textarea:focus {
+[data-theme='light'] input[type='text']:focus,
+[data-theme='light'] input[type='number']:focus,
+[data-theme='light'] select:focus,
+[data-theme='light'] textarea:focus {
   box-shadow: 0 0 0 3px rgba(154, 138, 114, 0.15);
 }
 
-html[data-theme="dark"] input[type="text"]:focus,
-html[data-theme="dark"] input[type="number"]:focus,
-html[data-theme="dark"] select:focus,
-html[data-theme="dark"] textarea:focus {
+html[data-theme='dark'] input[type='text']:focus,
+html[data-theme='dark'] input[type='number']:focus,
+html[data-theme='dark'] select:focus,
+html[data-theme='dark'] textarea:focus {
   box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.15);
 }
 
@@ -155,7 +158,7 @@ select {
   font-weight: 450 !important;
 }
 
-html[data-theme="dark"] select {
+html[data-theme='dark'] select {
   cursor: url('/cursors/dark/hand.cur'), pointer !important;
 }
 
@@ -167,48 +170,48 @@ select option {
 }
 
 /* Light theme: colore di selezione più attinente al tema (marrone caldo) */
-[data-theme="light"] select option {
+[data-theme='light'] select option {
   background: rgba(252, 245, 230, 0.95) !important;
   color: #2a1f12 !important;
 }
 
-[data-theme="light"] select option:checked,
-[data-theme="light"] select option[selected],
-[data-theme="light"] select option:hover {
+[data-theme='light'] select option:checked,
+[data-theme='light'] select option[selected],
+[data-theme='light'] select option:hover {
   background: #9a8a72 !important;
   color: white !important;
 }
 
 /* Pseudo-elementi specifici per Windows/Edge */
-[data-theme="light"] select::-ms-value {
+[data-theme='light'] select::-ms-value {
   background: #9a8a72 !important;
   color: white !important;
 }
 
-[data-theme="light"] select::-ms-expand {
+[data-theme='light'] select::-ms-expand {
   color: #9a8a72 !important;
 }
 
 /* Dark theme: mantieni lo stile esistente (blu) */
-html[data-theme="dark"] select option {
+html[data-theme='dark'] select option {
   background: rgba(58, 58, 60, 0.8) !important;
   color: #f2f2f7 !important;
 }
 
-html[data-theme="dark"] select option:checked,
-html[data-theme="dark"] select option[selected],
-html[data-theme="dark"] select option:hover {
+html[data-theme='dark'] select option:checked,
+html[data-theme='dark'] select option[selected],
+html[data-theme='dark'] select option:hover {
   background: #0a84ff !important;
   color: white !important;
 }
 
-html[data-theme="dark"] select::-ms-value {
+html[data-theme='dark'] select::-ms-value {
   background: #0a84ff !important;
   color: white !important;
 }
 
 /* Checkbox styling - Personalizzato e moderno */
-input[type="checkbox"] {
+input[type='checkbox'] {
   -webkit-appearance: none;
   appearance: none;
   width: 18px;
@@ -223,54 +226,54 @@ input[type="checkbox"] {
   flex-shrink: 0;
 }
 
-html[data-theme="dark"] input[type="checkbox"] {
+html[data-theme='dark'] input[type='checkbox'] {
   cursor: url('/cursors/dark/hand.cur'), pointer !important;
 }
 
-input[type="checkbox"]:hover,
-input[type="checkbox"]:active,
-input[type="checkbox"]:focus {
+input[type='checkbox']:hover,
+input[type='checkbox']:active,
+input[type='checkbox']:focus {
   cursor: url('/cursors/light/hand.cur'), pointer !important;
 }
 
-html[data-theme="dark"] input[type="checkbox"]:hover,
-html[data-theme="dark"] input[type="checkbox"]:active,
-html[data-theme="dark"] input[type="checkbox"]:focus {
+html[data-theme='dark'] input[type='checkbox']:hover,
+html[data-theme='dark'] input[type='checkbox']:active,
+html[data-theme='dark'] input[type='checkbox']:focus {
   cursor: url('/cursors/dark/hand.cur'), pointer !important;
 }
 
-input[type="checkbox"]:hover {
+input[type='checkbox']:hover {
   border-color: var(--btn-bg);
   background: var(--card);
 }
 
-input[type="checkbox"]:checked {
+input[type='checkbox']:checked {
   background: var(--btn-bg);
   border-color: var(--btn-bg);
   /* Nessun checkmark - solo colore */
 }
 
-input[type="checkbox"]:focus-visible {
+input[type='checkbox']:focus-visible {
   outline: 2px solid var(--input-focus);
   outline-offset: 2px;
 }
 
 /* Label con checkbox - cursore personalizzato (solo per label che contengono checkbox) */
-label:has(input[type="checkbox"]) {
+label:has(input[type='checkbox']) {
   cursor: url('/cursors/light/hand.cur'), pointer !important;
 }
 
-html[data-theme="dark"] label:has(input[type="checkbox"]) {
+html[data-theme='dark'] label:has(input[type='checkbox']) {
   cursor: url('/cursors/dark/hand.cur'), pointer !important;
 }
 
-label:has(input[type="checkbox"]):hover,
-label:has(input[type="checkbox"]):active {
+label:has(input[type='checkbox']):hover,
+label:has(input[type='checkbox']):active {
   cursor: url('/cursors/light/hand.cur'), pointer !important;
 }
 
-html[data-theme="dark"] label:has(input[type="checkbox"]):hover,
-html[data-theme="dark"] label:has(input[type="checkbox"]):active {
+html[data-theme='dark'] label:has(input[type='checkbox']):hover,
+html[data-theme='dark'] label:has(input[type='checkbox']):active {
   cursor: url('/cursors/dark/hand.cur'), pointer !important;
 }
 
@@ -284,7 +287,7 @@ button {
   background: var(--card);
 }
 
-html[data-theme="dark"] button {
+html[data-theme='dark'] button {
   cursor: url('/cursors/dark/hand.cur'), pointer !important;
 }
 
@@ -294,15 +297,19 @@ button:hover {
 
 /* Keyframes per shimmer - usato da vari componenti */
 @keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 /* NOTA: Lo shimmer è gestito individualmente da ogni componente */
 /* Non aggiungere regole generiche qui per evitare shimmer su elementi non desiderati */
 
 /* Range slider specifici - Design pulito senza pallini che escono */
-input[type="range"] {
+input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
   background: var(--bar-track);
@@ -314,15 +321,15 @@ input[type="range"] {
   padding: 0;
 }
 
-html[data-theme="dark"] input[type="range"] {
+html[data-theme='dark'] input[type='range'] {
   cursor: url('/cursors/dark/sizewe.cur'), ew-resize !important;
 }
 
-html[data-theme="dark"] input[type="range"] {
+html[data-theme='dark'] input[type='range'] {
   cursor: url('/cursors/dark/sizewe.cur'), ew-resize !important;
 }
 
-input[type="range"]::-webkit-slider-track {
+input[type='range']::-webkit-slider-track {
   background: var(--bar-track) !important;
   height: 8px;
   border-radius: 8px;
@@ -330,15 +337,15 @@ input[type="range"]::-webkit-slider-track {
   width: 100% !important;
 }
 
-html[data-theme="dark"] input[type="range"]::-webkit-slider-track {
+html[data-theme='dark'] input[type='range']::-webkit-slider-track {
   cursor: url('/cursors/dark/sizewe.cur'), ew-resize !important;
 }
 
-html[data-theme="dark"] input[type="range"]::-webkit-slider-track {
+html[data-theme='dark'] input[type='range']::-webkit-slider-track {
   background: var(--bar-track) !important;
 }
 
-input[type="range"]::-webkit-slider-thumb {
+input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 18px;
@@ -352,20 +359,20 @@ input[type="range"]::-webkit-slider-thumb {
   transition: all 0.2s ease;
 }
 
-html[data-theme="dark"] input[type="range"]::-webkit-slider-thumb {
+html[data-theme='dark'] input[type='range']::-webkit-slider-thumb {
   cursor: url('/cursors/dark/sizewe.cur'), ew-resize !important;
 }
 
-input[type="range"]::-webkit-slider-thumb:hover {
+input[type='range']::-webkit-slider-thumb:hover {
   transform: scale(1.1);
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
 }
 
-input[type="range"]::-webkit-slider-thumb:active {
+input[type='range']::-webkit-slider-thumb:active {
   transform: scale(0.95);
 }
 
-input[type="range"]::-moz-range-track {
+input[type='range']::-moz-range-track {
   background: var(--bar-track) !important;
   height: 8px;
   border-radius: 8px;
@@ -374,15 +381,15 @@ input[type="range"]::-moz-range-track {
   width: 100% !important;
 }
 
-html[data-theme="dark"] input[type="range"]::-moz-range-track {
+html[data-theme='dark'] input[type='range']::-moz-range-track {
   cursor: url('/cursors/dark/sizewe.cur'), ew-resize !important;
 }
 
-html[data-theme="dark"] input[type="range"]::-moz-range-track {
+html[data-theme='dark'] input[type='range']::-moz-range-track {
   background: var(--bar-track) !important;
 }
 
-input[type="range"]::-moz-range-thumb {
+input[type='range']::-moz-range-thumb {
   width: 18px;
   height: 18px;
   background: var(--btn-bg);
@@ -393,33 +400,35 @@ input[type="range"]::-moz-range-thumb {
   transition: all 0.2s ease;
 }
 
-html[data-theme="dark"] input[type="range"]::-moz-range-thumb {
+html[data-theme='dark'] input[type='range']::-moz-range-thumb {
   cursor: url('/cursors/dark/sizewe.cur'), ew-resize !important;
 }
 
-input[type="range"]::-moz-range-thumb:hover {
+input[type='range']::-moz-range-thumb:hover {
   transform: scale(1.1);
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
 }
 
-input[type="range"]::-moz-range-thumb:active {
+input[type='range']::-moz-range-thumb:active {
   transform: scale(0.95);
 }
 
-input[type="range"]:focus-visible {
+input[type='range']:focus-visible {
   outline: none;
 }
 
-input[type="range"]:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2), 0 2px 4px rgba(0, 0, 0, 0.2);
+input[type='range']:focus-visible::-webkit-slider-thumb {
+  box-shadow:
+    0 0 0 3px rgba(0, 122, 255, 0.2),
+    0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Color input cursor */
-input[type="color"] {
+input[type='color'] {
   cursor: url('/cursors/light/hand.cur'), pointer !important;
 }
 
-html[data-theme="dark"] input[type="color"] {
+html[data-theme='dark'] input[type='color'] {
   cursor: url('/cursors/dark/hand.cur'), pointer !important;
 }
 
@@ -431,9 +440,9 @@ select:disabled {
   cursor: url('/cursors/light/no.cur'), not-allowed !important;
 }
 
-html[data-theme="dark"] button:disabled,
-html[data-theme="dark"] input:disabled,
-html[data-theme="dark"] select:disabled {
+html[data-theme='dark'] button:disabled,
+html[data-theme='dark'] input:disabled,
+html[data-theme='dark'] select:disabled {
   cursor: url('/cursors/dark/no.cur'), not-allowed !important;
 }
 

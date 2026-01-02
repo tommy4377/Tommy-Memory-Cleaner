@@ -13,13 +13,13 @@ const SYSTEM_COMMAND_TIMEOUT: Duration = Duration::from_secs(10);
 // FIX #19: Helper per eseguire comandi con timeout
 fn run_command_with_timeout(mut cmd: std::process::Command) -> Result<std::process::Output> {
     use std::sync::mpsc;
-    
+
     let (tx, rx) = mpsc::channel();
     let handle = std::thread::spawn(move || {
         let result = cmd.output();
         let _ = tx.send(result);
     });
-    
+
     match rx.recv_timeout(SYSTEM_COMMAND_TIMEOUT) {
         Ok(result) => {
             if let Err(e) = handle.join() {
@@ -35,7 +35,10 @@ fn run_command_with_timeout(mut cmd: std::process::Command) -> Result<std::proce
         }
         Err(mpsc::RecvTimeoutError::Disconnected) => {
             if let Err(e) = handle.join() {
-                tracing::warn!("Thread panicked during command execution (disconnected): {:?}", e);
+                tracing::warn!(
+                    "Thread panicked during command execution (disconnected): {:?}",
+                    e
+                );
             }
             bail!("Command thread disconnected")
         }
@@ -56,7 +59,7 @@ fn app_name() -> &'static str {
 
 pub fn set_run_on_startup(enable: bool) -> Result<()> {
     let detector = get_portable_detector();
-    
+
     if detector.is_portable() {
         // Versione portable: usa shortcut nella cartella Startup
         set_portable_startup(enable)
@@ -69,18 +72,18 @@ pub fn set_run_on_startup(enable: bool) -> Result<()> {
 fn set_portable_startup(enable: bool) -> Result<()> {
     let detector = get_portable_detector();
     let exe_path = detector.exe_path();
-    
+
     // Ottieni cartella Startup di Windows
     let startup_folder = dirs::data_dir()
         .ok_or_else(|| anyhow::anyhow!("Cannot find user data directory"))?
         .join(r"Microsoft\Windows\Start Menu\Programs\Startup");
-    
+
     let shortcut_path = startup_folder.join("TommyMemoryCleaner.lnk");
-    
+
     if enable {
         // Crea cartella se non esiste
         std::fs::create_dir_all(&startup_folder)?;
-        
+
         // Crea shortcut usando PowerShell con nome e icona corretti
         // Cerca icon.ico nella stessa cartella dell'exe, altrimenti usa l'exe stesso
         let icon_path = if let Some(parent) = exe_path.parent() {
@@ -101,7 +104,7 @@ fn set_portable_startup(enable: bool) -> Result<()> {
         } else {
             exe_path.to_string_lossy().replace('\\', "\\\\")
         };
-        
+
         let ps_script = format!(
             r#"
             $WshShell = New-Object -comObject WScript.Shell
@@ -115,13 +118,14 @@ fn set_portable_startup(enable: bool) -> Result<()> {
             "#,
             shortcut_path.to_string_lossy().replace('\\', "\\\\"),
             exe_path.to_string_lossy().replace('\\', "\\\\"),
-            exe_path.parent()
+            exe_path
+                .parent()
                 .ok_or_else(|| anyhow::anyhow!("Executable path has no parent directory"))?
                 .to_string_lossy()
                 .replace('\\', "\\\\"),
             icon_path
         );
-        
+
         // FIX #19: Usa timeout per il comando PowerShell
         #[cfg(windows)]
         let mut cmd = std::process::Command::new("powershell");
@@ -131,7 +135,7 @@ fn set_portable_startup(enable: bool) -> Result<()> {
             .arg("-Command")
             .arg(&ps_script)
             .creation_flags(0x08000000); // CREATE_NO_WINDOW
-        
+
         #[cfg(not(windows))]
         let mut cmd = std::process::Command::new("powershell");
         #[cfg(not(windows))]
@@ -139,44 +143,43 @@ fn set_portable_startup(enable: bool) -> Result<()> {
             .arg("-NonInteractive")
             .arg("-Command")
             .arg(&ps_script);
-        
+
         let result = run_command_with_timeout(cmd)?;
-            
+
         if !result.status.success() {
             let error = String::from_utf8_lossy(&result.stderr);
             bail!("Failed to create startup shortcut: {}", error);
         }
-        
+
         // Verifica che il file sia stato creato
         if !shortcut_path.exists() {
             bail!("Failed to create startup shortcut - file not found");
         }
-        
     } else {
         // Rimuovi shortcut se esiste
         if shortcut_path.exists() {
             std::fs::remove_file(shortcut_path)?;
         }
     }
-    
+
     Ok(())
 }
 
 fn set_installed_startup(enable: bool) -> Result<()> {
     let exe = exe_path()?;
     let exe_str = exe.to_string_lossy();
-    
+
     // Valida il percorso per sicurezza
     if !exe.exists() {
         bail!("Executable path does not exist");
     }
-    
+
     if enable {
         // Prima prova con il registro (non richiede admin)
         if let Ok(()) = set_registry_startup(&exe_str, true) {
             return Ok(());
         }
-        
+
         // Fallback a Task Scheduler
         set_task_scheduler_startup(&exe_str, true)
     } else {
@@ -193,16 +196,14 @@ fn set_registry_startup(exe_path: &str, enable: bool) -> Result<()> {
         let exe_path_abs = if std::path::Path::new(exe_path).is_absolute() {
             exe_path.to_string()
         } else {
-            std::env::current_exe()?
-                .to_string_lossy()
-                .to_string()
+            std::env::current_exe()?.to_string_lossy().to_string()
         };
-        
+
         // Verifica che l'exe esista
         if !std::path::Path::new(&exe_path_abs).exists() {
             bail!("Executable path does not exist: {}", exe_path_abs);
         }
-        
+
         // Usa PowerShell per evitare problemi di encoding
         let ps_script = format!(
             r#"
@@ -227,7 +228,7 @@ fn set_registry_startup(exe_path: &str, enable: bool) -> Result<()> {
             exe_path_abs.replace('\\', "\\\\").replace('\'', "''"),
             app_name()
         );
-        
+
         // FIX #19: Usa timeout per il comando PowerShell
         #[cfg(windows)]
         let mut cmd = std::process::Command::new("powershell");
@@ -237,7 +238,7 @@ fn set_registry_startup(exe_path: &str, enable: bool) -> Result<()> {
             .arg("-Command")
             .arg(&ps_script)
             .creation_flags(0x08000000);
-        
+
         #[cfg(not(windows))]
         let mut cmd = std::process::Command::new("powershell");
         #[cfg(not(windows))]
@@ -245,9 +246,9 @@ fn set_registry_startup(exe_path: &str, enable: bool) -> Result<()> {
             .arg("-NonInteractive")
             .arg("-Command")
             .arg(&ps_script);
-        
+
         let result = run_command_with_timeout(cmd)?;
-        
+
         if !result.status.success() {
             let error = String::from_utf8_lossy(&result.stderr);
             bail!("Failed to set registry startup: {}", error);
@@ -272,7 +273,7 @@ fn set_registry_startup(exe_path: &str, enable: bool) -> Result<()> {
             "#,
             app_name()
         );
-        
+
         // Usa timeout anche per la rimozione
         #[cfg(windows)]
         let mut cmd = std::process::Command::new("powershell");
@@ -282,7 +283,7 @@ fn set_registry_startup(exe_path: &str, enable: bool) -> Result<()> {
             .arg("-Command")
             .arg(&ps_script)
             .creation_flags(0x08000000);
-            
+
         #[cfg(not(windows))]
         let mut cmd = std::process::Command::new("powershell");
         #[cfg(not(windows))]
@@ -290,18 +291,21 @@ fn set_registry_startup(exe_path: &str, enable: bool) -> Result<()> {
             .arg("-NonInteractive")
             .arg("-Command")
             .arg(&ps_script);
-        
+
         // Non facciamo fail se la rimozione fallisce (la proprietà potrebbe non esistere)
         if let Ok(result) = run_command_with_timeout(cmd) {
             if !result.status.success() {
                 let error = String::from_utf8_lossy(&result.stderr);
-                tracing::warn!("Failed to remove registry startup (non-critical): {}", error);
+                tracing::warn!(
+                    "Failed to remove registry startup (non-critical): {}",
+                    error
+                );
             }
         } else {
             tracing::warn!("Failed to execute removal command (non-critical)");
         }
     }
-    
+
     Ok(())
 }
 
@@ -356,73 +360,87 @@ fn set_task_scheduler_startup(exe_path: &str, enable: bool) -> Result<()> {
 </Task>"#,
             exe_path.replace('\\', "\\\\").replace('"', "&quot;")
         );
-        
+
         // Salva XML temporaneo
         let temp_xml = std::env::temp_dir().join("tmc_startup_task.xml");
         std::fs::write(&temp_xml, xml_content)?;
-        
+
         // FIX #19: Usa timeout per il comando schtasks
         #[cfg(windows)]
         let mut cmd = std::process::Command::new("schtasks");
         #[cfg(windows)]
         cmd.args([
-                "/Create",
-                "/F", // Force overwrite
-                "/TN", task_name(),
-                "/XML", &temp_xml.to_string_lossy(),
-            ])
-            .creation_flags(0x08000000);
-        
+            "/Create",
+            "/F", // Force overwrite
+            "/TN",
+            task_name(),
+            "/XML",
+            &temp_xml.to_string_lossy(),
+        ])
+        .creation_flags(0x08000000);
+
         #[cfg(not(windows))]
         let mut cmd = std::process::Command::new("schtasks");
         #[cfg(not(windows))]
         cmd.args([
-                "/Create",
-                "/F",
-                "/TN", task_name(),
-                "/XML", &temp_xml.to_string_lossy(),
-            ]);
-        
+            "/Create",
+            "/F",
+            "/TN",
+            task_name(),
+            "/XML",
+            &temp_xml.to_string_lossy(),
+        ]);
+
         let result = run_command_with_timeout(cmd)?;
-        
+
         // Rimuovi file temporaneo
         let _ = std::fs::remove_file(&temp_xml);
-            
+
         if !result.status.success() {
             let error = String::from_utf8_lossy(&result.stderr);
             // Fallback a metodo semplice se XML fallisce
             tracing::warn!("XML method failed, trying simple method: {}", error);
-            
+
             // FIX #19: Usa timeout per il comando schtasks (fallback)
             #[cfg(windows)]
             let mut cmd = std::process::Command::new("schtasks");
             #[cfg(windows)]
             cmd.args([
-                    "/Create",
-                    "/F",
-                    "/SC", "ONLOGON",
-                    "/TN", task_name(),
-                    "/TR", &format!("\"{}\"", exe_path),
-                    "/RL", "HIGHEST",
-                    "/DELAY", "0000:30",
-                ])
-                .creation_flags(0x08000000);
-            
+                "/Create",
+                "/F",
+                "/SC",
+                "ONLOGON",
+                "/TN",
+                task_name(),
+                "/TR",
+                &format!("\"{}\"", exe_path),
+                "/RL",
+                "HIGHEST",
+                "/DELAY",
+                "0000:30",
+            ])
+            .creation_flags(0x08000000);
+
             #[cfg(not(windows))]
             let mut cmd = std::process::Command::new("schtasks");
             #[cfg(not(windows))]
             cmd.args([
-                    "/Create",
-                    "/F",
-                    "/SC", "ONLOGON",
-                    "/TN", task_name(),
-                    "/TR", &format!("\"{}\"", exe_path),
-                    "/RL", "HIGHEST",
-                    "/DELAY", "0000:30",
-                ]);
-            
+                "/Create",
+                "/F",
+                "/SC",
+                "ONLOGON",
+                "/TN",
+                task_name(),
+                "/TR",
+                &format!("\"{}\"", exe_path),
+                "/RL",
+                "HIGHEST",
+                "/DELAY",
+                "0000:30",
+            ]);
+
             let result = run_command_with_timeout(cmd)?;
-                
+
             if !result.status.success() {
                 let error = String::from_utf8_lossy(&result.stderr);
                 bail!("Failed to create scheduled task: {}", error);
@@ -434,19 +452,19 @@ fn set_task_scheduler_startup(exe_path: &str, enable: bool) -> Result<()> {
             .args(["/Delete", "/F", "/TN", task_name()])
             .creation_flags(0x08000000)
             .output();
-            
+
         #[cfg(not(windows))]
         let _ = std::process::Command::new("schtasks")
             .args(["/Delete", "/F", "/TN", task_name()])
             .output();
     }
-    
+
     Ok(())
 }
 
 pub fn is_startup_enabled() -> bool {
     let detector = get_portable_detector();
-    
+
     if detector.is_portable() {
         // Check for shortcut in Startup folder
         if let Some(data_dir) = dirs::data_dir() {
@@ -468,7 +486,7 @@ pub fn is_startup_enabled() -> bool {
                 "#,
                 app_name()
             );
-            
+
             // FIX #19: Usa timeout per il comando PowerShell
             #[cfg(windows)]
             let mut cmd = std::process::Command::new("powershell");
@@ -478,7 +496,7 @@ pub fn is_startup_enabled() -> bool {
                 .arg("-Command")
                 .arg(&ps_script)
                 .creation_flags(0x08000000);
-            
+
             #[cfg(not(windows))]
             let mut cmd = std::process::Command::new("powershell");
             #[cfg(not(windows))]
@@ -486,13 +504,13 @@ pub fn is_startup_enabled() -> bool {
                 .arg("-NonInteractive")
                 .arg("-Command")
                 .arg(&ps_script);
-            
+
             if let Ok(result) = run_command_with_timeout(cmd) {
                 if result.status.success() {
                     return true;
                 }
             }
-            
+
             // Check Task Scheduler
             // FIX #19: Usa timeout per il comando schtasks
             #[cfg(windows)]
@@ -500,17 +518,17 @@ pub fn is_startup_enabled() -> bool {
             #[cfg(windows)]
             cmd.args(["/Query", "/TN", task_name()])
                 .creation_flags(0x08000000);
-            
+
             #[cfg(not(windows))]
             let mut cmd = std::process::Command::new("schtasks");
             #[cfg(not(windows))]
             cmd.args(["/Query", "/TN", task_name()]);
-            
+
             if let Ok(result) = run_command_with_timeout(cmd) {
                 return result.status.success();
             }
         }
     }
-    
+
     false
 }

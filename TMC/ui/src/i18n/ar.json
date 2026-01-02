@@ -6,16 +6,16 @@
   "Optimizing...": "جاري التحسين...",
   "Ready": "جاهز",
   "Done": "تم",
-  
+
   "Physical": "فعلية",
   "Free": "متاحة",
   "Commit": "افتراضية",
-  
+
   "Open TMC": "فتح TMC",
   "Dashboard": "لوحة القيادة",
   "Optimize Memory": "تحسين الذاكرة",
   "Exit": "خروج",
-  
+
   "Working Set": "مجموعة العمل",
   "Modified Pages": "الصفحات المعدلة",
   "Standby List": "قائمة الانتظار",
@@ -24,22 +24,22 @@
   "Combined Pages": "الصفحات المدمجة",
   "File Cache": "ذاكرة التخزين المؤقت للملفات",
   "Registry Cache": "ذاكرة التخزين المؤقت للسجل",
-  
+
   "Normal": "عادي",
   "Balanced": "متوازن",
   "Gaming": "الألعاب",
-  
+
   "Full view": "عرض كامل",
   "Compact view": "عرض مضغوط",
   "Minimize": "تصغير",
   "Minimize to tray": "تصغير إلى شريط المهام",
   "Close": "إغلاق",
-  
+
   "Process Exclusions": "استثناءات العمليات",
   "These processes will not have their memory optimized": "لن يتم تحسين ذاكرة هذه العمليات",
   "Type process name...": "اكتب اسم العملية...",
   "Add": "إضافة",
-  
+
   "Auto optimize every": "التحسين التلقائي كل",
   "hours": "ساعات",
   "When free RAM below": "عندما تكون الذاكرة الحرة أقل من",
@@ -48,33 +48,33 @@
   "Disabled": "معطل",
   "Will optimize every X hours": "سيتم التحسين كل %hours% ساعات",
   "5 minute cooldown between optimizations": "5 دقائق انتظار بين التحسينات",
-  
+
   "Always on top": "دائماً في المقدمة",
   "Auto update": "التحديث التلقائي",
   "Close after optimization": "الإغلاق بعد التحسين",
   "Close to notification area": "الإغلاق إلى منطقة الإشعارات",
   "Show optimization notifications": "إظهار إشعارات التحسين",
   "Run on startup": "التشغيل عند بدء النظام",
-  
+
   "TMC • Optimization completed": "TMC • اكتمل التحسين",
   "TMC • Scheduled optimization": "TMC • تحسين مجدول",
   "TMC • Low memory optimization": "TMC • تحسين الذاكرة المنخفضة",
   "TMC • Hotkey optimization": "TMC • تحسين اختصار لوحة المفاتيح",
-  
+
   "Priority": "الأولوية",
   "Low": "منخفضة",
   "High": "عالية",
-  
+
   "Language": "اللغة",
   "Theme": "المظهر",
   "Light": "فاتح",
   "Dark": "داكن",
-  
+
   "Global Hotkey": "اختصار عام",
   "Key (A-Z, 0-9, F1-F12)": "مفتاح (A-Z, 0-9, F1-F12)",
   "Default": "افتراضي",
   "Apply": "تطبيق",
-  
+
   "Tray Icon Settings": "إعدادات أيقونة شريط المهام",
   "Show memory percentage in tray icon": "إظهار نسبة الذاكرة في الأيقونة",
   "Transparent background (numbers only)": "خلفية شفافة (أرقام فقط)",
@@ -82,15 +82,15 @@
   "Background": "خلفية",
   "Warning": "تحذير",
   "Danger": "خطر",
-  
+
   "Main Color": "اللون الرئيسي",
   "Color": "اللون",
   "Reset": "إعادة تعيين",
   "Reset Colors": "إعادة تعيين الألوان",
   "This color will be used for buttons, progress bars, and accents throughout the app": "سيتم استخدام هذا اللون للأزرار وشريط التقدم واللكنات في جميع أنحاء التطبيق",
-  
+
   "Active areas": "المناطق النشطة",
-  
+
   "Welcome to Tommy Memory Cleaner": "مرحباً بك في Tommy Memory Cleaner",
   "Complete Setup": "إكمال الإعداد",
   "Saving...": "جاري الحفظ...",

@@ -1,0 +1,44 @@
+# Clippy configuration for Tommy Memory Cleaner
+# Enforces strict linting rules for code quality and performance
+
+# Cognitive complexity threshold
+cognitive-complexity-threshold = 15
+
+# Type complexity threshold
+type-complexity-threshold = 250
+
+# Single character binding names
+single-char-binding-names-threshold = 4
+
+# Too many arguments threshold
+too-many-arguments-threshold = 7
+
+# Too many lines threshold
+too-many-lines-threshold = 100
+
+# Trivial copy size limit
+trivial-copy-size-limit = 256
+
+# Pass by value size limit
+pass-by-value-size-limit = 256
+
+# Avoid breaking exported API
+avoid-breaking-exported-api = true
+
+# Allow expect usage
+allow-expect-in-tests = true
+
+# Allow panic in tests
+allow-panic-in-tests = true
+
+# Allow unwrap in tests
+allow-unwrap-in-tests = true
+
+# Allow debug prints in tests
+allow-dbg-in-tests = true
+
+# Allow mixed uninlined format args
+allow-mixed-uninlined-format-args = true
+
+# Enable specific lint groups
+msrv = "1.70"  # Minimum supported Rust version

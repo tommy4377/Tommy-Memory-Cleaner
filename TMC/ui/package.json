@@ -9,7 +9,12 @@
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "clean": "rimraf dist node_modules",
-    "rebuild": "npm run clean && npm install && npm run build"
+    "rebuild": "npm run clean && npm install && npm run build",
+    "lint": "eslint . --ext .ts,.js,.svelte --fix",
+    "lint:check": "eslint . --ext .ts,.js,.svelte",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "type-check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
@@ -21,6 +26,12 @@
     "@sveltejs/vite-plugin-svelte": "^3.0.0",
     "@tsconfig/svelte": "^5.0.2",
     "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.55.0",
+    "eslint-plugin-svelte": "^2.46.1",
+    "prettier": "^3.1.0",
+    "prettier-plugin-svelte": "^3.1.2",
     "rimraf": "^5.0.5",
     "svelte": "^4.2.8",
     "svelte-check": "^3.6.2",

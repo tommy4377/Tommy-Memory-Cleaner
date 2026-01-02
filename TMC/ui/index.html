@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tommy Memory Cleaner</title>
     <link rel="icon" type="image/x-icon" href="/icon.ico" />
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
@@ -14,9 +14,10 @@
         padding: 0;
         box-sizing: border-box;
       }
-      
+
       /* App container */
-      html, body {
+      html,
+      body {
         width: 100%;
         height: 100%;
         overflow: hidden;
@@ -27,102 +28,107 @@
         padding: 0;
         border-radius: 10px;
       }
-      
+
       /* Rimuove il bordo rettangolare su Windows 10 per finestre trasparenti */
       body {
         border: none !important;
         outline: none !important;
         box-shadow: none !important;
       }
-      
+
       /* Loading animation */
       #app {
         opacity: 0;
         transition: opacity 0.3s ease;
       }
-      
+
       #app.loaded {
         opacity: 1;
       }
-      
+
       /* Disabilita selezione per elementi non interattivi */
       body {
         -webkit-user-select: none;
         user-select: none;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Segoe UI Variable", 
-                     system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Segoe UI Variable', system-ui, Roboto,
+          'Helvetica Neue', Arial, sans-serif;
       }
-      
+
       /* Permetti selezione per elementi form */
-      input, select, textarea, button, [contenteditable] {
+      input,
+      select,
+      textarea,
+      button,
+      [contenteditable] {
         -webkit-user-select: auto !important;
         user-select: auto !important;
         -webkit-touch-callout: auto !important;
         cursor: auto !important;
       }
-      
+
       /* Gestione drag regions */
       * {
         -webkit-app-region: no-drag;
       }
-      
+
       /* Rimuoviamo data-tauri-drag-region per permettere cursore personalizzato */
       /* Il drag viene gestito manualmente con startDragging() */
-      
+
       [data-tauri-drag-region] button,
       [data-tauri-drag-region] input,
       [data-tauri-drag-region] select {
         -webkit-app-region: no-drag;
         cursor: url('/cursors/light/hand.cur'), pointer !important;
       }
-      
-      html[data-theme="dark"] [data-tauri-drag-region] button,
-      html[data-theme="dark"] [data-tauri-drag-region] input,
-      html[data-theme="dark"] [data-tauri-drag-region] select {
+
+      html[data-theme='dark'] [data-tauri-drag-region] button,
+      html[data-theme='dark'] [data-tauri-drag-region] input,
+      html[data-theme='dark'] [data-tauri-drag-region] select {
         cursor: url('/cursors/dark/hand.cur'), pointer !important;
       }
-      
+
       /* Rimuovi outline di focus predefinito */
       :focus {
         outline: none;
       }
-      
+
       /* Custom focus styles */
       :focus-visible {
         outline: 2px solid #0a84ff;
         outline-offset: 2px;
       }
-      
+
       /* Scrollbar personalizzata */
       ::-webkit-scrollbar {
         width: 6px;
         height: 6px;
       }
-      
+
       ::-webkit-scrollbar-track {
         background: rgba(0, 0, 0, 0.1);
         border-radius: 3px;
       }
-      
+
       ::-webkit-scrollbar-thumb {
         background: rgba(0, 0, 0, 0.3);
         border-radius: 3px;
       }
-      
+
       ::-webkit-scrollbar-thumb:hover {
         background: rgba(0, 0, 0, 0.5);
       }
-      
+
       /* Dark theme scrollbar */
-      [data-theme="dark"] ::-webkit-scrollbar-track {
+      [data-theme='dark'] ::-webkit-scrollbar-track {
         background: rgba(255, 255, 255, 0.1);
       }
-      
-      [data-theme="dark"] ::-webkit-scrollbar-thumb {
+
+      [data-theme='dark'] ::-webkit-scrollbar-thumb {
         background: rgba(255, 255, 255, 0.3);
       }
-      
-      [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+
+      [data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
         background: rgba(255, 255, 255, 0.5);
       }
     </style>

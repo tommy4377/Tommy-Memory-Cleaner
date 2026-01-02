@@ -1,12 +1,11 @@
-use anyhow::{Result};
+use anyhow::Result;
 use std::ptr::null_mut;
 use windows_sys::Win32::{
     Foundation::{CloseHandle, GetLastError, HANDLE},
     Storage::FileSystem::{
-        CreateFileW, FlushFileBuffers, GetDriveTypeW,
-        FILE_ATTRIBUTE_NORMAL, FILE_FLAG_NO_BUFFERING,
-        FILE_GENERIC_READ, FILE_GENERIC_WRITE,
-        FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+        CreateFileW, FlushFileBuffers, GetDriveTypeW, FILE_ATTRIBUTE_NORMAL,
+        FILE_FLAG_NO_BUFFERING, FILE_GENERIC_READ, FILE_GENERIC_WRITE, FILE_SHARE_READ,
+        FILE_SHARE_WRITE, OPEN_EXISTING,
     },
 };
 
@@ -26,7 +25,10 @@ extern "system" {
 
 fn to_wide(s: &str) -> Vec<u16> {
     use std::os::windows::ffi::OsStrExt;
-    std::ffi::OsStr::new(s).encode_wide().chain(std::iter::once(0)).collect()
+    std::ffi::OsStr::new(s)
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect()
 }
 
 const FSCTL_DISCARD_VOLUME_CACHE: u32 = 0x00090054;
@@ -53,36 +55,68 @@ fn open_volume(letter: char) -> Option<HANDLE> {
             0, // lpTemplateFile: HANDLE in windows-sys is isize, use 0 instead of null_mut()
         );
         // HANDLE in windows-sys is isize, so compare with 0
-        if h == 0 { None } else { Some(h) }
+        if h == 0 {
+            None
+        } else {
+            Some(h)
+        }
     }
 }
 
 pub fn flush_modified_file_cache_all() -> Result<()> {
     let mut any_success = false;
     let mut last_error = 0;
-    
+
     for letter in 'C'..='Z' {
-        if !is_fixed_drive(letter) { continue; }
-        
+        if !is_fixed_drive(letter) {
+            continue;
+        }
+
         if let Some(h) = open_volume(letter) {
             unsafe {
                 let mut _ret: u32 = 0;
 
                 // Best-effort: non bloccare su errori, ma logga per debug
-                let result1 = DeviceIoControl(h, FSCTL_RESET_WRITE_ORDER, null_mut(), 0, null_mut(), 0, &mut _ret, null_mut());
+                let result1 = DeviceIoControl(
+                    h,
+                    FSCTL_RESET_WRITE_ORDER,
+                    null_mut(),
+                    0,
+                    null_mut(),
+                    0,
+                    &mut _ret,
+                    null_mut(),
+                );
                 if result1 == 0 {
-                    tracing::debug!("DeviceIoControl(FSCTL_RESET_WRITE_ORDER) failed for {}: {}", letter, GetLastError());
+                    tracing::debug!(
+                        "DeviceIoControl(FSCTL_RESET_WRITE_ORDER) failed for {}: {}",
+                        letter,
+                        GetLastError()
+                    );
                 }
-                
-                let result2 = DeviceIoControl(h, FSCTL_DISCARD_VOLUME_CACHE, null_mut(), 0, null_mut(), 0, &mut _ret, null_mut());
+
+                let result2 = DeviceIoControl(
+                    h,
+                    FSCTL_DISCARD_VOLUME_CACHE,
+                    null_mut(),
+                    0,
+                    null_mut(),
+                    0,
+                    &mut _ret,
+                    null_mut(),
+                );
                 if result2 == 0 {
-                    tracing::debug!("DeviceIoControl(FSCTL_DISCARD_VOLUME_CACHE) failed for {}: {}", letter, GetLastError());
+                    tracing::debug!(
+                        "DeviceIoControl(FSCTL_DISCARD_VOLUME_CACHE) failed for {}: {}",
+                        letter,
+                        GetLastError()
+                    );
                 }
 
                 // Flush obbligatorio
                 let ok = FlushFileBuffers(h);
                 CloseHandle(h);
-                
+
                 if ok != 0 {
                     any_success = true;
                 } else {
@@ -92,7 +126,7 @@ pub fn flush_modified_file_cache_all() -> Result<()> {
             }
         }
     }
-    
+
     // Se almeno un volume è stato ottimizzato con successo, considera OK
     if any_success {
         Ok(())

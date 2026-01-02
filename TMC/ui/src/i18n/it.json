@@ -6,16 +6,16 @@
   "Optimizing...": "Ottimizzazione...",
   "Ready": "Pronto",
   "Done": "Fatto",
-  
+
   "Physical": "Fisica",
   "Free": "Libera",
   "Commit": "Virtuale",
-  
+
   "Open TMC": "Apri TMC",
   "Dashboard": "Dashboard",
   "Optimize Memory": "Ottimizza Memoria",
   "Exit": "Esci",
-  
+
   "Working Set": "Working Set",
   "Modified Pages": "Pagine Modificate",
   "Standby List": "Lista Standby",
@@ -24,58 +24,58 @@
   "Combined Pages": "Pagine Combinate",
   "File Cache": "Cache File",
   "Registry Cache": "Cache Registro",
-  
+
   "Normal": "Normale",
   "Balanced": "Bilanciato",
   "Gaming": "Gaming",
-  
+
   "Full view": "Vista completa",
   "Compact view": "Vista compatta",
   "Minimize": "Minimizza",
   "Minimize to tray": "Minimizza nel tray",
   "Close": "Chiudi",
-  
+
   "Process Exclusions": "Esclusioni Processi",
   "These processes will not have their memory optimized": "Questi processi non avranno la memoria ottimizzata",
   "Type process name...": "Digita nome processo...",
   "Add": "Aggiungi",
-  
+
   "Auto optimize every": "Ottimizza automaticamente ogni",
   "hours": "ore",
   "When free RAM below": "Quando RAM libera sotto",
   "Disabled": "Disabilitato",
   "Will optimize every X hours": "Ottimizzerà ogni %hours% ore",
   "5 minute cooldown between optimizations": "5 minuti di pausa tra ottimizzazioni",
-  
+
   "Always on top": "Sempre in primo piano",
   "Auto update": "Aggiornamento automatico",
-  
+
   "TMC • Optimization completed": "TMC • Ottimizzazione completata",
   "TMC • Scheduled optimization": "TMC • Ottimizzazione programmata",
   "TMC • Low memory optimization": "TMC • Ottimizzazione per memoria bassa",
   "TMC • Hotkey optimization": "TMC • Ottimizzazione hotkey",
-  
+
   "✅ Freed: %.1f MB\n🧠 Free RAM: %.2f GB\n🎯 Profile: %s": "✅ Liberati: %.1f MB\n🧠 RAM libera: %.2f GB\n🎯 Profilo: %s",
   "RAM: %d%": "RAM: %d%",
   "Close after optimization": "Chiudi dopo ottimizzazione",
   "Close to notification area": "Chiudi nell'area notifiche",
   "Show optimization notifications": "Mostra notifiche ottimizzazione",
   "Run on startup": "Esegui all'avvio",
-  
+
   "Priority": "Priorità",
   "Low": "Bassa",
   "High": "Alta",
-  
+
   "Language": "Lingua",
   "Theme": "Tema",
   "Light": "Chiaro",
   "Dark": "Scuro",
-  
+
   "Global Hotkey": "Scorciatoia Globale",
   "Key (A-Z, 0-9, F1-F12)": "Tasto (A-Z, 0-9, F1-F12)",
   "Default": "Predefinito",
   "Apply": "Applica",
-  
+
   "Tray Icon Settings": "Impostazioni Icona Tray",
   "Show memory percentage in tray icon": "Mostra percentuale memoria nell'icona",
   "Transparent background (numbers only)": "Sfondo trasparente (solo numeri)",
@@ -83,15 +83,15 @@
   "Background": "Sfondo",
   "Warning": "Avviso",
   "Danger": "Pericolo",
-  
+
   "Main Color": "Colore Principale",
   "Color": "Colore",
   "Reset": "Ripristina",
   "Reset Colors": "Ripristina Colori",
   "This color will be used for buttons, progress bars, and accents throughout the app": "Questo colore verrà utilizzato per pulsanti, barre di avanzamento e accenti in tutta l'app",
-  
+
   "Active areas": "Aree attive",
-  
+
   "Welcome to Tommy Memory Cleaner": "Benvenuto in Tommy Memory Cleaner",
   "Complete Setup": "Completa Configurazione",
   "Saving...": "Salvataggio...",

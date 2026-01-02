@@ -2,8 +2,8 @@ use anyhow::Result;
 use windows_sys::Win32::{
     Foundation::GetLastError,
     System::Threading::{
-        GetCurrentProcess, GetCurrentThread, SetPriorityClass, SetThreadPriority, SetThreadPriorityBoost,
-        HIGH_PRIORITY_CLASS, IDLE_PRIORITY_CLASS, NORMAL_PRIORITY_CLASS,
+        GetCurrentProcess, GetCurrentThread, SetPriorityClass, SetThreadPriority,
+        SetThreadPriorityBoost, HIGH_PRIORITY_CLASS, IDLE_PRIORITY_CLASS, NORMAL_PRIORITY_CLASS,
         THREAD_PRIORITY_HIGHEST, THREAD_PRIORITY_LOWEST, THREAD_PRIORITY_NORMAL,
     },
 };

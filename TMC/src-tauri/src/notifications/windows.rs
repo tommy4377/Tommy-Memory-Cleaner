@@ -1,38 +1,35 @@
 #[cfg(windows)]
-use tauri::AppHandle;
-#[cfg(windows)]
 use std::os::windows::process::CommandExt;
+#[cfg(windows)]
+use tauri::AppHandle;
 
 // Helper per convertire ICO in PNG ad alta risoluzione
 #[cfg(windows)]
 fn convert_ico_to_highres_png(ico_data: &[u8]) -> Result<Vec<u8>, String> {
     // Carica l'ICO usando image::load_from_memory che gestisce automaticamente il formato
-    let img = image::load_from_memory(ico_data)
-        .map_err(|e| format!("Failed to load ICO: {}", e))?;
-    
+    let img =
+        image::load_from_memory(ico_data).map_err(|e| format!("Failed to load ICO: {}", e))?;
+
     // Converti in RGBA8
     let rgba_img = img.to_rgba8();
-    
+
     // Resize a 256x256 (alta risoluzione per Windows Toast)
-    let resized = image::imageops::resize(
-        &rgba_img,
-        256,
-        256,
-        image::imageops::FilterType::Lanczos3,
-    );
-    
+    let resized =
+        image::imageops::resize(&rgba_img, 256, 256, image::imageops::FilterType::Lanczos3);
+
     // Codifica come PNG usando DynamicImage::save (API image 0.25)
     // Converti RgbaImage in DynamicImage per poter usare save
     let dynamic_img = image::DynamicImage::ImageRgba8(resized);
-    
+
     // Salva in un buffer in memoria usando il metodo save_with_format
     let mut png_data = Vec::new();
     {
         let mut cursor = std::io::Cursor::new(&mut png_data);
-        dynamic_img.write_to(&mut cursor, image::ImageFormat::Png)
+        dynamic_img
+            .write_to(&mut cursor, image::ImageFormat::Png)
             .map_err(|e| format!("Failed to encode PNG: {}", e))?;
     }
-    
+
     Ok(png_data)
 }
 
@@ -41,12 +38,12 @@ fn convert_ico_to_highres_png(ico_data: &[u8]) -> Result<Vec<u8>, String> {
 #[cfg(windows)]
 fn ensure_notification_icon_available() -> Option<std::path::PathBuf> {
     use std::fs;
-    
+
     // Prova prima a leggere PNG 128x128 dalla directory runtime (se distribuito con l'app)
     // Altrimenti usa ICO embedded e convertilo in PNG usando la libreria image
     let (icon_data, icon_ext) = {
         let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
-        
+
         // Prova a leggere PNG dalla directory runtime (se l'app è distribuita con le icone)
         if let Ok(png_data) = fs::read(exe_dir.join("icons").join("128x128.png")) {
             (png_data, "png")
@@ -61,9 +58,11 @@ fn ensure_notification_icon_available() -> Option<std::path::PathBuf> {
             // Questo risolve il problema della sgranatura
             match convert_ico_to_highres_png(include_bytes!("../../icons/icon.ico")) {
                 Ok(png_data) => {
-                    tracing::debug!("Converted ICO to high-res PNG (256x256) for better notification quality");
+                    tracing::debug!(
+                        "Converted ICO to high-res PNG (256x256) for better notification quality"
+                    );
                     (png_data, "png")
-                },
+                }
                 Err(e) => {
                     tracing::warn!("Failed to convert ICO to PNG, using ICO: {}", e);
                     (include_bytes!("../../icons/icon.ico").to_vec(), "ico")
@@ -71,13 +70,13 @@ fn ensure_notification_icon_available() -> Option<std::path::PathBuf> {
             }
         }
     };
-    
+
     // Prova a salvare l'icona nella directory dati dell'app
     let icon_path = {
         let detector = crate::config::get_portable_detector();
         detector.data_dir().join(format!("icon.{}", icon_ext))
     };
-    
+
     // Crea la directory se non esiste
     if let Some(parent) = icon_path.parent() {
         if let Err(e) = fs::create_dir_all(parent) {
@@ -85,22 +84,26 @@ fn ensure_notification_icon_available() -> Option<std::path::PathBuf> {
             return None;
         }
     }
-    
+
     // Copia l'icona solo se non esiste o se è stata modificata
     // Controlla se il file esiste e ha la stessa dimensione
     let needs_copy = match fs::metadata(&icon_path) {
         Ok(meta) => meta.len() != icon_data.len() as u64,
         Err(_) => true, // File non esiste, devi copiarlo
     };
-    
+
     if needs_copy {
         if let Err(e) = fs::write(&icon_path, &icon_data) {
             tracing::warn!("Failed to write notification icon: {}", e);
             return None;
         }
-        tracing::debug!("Notification icon (format: {}) copied to: {}", icon_ext, icon_path.display());
+        tracing::debug!(
+            "Notification icon (format: {}) copied to: {}",
+            icon_ext,
+            icon_path.display()
+        );
     }
-    
+
     Some(icon_path)
 }
 
@@ -112,15 +115,20 @@ pub fn show_windows_notification(
     body: &str,
     theme: &str,
 ) -> Result<(), String> {
-    tracing::info!("Attempting to show notification - Title: '{}', Body: '{}', Theme: {}", title, body, theme);
-    
+    tracing::info!(
+        "Attempting to show notification - Title: '{}', Body: '{}', Theme: {}",
+        title,
+        body,
+        theme
+    );
+
     // NUOVO APPROCCIO: Usa direttamente PowerShell con XML Toast template che include l'icona esplicitamente
     // Questo garantisce che l'icona venga mostrata correttamente
     #[cfg(windows)]
     {
         // Prova prima a usare un file .ico dedicato per migliori risultati
         let icon_path_opt = ensure_notification_icon_available();
-        
+
         // Helper per fare URL encoding del percorso (necessario per spazi e caratteri speciali)
         let encode_uri = |path: &str| -> String {
             // Converti backslash a forward slash e poi applica percent-encoding
@@ -154,7 +162,7 @@ pub fn show_windows_notification(
             }
             format!("file:///{}", encoded)
         };
-        
+
         let icon_uri = if let Some(icon_path) = icon_path_opt {
             // Usa il file .ico dedicato - converto il percorso in formato file:/// per Windows Toast
             let icon_path_str = icon_path.to_string_lossy().to_string();
@@ -168,7 +176,7 @@ pub fn show_windows_notification(
                 .to_string();
             encode_uri(&exe_path)
         };
-        
+
         // Crea un XML Toast template personalizzato con l'icona
         let xml_template = format!(
             r#"<toast launch="app-defined-string" scenario="default">
@@ -183,7 +191,7 @@ pub fn show_windows_notification(
 </toast>"#,
             title, body, icon_uri
         );
-        
+
         // Salva l'XML in un file temporaneo
         let temp_dir = std::env::temp_dir();
         let xml_path = temp_dir.join("tmc_notification.xml");
@@ -229,7 +237,7 @@ try {{
                 app_id,
                 xml_path.to_string_lossy().replace("'", "''")
             );
-            
+
             match std::process::Command::new("powershell")
                 .arg("-NoProfile")
                 .arg("-NonInteractive")
@@ -244,45 +252,53 @@ try {{
                     // Pulisci file temporaneo
                     let _ = std::fs::remove_file(&xml_path);
                     if output.status.success() {
-                        tracing::info!("✓ Windows Toast notification shown successfully with icon: {}", icon_uri);
+                        tracing::info!(
+                            "✓ Windows Toast notification shown successfully with icon: {}",
+                            icon_uri
+                        );
                         return Ok(());
                     } else {
                         let error = String::from_utf8_lossy(&output.stderr);
-                        tracing::warn!("✗ PowerShell Toast notification failed: {}, trying fallback", error);
+                        tracing::warn!(
+                            "✗ PowerShell Toast notification failed: {}, trying fallback",
+                            error
+                        );
                     }
                 }
                 Err(e) => {
                     let _ = std::fs::remove_file(&xml_path);
-                    tracing::warn!("✗ Failed to execute PowerShell Toast notification: {}, trying fallback", e);
+                    tracing::warn!(
+                        "✗ Failed to execute PowerShell Toast notification: {}, trying fallback",
+                        e
+                    );
                 }
             }
         }
     }
-    
+
     // Fallback: Usa Tauri API notification
     tracing::debug!("Trying Tauri API notification as fallback...");
     #[cfg(windows)]
     let icon_path = ensure_notification_icon_available()
         .and_then(|p| p.to_str().map(|s| s.to_string()))
         .or_else(|| {
-            std::env::current_exe()
-                .ok()
-                .and_then(|exe_path| {
-                    tracing::debug!("Using embedded icon from exe: {}", exe_path.display());
-                    exe_path.to_str().map(|s| s.to_string())
-                })
+            std::env::current_exe().ok().and_then(|exe_path| {
+                tracing::debug!("Using embedded icon from exe: {}", exe_path.display());
+                exe_path.to_str().map(|s| s.to_string())
+            })
         })
         .unwrap_or_else(|| {
             tracing::warn!("Cannot get icon path, notification may fail");
             String::new()
         });
-    
+
     #[cfg(not(windows))]
     let icon_path = String::new();
-    
+
     if !icon_path.is_empty() {
         use tauri_plugin_notification::NotificationExt;
-        match app.notification()
+        match app
+            .notification()
             .builder()
             .title(title)
             .body(body)
@@ -298,7 +314,7 @@ try {{
             }
         }
     }
-    
+
     // Ultimo fallback: PowerShell Balloon
     #[cfg(windows)]
     {
@@ -323,10 +339,16 @@ try {{
     exit 1
 }}
 "#,
-            title_clone.replace("'", "''").replace("\n", " ").replace("\r", " "),
-            body_clone.replace("'", "''").replace("\n", " ").replace("\r", " ")
+            title_clone
+                .replace("'", "''")
+                .replace("\n", " ")
+                .replace("\r", " "),
+            body_clone
+                .replace("'", "''")
+                .replace("\n", " ")
+                .replace("\r", " ")
         );
-        
+
         match std::process::Command::new("powershell")
             .arg("-NoProfile")
             .arg("-NonInteractive")
@@ -349,7 +371,7 @@ try {{
             }
         }
     }
-    
+
     Err("All notification methods failed".to_string())
 }
 
@@ -366,32 +388,34 @@ pub fn show_windows_notification(
 /// Register the app for Windows Toast notifications
 #[cfg(windows)]
 pub fn register_app_for_notifications() {
-    use windows_sys::Win32::System::Registry::{RegSetValueExW, HKEY_CURRENT_USER, REG_SZ};
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
-    
+    use windows_sys::Win32::System::Registry::{RegSetValueExW, HKEY_CURRENT_USER, REG_SZ};
+
     let _app_id = "TommyMemoryCleaner";
     // Usa to_string_lossy() per gestire correttamente i percorsi con caratteri Unicode
     let exe_path = std::env::current_exe()
         .unwrap_or_default()
         .to_string_lossy()
         .to_string();
-    
+
     if exe_path.is_empty() {
         tracing::warn!("Cannot register app for notifications: exe path not found");
         return;
     }
-    
+
     // Registra AppUserModelID nel registro con DisplayName e IconUri
     // IMPORTANTE: Windows richiede che questa registrazione avvenga PRIMA di qualsiasi notifica
     // USIAMO "TommyMemoryCleaner" come AppUserModelID per mostrare un nome user-friendly nelle notifiche
     let key_path = r"Software\Classes\AppUserModelId\TommyMemoryCleaner";
     let display_name = "Tommy Memory Cleaner";
-    
+
     // Elimina ricorsivamente la chiave esistente per forzare la ricreazione (utile se è stata modificata)
     // Usa SHDeleteKey per eliminare anche le sottocartelle
     unsafe {
-        use windows_sys::Win32::System::Registry::{RegDeleteKeyW, RegOpenKeyExW, RegCloseKey, KEY_ALL_ACCESS};
+        use windows_sys::Win32::System::Registry::{
+            RegCloseKey, RegDeleteKeyW, RegOpenKeyExW, KEY_ALL_ACCESS,
+        };
         // Prova prima ad aprire la chiave per verificare se esiste
         let key_path_wide: Vec<u16> = OsStr::new(key_path).encode_wide().chain(Some(0)).collect();
         let mut hkey_test: windows_sys::Win32::Foundation::HANDLE = 0;
@@ -407,23 +431,29 @@ pub fn register_app_for_notifications() {
             // Elimina la chiave - potrebbe richiedere più tentativi
             let delete_result = RegDeleteKeyW(HKEY_CURRENT_USER, key_path_wide.as_ptr());
             if delete_result != 0 {
-                tracing::debug!("Note: Could not delete existing registry key (may have subkeys): {}", delete_result);
+                tracing::debug!(
+                    "Note: Could not delete existing registry key (may have subkeys): {}",
+                    delete_result
+                );
             } else {
                 tracing::debug!("Deleted existing registry key for re-creation");
             }
         }
     }
-    
+
     // Prova a usare un file .ico dedicato per migliori risultati con Windows Toast
     // Fallback all'exe se non riesce
     let icon_path = ensure_notification_icon_available()
         .and_then(|p| p.to_str().map(|s| s.to_string()))
         .unwrap_or_else(|| exe_path.clone());
-    
+
     // Converti stringhe a wide strings
     let key_path_wide: Vec<u16> = OsStr::new(key_path).encode_wide().chain(Some(0)).collect();
-    let display_name_wide: Vec<u16> = OsStr::new(display_name).encode_wide().chain(Some(0)).collect();
-    
+    let display_name_wide: Vec<u16> = OsStr::new(display_name)
+        .encode_wide()
+        .chain(Some(0))
+        .collect();
+
     unsafe {
         // Crea la chiave se non esiste e imposta i valori
         let mut hkey: windows_sys::Win32::Foundation::HANDLE = 0;
@@ -438,10 +468,13 @@ pub fn register_app_for_notifications() {
             &mut hkey,
             std::ptr::null_mut(),
         );
-        
+
         if result == 0 {
             // Imposta DisplayName
-            let display_name_value: Vec<u16> = OsStr::new("DisplayName").encode_wide().chain(Some(0)).collect();
+            let display_name_value: Vec<u16> = OsStr::new("DisplayName")
+                .encode_wide()
+                .chain(Some(0))
+                .collect();
             RegSetValueExW(
                 hkey,
                 display_name_value.as_ptr(),
@@ -450,10 +483,14 @@ pub fn register_app_for_notifications() {
                 display_name_wide.as_ptr() as *const u8,
                 (display_name_wide.len() * 2) as u32,
             );
-            
+
             // Imposta IconUri
-            let icon_uri_value: Vec<u16> = OsStr::new("IconUri").encode_wide().chain(Some(0)).collect();
-            let icon_path_wide: Vec<u16> = OsStr::new(&icon_path).encode_wide().chain(Some(0)).collect();
+            let icon_uri_value: Vec<u16> =
+                OsStr::new("IconUri").encode_wide().chain(Some(0)).collect();
+            let icon_path_wide: Vec<u16> = OsStr::new(&icon_path)
+                .encode_wide()
+                .chain(Some(0))
+                .collect();
             RegSetValueExW(
                 hkey,
                 icon_uri_value.as_ptr(),
@@ -462,7 +499,7 @@ pub fn register_app_for_notifications() {
                 icon_path_wide.as_ptr() as *const u8,
                 (icon_path_wide.len() * 2) as u32,
             );
-            
+
             windows_sys::Win32::System::Registry::RegCloseKey(hkey);
             tracing::info!("App registered for Windows notifications: {}", display_name);
         } else {

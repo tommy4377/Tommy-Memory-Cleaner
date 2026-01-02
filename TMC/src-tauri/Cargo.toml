@@ -87,6 +87,9 @@ tauri-plugin-positioner = { version = "2", features = ["tray-icon"] }
 tauri-build = { version = "2", features = [] }
 winres = "0.1"
 
+[dev-dependencies]
+# Dev dependencies for linting and testing
+
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]

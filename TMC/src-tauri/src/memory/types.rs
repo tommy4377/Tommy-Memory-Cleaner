@@ -15,15 +15,15 @@ bitflags::bitflags! {
         const STANDBY_LIST_LOW    = 1 << 5;
         const SYSTEM_FILE_CACHE   = 1 << 6;
         const WORKING_SET         = 1 << 7;
-        
+
         // Presets
-        const BASIC = Self::WORKING_SET.bits() 
+        const BASIC = Self::WORKING_SET.bits()
                     | Self::MODIFIED_PAGE_LIST.bits();
-        
+
         const STANDARD = Self::BASIC.bits()
                        | Self::STANDBY_LIST.bits()
                        | Self::SYSTEM_FILE_CACHE.bits();
-        
+
         const FULL = Self::STANDARD.bits()
                    | Self::COMBINED_PAGE_LIST.bits()
                    | Self::MODIFIED_FILE_CACHE.bits()
@@ -36,7 +36,7 @@ impl Areas {
     /// Get human-readable names for the areas
     pub fn get_names(&self) -> Vec<&'static str> {
         let mut names = Vec::new();
-        
+
         if self.contains(Areas::WORKING_SET) {
             names.push("Working Set");
         }
@@ -61,7 +61,7 @@ impl Areas {
         if self.contains(Areas::REGISTRY_CACHE) {
             names.push("Registry Cache");
         }
-        
+
         names
     }
 }
@@ -138,15 +138,15 @@ impl MemorySize {
             bytes,
         }
     }
-    
+
     fn bytes_to_unit(bytes: u64) -> (f64, Unit) {
         const KB: f64 = 1024.0;
         const MB: f64 = KB * 1024.0;
         const GB: f64 = MB * 1024.0;
         const TB: f64 = GB * 1024.0;
-        
+
         let b = bytes as f64;
-        
+
         if b >= TB {
             (b / TB, Unit::TB)
         } else if b >= GB {
@@ -178,7 +178,7 @@ pub struct MemoryStats {
 impl MemoryStats {
     pub fn new(free_bytes: u64, total_bytes: u64) -> Self {
         let used_bytes = total_bytes.saturating_sub(free_bytes);
-        
+
         let total_f = total_bytes as f64;
         let used_pct = if total_bytes > 0 {
             ((used_bytes as f64 / total_f) * 100.0).round() as u8
@@ -186,7 +186,7 @@ impl MemoryStats {
             0
         };
         let free_pct = 100u8.saturating_sub(used_pct);
-        
+
         Self {
             free: MemorySize::new(free_bytes, free_pct),
             used: MemorySize::new(used_bytes, used_pct),
@@ -210,7 +210,7 @@ pub fn mk_stats(free: u64, total: u64, used_percent_opt: Option<u8>) -> MemorySt
         // If used percent is provided, use it
         let free_pct = 100u8.saturating_sub(used_pct);
         let used = total.saturating_sub(free);
-        
+
         MemoryStats {
             free: MemorySize::new(free, free_pct),
             used: MemorySize::new(used, used_pct),
@@ -226,7 +226,7 @@ pub fn mk_stats(free: u64, total: u64, used_percent_opt: Option<u8>) -> MemorySt
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_areas_display() {
         let areas = Areas::WORKING_SET | Areas::STANDBY_LIST;
@@ -234,14 +234,14 @@ mod tests {
         assert!(display.contains("Working Set"));
         assert!(display.contains("Standby List"));
     }
-    
+
     #[test]
     fn test_memory_size() {
         let size = MemorySize::new(1024 * 1024 * 1024, 50); // 1 GB
         assert_eq!(size.unit, Unit::GB);
         assert_eq!(size.value, 1.0);
     }
-    
+
     #[test]
     fn test_memory_stats() {
         let stats = MemoryStats::new(512 * 1024 * 1024, 1024 * 1024 * 1024); // 512MB free of 1GB

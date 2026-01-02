@@ -54,4 +54,3 @@ pub fn code_from_str(s: &str) -> Result<Code, String> {
         _ => Err(format!("Unsupported key: {}", s)),
     }
 }
-

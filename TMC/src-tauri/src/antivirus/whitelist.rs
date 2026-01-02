@@ -14,7 +14,7 @@ pub fn register_as_trusted() -> Result<(), Box<dyn std::error::Error>> {
                 // Per ora, solo log per debug - l'implementazione completa richiederebbe
                 // l'uso di Windows Defender Management APIs che sono complesse
                 tracing::debug!("Attempting to register as trusted: {}", exe_str);
-                
+
                 // In futuro, qui si potrebbe implementare:
                 // - Aggiunta all'exclusion list di Windows Defender tramite PowerShell:
                 //   Add-MpPreference -ExclusionPath "path"
@@ -23,7 +23,7 @@ pub fn register_as_trusted() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -33,12 +33,12 @@ where
     F: FnOnce() -> Result<R, anyhow::Error>,
 {
     // Aggiungi delay randomico per evitare pattern detection
-    use std::time::Duration;
     use rand::Rng;
-    
+    use std::time::Duration;
+
     let mut rng = rand::thread_rng();
     let delay = Duration::from_millis(rng.gen_range(10..100));
     std::thread::sleep(delay);
-    
+
     operation()
 }

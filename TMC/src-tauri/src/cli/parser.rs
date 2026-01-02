@@ -1,17 +1,17 @@
 use crate::config::{Config, Profile};
-use crate::memory::types::{Areas, Reason};
 use crate::engine::Engine;
+use crate::memory::types::{Areas, Reason};
 use std::sync::{Arc, Mutex};
 
 /// Run the application in console mode (CLI)
 pub fn run_console_mode(args: &[String]) {
     use std::io::{self, Write};
-    
+
     // Parse arguments
     let mut areas = Areas::empty();
     let mut profile_mode = false;
     let mut profile_name = String::new();
-    
+
     for arg in args {
         match arg.as_str() {
             "/?" | "/help" | "-h" | "--help" => {
@@ -57,7 +57,7 @@ pub fn run_console_mode(args: &[String]) {
             }
         }
     }
-    
+
     // Se profile mode è specificato, usa le aree del profilo
     if profile_mode {
         let profile = match profile_name.as_str() {
@@ -65,23 +65,26 @@ pub fn run_console_mode(args: &[String]) {
             "Balanced" => Profile::Balanced,
             "Gaming" => Profile::Gaming,
             _ => {
-                eprintln!("Invalid profile: {}. Use Normal, Balanced, or Gaming", profile_name);
+                eprintln!(
+                    "Invalid profile: {}. Use Normal, Balanced, or Gaming",
+                    profile_name
+                );
                 std::process::exit(1);
             }
         };
         areas = profile.get_memory_areas();
         println!("Using profile: {:?}", profile);
     }
-    
+
     // Se nessuna area è specificata, usa il profilo Balanced di default
     if areas.is_empty() {
         areas = Profile::Balanced.get_memory_areas();
         println!("No areas specified, using Balanced profile");
     }
-    
+
     println!("Optimizing memory areas: {:?}", areas.get_names());
     io::stdout().flush().unwrap();
-    
+
     // Esegui ottimizzazione in modo sincrono (console mode)
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
@@ -94,18 +97,18 @@ pub fn run_console_mode(args: &[String]) {
                 Config::default()
             }
         };
-        
+
         // Crea Arc<Mutex<Config>> per l'engine
         let cfg_arc = Arc::new(Mutex::new(cfg));
         let engine = Engine::new(cfg_arc.clone());
-        
+
         // Esegui ottimizzazione
-            match engine.optimize::<fn(u8, u8, String)>(Reason::Manual, areas, None) {
+        match engine.optimize::<fn(u8, u8, String)>(Reason::Manual, areas, None) {
             Ok(result) => {
                 let freed_mb = result.freed_physical_bytes.abs() as f64 / 1024.0 / 1024.0;
                 println!("Optimization completed successfully");
                 println!("Freed: {:.2} MB", freed_mb);
-                
+
                 // Mostra risultati per area
                 for area in result.areas {
                     if let Some(error) = area.error {
@@ -114,7 +117,7 @@ pub fn run_console_mode(args: &[String]) {
                         println!("  {}: OK", area.name);
                     }
                 }
-                
+
                 std::process::exit(0);
             }
             Err(e) => {
@@ -124,4 +127,3 @@ pub fn run_console_mode(args: &[String]) {
         }
     });
 }
-

@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tommy Memory Cleaner - Setup</title>
     <link rel="icon" type="image/x-icon" href="/icon.ico" />
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
@@ -17,8 +17,9 @@
         padding: 0;
         box-sizing: border-box;
       }
-      
-      html, body {
+
+      html,
+      body {
         width: 100%;
         height: 100%;
         overflow: hidden;
@@ -28,34 +29,38 @@
         margin: 0;
         padding: 0;
       }
-      
+
       /* Rimuove il bordo rettangolare su Windows 10 per finestre trasparenti */
       body {
         border: none !important;
         outline: none !important;
         box-shadow: none !important;
       }
-      
+
       body {
         -webkit-user-select: none;
         user-select: none;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Segoe UI Variable", 
-                     system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Segoe UI Variable', system-ui, Roboto,
+          'Helvetica Neue', Arial, sans-serif;
       }
-      
-      input, select, textarea, button {
+
+      input,
+      select,
+      textarea,
+      button {
         -webkit-user-select: auto !important;
         user-select: auto !important;
       }
-      
+
       * {
         -webkit-app-region: no-drag;
       }
-      
+
       :focus {
         outline: none;
       }
-      
+
       :focus-visible {
         outline: 2px solid #0a84ff;
         outline-offset: 2px;
@@ -67,4 +72,3 @@
     <script type="module" src="/src/setup.ts"></script>
   </body>
 </html>
-

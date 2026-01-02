@@ -1,0 +1,58 @@
+# Rustfmt configuration for Tommy Memory Cleaner
+# Ensures consistent code formatting across the project
+
+# Edition to use
+edition = "2021"
+
+# Maximum width of each line
+max_width = 100
+
+# How to handle imports
+imports_granularity = "Crate"
+reorder_imports = true
+group_imports = "StdExternalCrate"
+
+# Control the formatting of comments
+comment_width = 80
+wrap_comments = true
+normalize_comments = true
+
+# Use field initialize shorthand if possible
+use_field_init_shorthand = true
+
+# Use try blocks for formatting
+use_try_shorthand = true
+
+# Format strings escapes
+format_strings = true
+
+# Format macro matchers
+format_macro_matchers = true
+
+# Format macro bodies
+format_macro_bodies = true
+
+# Hex literal casing
+hex_literal_case = "Upper"
+
+# Empty item formatting
+empty_item_single_line = true
+
+# Struct lit formatting
+struct_lit_single_line = true
+
+# Imports layout
+imports_layout = "Vertical"
+
+# Indent style
+indent_style = "Block"
+indent_width = 4
+
+# Spaces around parentheses
+spaces_around_ranges = false
+
+# Remove nested parens
+remove_nested_parens = true
+
+# Combine control expressions
+combine_control_expr = true
