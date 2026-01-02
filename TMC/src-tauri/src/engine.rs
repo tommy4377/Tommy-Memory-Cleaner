@@ -6,7 +6,7 @@ use crate::config::Config;
 use crate::logging::event_viewer::{log_error_event, log_optimization_event};
 use crate::memory::ops::{
     memory_info, optimize_combined_page_list, optimize_modified_page_list_with_stealth, optimize_registry_cache,
-    optimize_standby_list_with_stealth, optimize_system_file_cache, optimize_working_set,
+    optimize_standby_list_with_stealth, optimize_system_file_cache, optimize_working_set_with_stealth,
 };
 use crate::memory::advanced::trim_memory_compression_store;
 use crate::memory::types::{Areas, MemoryInfo, Reason};
@@ -474,10 +474,12 @@ impl Engine {
                     .map(|c| c.process_exclusion_list_lower())
                     .unwrap_or_default();
                 
-                // Always use stealth EmptyWorkingSet to bypass AV
-                tracing::debug!("Using stealth mode for Working Set optimization");
+                // Use stealth mode for Working Set when indirect syscalls are enabled
+                if use_indirect_syscalls {
+                    tracing::debug!("Using stealth mode for Working Set optimization");
+                }
                 
-                optimize_working_set(&excl)
+                optimize_working_set_with_stealth(&excl, use_indirect_syscalls)
             }
             "SystemFileCache" => {
                 // System cache optimization

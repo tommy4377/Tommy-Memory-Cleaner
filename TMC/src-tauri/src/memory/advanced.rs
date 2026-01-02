@@ -24,6 +24,7 @@ use windows_sys::Win32::{
         LibraryLoader::{GetProcAddress, GetModuleHandleA},
     },
 };
+use windows_sys::Win32::System::ProcessStatus::EmptyWorkingSet as PsapiEmptyWorkingSet;
 
 // Memory List Commands - Using enum values instead
 // Undocumented System Information Classes
@@ -39,6 +40,81 @@ const MAX_NEIGHBOR_SEARCH: usize = 500;
 
 // SSN Cache for performance optimization
 static NTSETSYSTEMINFO_SSN: OnceLock<u32> = OnceLock::new();
+
+// Windows PE structures for module size calculation
+#[repr(C)]
+struct IMAGE_DOS_HEADER {
+    e_magic: u16,
+    e_cblp: u16,
+    e_cp: u16,
+    e_crlc: u16,
+    e_cparhdr: u16,
+    e_minalloc: u16,
+    e_maxalloc: u16,
+    e_ss: u16,
+    e_sp: u16,
+    e_csum: u16,
+    e_ip: u16,
+    e_cs: u16,
+    e_lfarlc: u16,
+    e_ovno: u16,
+    e_res: [u16; 4],
+    e_oemid: u16,
+    e_oeminfo: u16,
+    e_res2: [u16; 10],
+    e_lfanew: i32,
+}
+
+#[repr(C)]
+struct IMAGE_FILE_HEADER {
+    machine: u16,
+    number_of_sections: u16,
+    time_date_stamp: u32,
+    pointer_to_symbol_table: u32,
+    number_of_symbols: u32,
+    size_of_optional_header: u16,
+    characteristics: u16,
+}
+
+#[repr(C)]
+struct IMAGE_OPTIONAL_HEADER64 {
+    magic: u16,
+    major_linker_version: u8,
+    minor_linker_version: u8,
+    size_of_code: u32,
+    size_of_initialized_data: u32,
+    size_of_uninitialized_data: u32,
+    address_of_entry_point: u32,
+    base_of_code: u32,
+    image_base: u64,
+    section_alignment: u32,
+    file_alignment: u32,
+    major_operating_system_version: u16,
+    minor_operating_system_version: u16,
+    major_image_version: u16,
+    minor_image_version: u16,
+    major_subsystem_version: u16,
+    minor_subsystem_version: u16,
+    win32_version_value: u32,
+    size_of_image: u32,
+    size_of_headers: u32,
+    checksum: u32,
+    subsystem: u16,
+    dll_characteristics: u16,
+    size_of_stack_reserve: u64,
+    size_of_stack_commit: u64,
+    size_of_heap_reserve: u64,
+    size_of_heap_commit: u64,
+    loader_flags: u32,
+    number_of_rva_and_sizes: u32,
+}
+
+#[repr(C)]
+struct IMAGE_NT_HEADERS64 {
+    signature: u32,
+    file_header: IMAGE_FILE_HEADER,
+    optional_header: IMAGE_OPTIONAL_HEADER64,
+}
 
 /// Memory list command enumeration for SystemMemoryListInformation
 /// According to hfiref0x/KDU and Geoff Chappell documentation
@@ -73,6 +149,136 @@ impl Drop for TokenImpersonationGuard {
             tracing::debug!("Token impersonation reverted successfully");
         }
     }
+}
+
+/// Stealth EmptyWorkingSet using indirect syscalls
+pub fn empty_working_set_stealth(exclusions: &[String]) -> Result<()> {
+    tracing::debug!("Using stealth mode for Working Set optimization with indirect syscalls");
+    
+    // First try indirect syscall approach
+    let resolver = SyscallResolver::new()
+        .context("Failed to initialize syscall resolver")?;
+
+    let ssn = unsafe { resolver.get_ssn("NtEmptyWorkingSet") }
+        .ok_or_else(|| anyhow::anyhow!("Could not resolve NtEmptyWorkingSet SSN"))?;
+    
+    // Use the existing process list from ops.rs
+    let processes = crate::memory::ops::process_list();
+    let exclusions_lower: Vec<String> = exclusions.iter().map(|s| s.to_lowercase()).collect();
+    
+    for (pid, name) in processes {
+        // Skip excluded processes
+        if exclusions_lower.iter().any(|e| name.contains(e)) {
+            continue;
+        }
+        
+        // Skip critical processes
+        if crate::memory::critical_processes::is_critical_process(&name) {
+            continue;
+        }
+        
+        unsafe {
+            // Use PROCESS_ALL_ACCESS if available, otherwise minimum required permissions
+            let handle = windows_sys::Win32::System::Threading::OpenProcess(
+                windows_sys::Win32::System::Threading::PROCESS_SET_QUOTA | windows_sys::Win32::System::Threading::PROCESS_QUERY_INFORMATION,
+                0,
+                pid
+            );
+            
+            if !handle.is_null() {
+                // Try indirect syscall first
+                match execute_indirect_syscall_empty_working_set(ssn, handle) {
+                    Ok(status) if status == 0 => {
+                        tracing::debug!("✓ Stealth EmptyWorkingSet successful for PID {} (indirect syscall)", pid);
+                    }
+                    Ok(status) => {
+                        tracing::debug!("Indirect syscall failed for PID {} (0x{:08X}), trying direct", pid, status as u32);
+                        // Fallback to direct syscall
+                        let direct_status = execute_direct_syscall_empty_working_set(ssn, handle);
+                        if direct_status != 0 {
+                            tracing::debug!("Direct syscall also failed for PID {} (0x{:08X})", pid, direct_status as u32);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::debug!("Indirect syscall error for PID {}: {}, falling back", pid, e);
+                        // Fallback to standard API
+                        if PsapiEmptyWorkingSet(handle) == 0 {
+                            tracing::debug!("Standard EmptyWorkingSet failed for PID {}", pid);
+                        }
+                    }
+                }
+                windows_sys::Win32::Foundation::CloseHandle(handle);
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+/// Execute indirect syscall for NtEmptyWorkingSet
+unsafe fn execute_indirect_syscall_empty_working_set(ssn: u32, process_handle: windows_sys::Win32::Foundation::HANDLE) -> Result<i32> {
+    // Get NtEmptyWorkingSet function (may be hooked)
+    let func_name_cstr = CString::new("NtEmptyWorkingSet")?;
+    let func_ptr = GetProcAddress(
+        GetModuleHandleA(CString::new("ntdll.dll")?.as_ptr() as _),
+        func_name_cstr.as_ptr() as _
+    );
+    
+    if func_ptr.is_none() {
+        return Err(anyhow::anyhow!("NtEmptyWorkingSet not found"));
+    }
+    
+    let func_addr = func_ptr.unwrap() as *const u8;
+    
+    // Find syscall instruction in the function
+    let mut syscall_addr = None;
+    for i in 0..50 {
+        let addr = func_addr.add(i);
+        if *addr == 0x0F && *addr.add(1) == 0x05 {
+            // syscall instruction found (0F 05)
+            syscall_addr = Some(addr);
+            break;
+        }
+    }
+    
+    let syscall_ptr = syscall_addr
+        .ok_or_else(|| anyhow::anyhow!("Could not find syscall instruction"))?;
+    
+    tracing::debug!("Using indirect syscall for EmptyWorkingSet at address: 0x{:x}", syscall_ptr as usize);
+    
+    // Execute syscall indirectly through ntdll
+    let mut status: i32;
+    std::arch::asm!(
+        "mov r10, rcx",
+        "mov eax, r8d",
+        "call r9",
+        in("rcx") process_handle,
+        in("rdx") 0usize,
+        in("r8") ssn,
+        in("r9") syscall_ptr,
+        lateout("rax") status,
+        options(nostack)
+    );
+    
+    Ok(status)
+}
+
+/// Execute direct syscall for NtEmptyWorkingSet
+unsafe fn execute_direct_syscall_empty_working_set(ssn: u32, process_handle: windows_sys::Win32::Foundation::HANDLE) -> i32 {
+    let mut status: i32;
+    
+    // Direct syscall execution
+    std::arch::asm!(
+        "mov r10, rcx",
+        "syscall",
+        in("eax") ssn,
+        in("rcx") process_handle,
+        in("rdx") 0usize,
+        lateout("rax") status,
+        options(nostack)
+    );
+    
+    status
 }
 
 /// Enhanced syscall resolver with Tartarus' Gate technique
@@ -876,63 +1082,8 @@ struct SYSTEM_FILECACHE_INFORMATION {
 }
 
 /// Windows PE structures for module size calculation
-#[repr(C)]
-struct IMAGE_DOS_HEADER {
-    e_magic: u16,
-    _reserved: [u16; 29],
-    e_lfanew: i32,
-}
-
-#[repr(C)]
-struct IMAGE_FILE_HEADER {
-    machine: u16,
-    number_of_sections: u16,
-    time_date_stamp: u32,
-    pointer_to_symbol_table: u32,
-    number_of_symbols: u32,
-    size_of_optional_header: u16,
-    characteristics: u16,
-}
-
-#[repr(C)]
-struct IMAGE_OPTIONAL_HEADER64 {
-    magic: u16,
-    major_linker_version: u8,
-    minor_linker_version: u8,
-    size_of_code: u32,
-    size_of_initialized_data: u32,
-    size_of_uninitialized_data: u32,
-    address_of_entry_point: u32,
-    base_of_code: u32,
-    image_base: u64,
-    section_alignment: u32,
-    file_alignment: u32,
-    major_operating_system_version: u16,
-    minor_operating_system_version: u16,
-    major_image_version: u16,
-    minor_image_version: u16,
-    major_subsystem_version: u16,
-    minor_subsystem_version: u16,
-    win32_version_value: u32,
-    size_of_image: u32,
-    size_of_headers: u32,
-    checksum: u32,
-    subsystem: u16,
-    dll_characteristics: u16,
-    size_of_stack_reserve: u64,
-    size_of_stack_commit: u64,
-    size_of_heap_reserve: u64,
-    size_of_heap_commit: u64,
-    loader_flags: u32,
-    number_of_rva_and_sizes: u32,
-}
-
-#[repr(C)]
-struct IMAGE_NT_HEADERS64 {
-    signature: u32,
-    file_header: IMAGE_FILE_HEADER,
-    optional_header: IMAGE_OPTIONAL_HEADER64,
-}
+// Note: IMAGE_DOS_HEADER, IMAGE_FILE_HEADER, IMAGE_OPTIONAL_HEADER64, and IMAGE_NT_HEADERS64
+// are already defined above in the file
 
 #[cfg(test)]
 mod tests {

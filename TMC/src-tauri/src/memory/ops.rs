@@ -36,7 +36,7 @@ use windows_sys::Win32::System::Memory::SetSystemFileCacheSize;
 use crate::memory::critical_processes::is_critical_process;
 use once_cell::sync::Lazy;
 use std::collections::HashSet;
-use std::sync::RwLock;
+use parking_lot::RwLock;
 use std::time::{Duration, Instant};
 
 pub const SYS_MEMORY_LIST_INFORMATION: u32 = 80;
@@ -240,10 +240,6 @@ pub fn optimize_standby_list_with_stealth(low_priority: bool, use_stealth: bool)
     })
 }
 
-pub fn optimize_modified_page_list() -> Result<()> {
-    optimize_modified_page_list_with_stealth(false)
-}
-
 /// Optimize modified page list with optional stealth mode
 pub fn optimize_modified_page_list_with_stealth(use_stealth: bool) -> Result<()> {
     ensure_privileges(&[SE_PROFILE_SINGLE_PROCESS_NAME])?;
@@ -312,20 +308,29 @@ pub fn optimize_system_file_cache() -> Result<()> {
             // Get total memory to determine optimal cache limits
             let st = gmse()?;
             let total_gb = st.ullTotalPhys / (1024 * 1024 * 1024);
+            let available_gb = st.ullAvailPhys / (1024 * 1024 * 1024);
             
+            // Dynamic limits based on BOTH total and available RAM
             let (min_size, max_size) = if total_gb <= 8 {
-                // Systems with 8GB or less RAM
+                // Systems with 8GB or less RAM - more conservative
                 (8 * 1024 * 1024, 128 * 1024 * 1024) // 8MB - 128MB
+            } else if total_gb <= 16 {
+                // Systems with 16GB RAM - balanced
+                (16 * 1024 * 1024, 256 * 1024 * 1024) // 16MB - 256MB
+            } else if available_gb >= 8 {
+                // High-end systems with plenty of available RAM
+                (32 * 1024 * 1024, 512 * 1024 * 1024) // 32MB - 512MB
             } else {
-                // Systems with 16GB or more RAM
+                // High-end systems but low available RAM - be conservative
                 (16 * 1024 * 1024, 256 * 1024 * 1024) // 16MB - 256MB
             };
             
             tracing::debug!(
-                "Setting file cache limits: min={}MB, max={}MB (total RAM: {}GB)",
+                "Setting file cache limits: min={}MB, max={}MB (total RAM: {}GB, available: {}GB)",
                 min_size / (1024 * 1024),
                 max_size / (1024 * 1024),
-                total_gb
+                total_gb,
+                available_gb
             );
             
             // First try to flush completely, then set limits
@@ -346,7 +351,7 @@ pub fn optimize_system_file_cache() -> Result<()> {
 }
 
 #[cfg(target_os = "windows")]
-fn process_list() -> Vec<(u32, String)> {
+pub fn process_list() -> Vec<(u32, String)> {
     use windows_sys::Win32::System::Diagnostics::ToolHelp::{
         CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
         TH32CS_SNAPPROCESS,
@@ -356,10 +361,7 @@ fn process_list() -> Vec<(u32, String)> {
 
     // Try read cache first
     {
-        let cache = match PROCESS_CACHE.read() {
-            Ok(c) => c,
-            Err(_) => return Vec::new(),
-        };
+        let cache = PROCESS_CACHE.read();
 
         if cache.last_update.elapsed() < CACHE_DURATION {
             return cache.list.clone();
@@ -412,7 +414,8 @@ fn process_list() -> Vec<(u32, String)> {
     }
 
     // Update cache
-    if let Ok(mut cache) = PROCESS_CACHE.write() {
+    {
+        let mut cache = PROCESS_CACHE.write();
         cache.list = out.clone();
         cache.last_update = Instant::now();
     }
@@ -478,14 +481,42 @@ fn empty_ws_process(pid: u32) -> bool {
     false
 }
 
-/// Optimize working set for all non-critical processes
-pub fn optimize_working_set(exclusions_lower: &[String]) -> Result<()> {
+/// Optimize working set with optional stealth mode
+pub fn optimize_working_set_with_stealth(exclusions: &[String], use_stealth: bool) -> Result<()> {
+    ensure_privileges(&[SE_DEBUG_NAME])?;
+    
+    crate::antivirus::whitelist::safe_memory_operation(|| {
+        if use_stealth {
+            // Try stealth optimization for working set
+            match crate::memory::advanced::empty_working_set_stealth(exclusions) {
+                Ok(_) => {
+                    tracing::info!("✓ Working Set optimization successful (stealth mode with indirect syscalls)");
+                    Ok(())
+                }
+                Err(e) => {
+                    tracing::warn!("⚠ Stealth Working Set optimization failed ({}), using standard API", e);
+                    // Fallback to standard implementation
+                    optimize_working_set_standard(exclusions)
+                }
+            }
+        } else {
+            // Use standard implementation
+            optimize_working_set_standard(exclusions)
+        }
+    })
+}
+
+/// Standard working set optimization without stealth
+fn optimize_working_set_standard(exclusions: &[String]) -> Result<()> {
     // IMPORTANT: Always acquire SE_DEBUG_NAME to allow access to all processes
     // Even if we use the global method, SE_DEBUG_NAME ensures it works on all processes
     ensure_privileges(&[SE_DEBUG_NAME, SE_PROFILE_SINGLE_PROCESS_NAME])?;
 
     // Get foreground window PID to exclude it (prevents FPS drops in games)
     let foreground_pid = get_foreground_process_pid();
+    
+    // Convert exclusions to lowercase for comparison
+    let exclusions_lower: Vec<String> = exclusions.iter().map(|s| s.to_lowercase()).collect();
 
     // If there are no custom exclusions, use fast global optimization
     // This method requires SE_DEBUG_NAME to work correctly on system processes
