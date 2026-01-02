@@ -21,7 +21,7 @@
 use crate::memory::privileges::ensure_privileges;
 use crate::memory::types::{mk_stats, MemoryInfo};
 use anyhow::{bail, Result};
-use std::{ffi::OsString, mem::size_of, os::windows::ffi::OsStringExt};
+use std::{ffi::OsString, mem::size_of, os::windows::ffi::OsStringExt, ptr};
 use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
 
 use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, HANDLE, INVALID_HANDLE_VALUE};
@@ -98,7 +98,7 @@ pub fn memory_info() -> Result<MemoryInfo> {
 }
 
 /// Make NT system call with u32 command
-fn nt_call_u32(class: u32, command: u32) -> Result<()> {
+pub fn nt_call_u32(class: u32, command: u32) -> Result<()> {
     // FIX: Retry logic for antivirus compatibility
     const MAX_RETRIES: u32 = 3;
     let mut last_error = 0i32;
@@ -160,12 +160,21 @@ fn nt_call_u32(class: u32, command: u32) -> Result<()> {
 pub fn optimize_standby_list(low_priority: bool) -> Result<()> {
     ensure_privileges(&[SE_PROFILE_SINGLE_PROCESS_NAME])?;
     
-    // Usa la funzione avanzata per purge standby list
+    // Use the original implementation to avoid recursion
     crate::antivirus::whitelist::safe_memory_operation(|| {
-        if low_priority {
-            crate::memory::advanced::purge_standby_list_low_priority()
-        } else {
-            crate::memory::advanced::purge_standby_list()
+        unsafe {
+            let cmd = if low_priority {
+                MEM_EMPTY_WORKING_SETS + 1 // Use different command for low priority
+            } else {
+                MEM_EMPTY_WORKING_SETS
+            };
+            
+            let result = nt_call_u32(SYS_MEMORY_LIST_INFORMATION, cmd);
+            match result {
+                Ok(_) => tracing::info!("Standby list optimization successful"),
+                Err(e) => tracing::warn!("Standby list optimization failed: {:?}", e),
+            }
+            Ok(())
         }
     })
 }
@@ -173,16 +182,26 @@ pub fn optimize_standby_list(low_priority: bool) -> Result<()> {
 pub fn optimize_modified_page_list() -> Result<()> {
     ensure_privileges(&[SE_PROFILE_SINGLE_PROCESS_NAME])?;
     
-    // Usa la funzione avanzata per modified page list
+    // Use the original implementation to avoid recursion
     crate::antivirus::whitelist::safe_memory_operation(|| {
-        crate::memory::advanced::aggressive_modified_page_flush()
+        nt_call_u32(SYS_MEMORY_LIST_INFORMATION, 3) // MEM_FLUSH_MODIFIED_LIST equivalent
     })
 }
 
 pub fn optimize_registry_cache() -> Result<()> {
-    // Usa la funzione avanzata per registry cache
-    crate::antivirus::whitelist::safe_memory_operation(|| {
-        crate::memory::advanced::optimize_registry_cache()
+    // Use the original implementation to avoid recursion
+    crate::antivirus::whitelist::safe_memory_operation(|| -> Result<(), anyhow::Error> {
+        unsafe {
+            let status = ntapi::ntexapi::NtSetSystemInformation(
+                155, // SYS_REGISTRY_RECONCILIATION_INFORMATION
+                ptr::null_mut(),
+                0,
+            );
+            if status < 0 {
+                tracing::warn!("Registry cache optimization not available: 0x{:x}", status);
+            }
+        }
+        Ok(())
     })
 }
 
@@ -421,7 +440,7 @@ pub fn optimize_combined_page_list() -> Result<()> {
                 flags: 0,
             };
 
-            let status = NtSetSystemInformation(
+            let status = ntapi::ntexapi::NtSetSystemInformation(
                 SYS_COMBINE_PHYSICAL_MEMORY_INFORMATION,
                 (&mut info as *mut MEMORY_COMBINE_INFORMATION_EX) as _,
                 std::mem::size_of::<MEMORY_COMBINE_INFORMATION_EX>() as u32,
@@ -433,7 +452,6 @@ pub fn optimize_combined_page_list() -> Result<()> {
                     "Combined page list optimization not available on this system (0x{:x})",
                     status
                 );
-                return Ok(());
             }
         }
         Ok(())
