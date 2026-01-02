@@ -1,15 +1,17 @@
-# Exclude all .md files except README.md
+# Exclude all .md files except README.md and CLI_GUIDE.md
 *.md
 !README.md
+!CLI_GUIDE.md
 
-# Batch files
+# Batch files (except specific ones)
 *.bat
-
-# VBScript files
-*.vbs
+!check_version.bat
 
 # PowerShell scripts
 *.ps1
+
+# Shell scripts
+*.sh
 
 # Log files
 *.log
