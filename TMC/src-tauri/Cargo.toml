@@ -82,6 +82,7 @@ windows-sys = { version = "*", features = [
   "Win32_System_EventLog",
   "Win32_System_LibraryLoader",
   "Win32_System_Console",
+  "Win32_System_SystemServices",
 ] }
 
 # NT API
