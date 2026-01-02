@@ -29,10 +29,9 @@
   async function selectProfile(profile: Profile) {
     if (isChanging || selected === profile) return
 
+    // Prevent double-clicks with a very short lock
     isChanging = true
-    // Update selected immediately for responsive UI
     selected = profile
-    const previousSelected = profile
 
     try {
       await applyProfile(profile)
@@ -43,6 +42,7 @@
         selected = cfg.profile
       }
     } finally {
+      // Quick release - no artificial delay
       isChanging = false
     }
   }
@@ -191,39 +191,8 @@
   }
 
   .seg button:disabled {
-    opacity: 0.8;
-    cursor: wait;
-    position: relative;
-  }
-
-  /* Subtle loading indicator */
-  .seg button:disabled::before {
-    content: '';
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    width: 8px;
-    height: 8px;
-    border: 1px solid var(--btn-bg);
-    border-radius: 50%;
-    opacity: 0.3;
-  }
-
-  .seg button:disabled::after {
-    content: '';
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    width: 8px;
-    height: 8px;
-    background: var(--btn-bg);
-    border-radius: 50%;
-    animation: pulse 1s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 0.8; }
+    opacity: 0.9;
+    cursor: default;
   }
 
   .info {
