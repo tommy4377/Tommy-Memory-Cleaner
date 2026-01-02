@@ -1,21 +1,21 @@
-// Se usi Svelte 4 (controlla package.json)
+// If using Svelte 4 (check package.json)
 import App from './App.svelte'
-// Importa prima i temi, poi tokens (tokens ha le variabili base, i temi le sovrascrivono)
+// Import themes first, then tokens (tokens has base variables, themes override them)
 import './theme/tokens.css'
 import './theme/common.css'
 
-// Per Svelte 4:
+// For Svelte 4:
 const app = new App({
   target: document.getElementById('app')!,
 })
 
-// Disabilita menu contestuale
+// Disable context menu
 document.addEventListener('contextmenu', (e) => {
   e.preventDefault()
   return false
 })
 
-// Disabilita dev tools shortcuts solo in produzione
+// Disable dev tools shortcuts only in production
 if (import.meta.env.PROD) {
   document.addEventListener('keydown', (e) => {
     if (

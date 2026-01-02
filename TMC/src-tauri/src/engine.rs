@@ -1,3 +1,8 @@
+/// Memory optimization engine
+/// 
+/// This module contains the core engine responsible for performing
+/// memory optimization operations on Windows systems.
+
 use crate::config::Config;
 use crate::logging::event_viewer::{log_error_event, log_optimization_event};
 use crate::memory::ops::{
@@ -10,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 
+/// Result of optimizing a specific memory area
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OptimizeAreaResult {
     pub name: String,
@@ -17,6 +23,7 @@ pub struct OptimizeAreaResult {
     pub error: Option<String>,
 }
 
+/// Complete optimization result with all areas
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OptimizeResult {
     pub reason: Reason,
@@ -26,20 +33,30 @@ pub struct OptimizeResult {
     pub areas: Vec<OptimizeAreaResult>,
 }
 
+/// Main memory optimization engine
 #[derive(Clone)]
 pub struct Engine {
     pub cfg: Arc<Mutex<Config>>,
 }
 
 impl Engine {
+    /// Create a new engine instance with configuration
     pub fn new(cfg: Arc<Mutex<Config>>) -> Self {
         Self { cfg }
     }
 
+    /// Get current memory information
     pub fn memory(&self) -> anyhow::Result<MemoryInfo> {
         memory_info().map_err(|e| e.into())
     }
 
+    /// Perform memory optimization on specified areas
+    /// 
+    /// This is the main optimization method that:
+    /// - Acquires necessary privileges before starting
+    /// - Optimizes each specified memory area
+    /// - Reports progress through callback
+    /// - Returns detailed results
     pub fn optimize<F>(
         &self,
         reason: Reason,
@@ -49,14 +66,14 @@ impl Engine {
     where
         F: FnMut(u8, u8, String),
     {
-        // FIX: Pre-acquisisci tutti i privilegi necessari PRIMA di iniziare
+        // Pre-acquire all necessary privileges BEFORE starting
         tracing::info!(
             "Starting optimization with reason: {:?}, areas: {:?}",
             reason,
             areas
         );
 
-        // Acquisisci privilegi in anticipo per tutte le aree con retry
+        // Acquire privileges in advance for all areas with retry
         let mut required_privs = vec![];
         if areas.contains(Areas::WORKING_SET) {
             required_privs.push("SeDebugPrivilege");
@@ -73,13 +90,13 @@ impl Engine {
             required_privs.push("SeProfileSingleProcessPrivilege");
         }
 
-        // Deduplica e acquisisci privilegi con retry logic
+        // Deduplicate and acquire privileges with retry logic
         required_privs.sort();
         required_privs.dedup();
 
         let mut acquired_privs = 0;
         for priv_name in &required_privs {
-            // Retry fino a 3 volte per ogni privilegio
+            // Retry up to 3 times for each privilege
             let mut success = false;
             for attempt in 1..=3 {
                 match crate::memory::privileges::ensure_privilege(priv_name) {

@@ -1,3 +1,8 @@
+/// Configuration management module
+/// 
+/// Handles loading, saving, and validating application configuration
+/// with support for portable installations and proper data directory handling.
+
 use crate::memory::types::Areas;
 use crate::security::{
     contains_injection_patterns, is_valid_hex_color, sanitize_hotkey, sanitize_process_name,
@@ -8,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeSet, fs, io, path::PathBuf};
 
 // ========== PORTABLE DETECTION ==========
+/// Detects portable installation and manages data directories
 #[derive(Debug, Clone)]
 pub struct PortableDetector {
     is_portable: bool,
@@ -16,24 +22,25 @@ pub struct PortableDetector {
 }
 
 impl PortableDetector {
+    /// Create new portable detector instance
     pub fn new() -> io::Result<Self> {
         let exe_path = std::env::current_exe()?;
 
-        // Il programma è sempre "portable" (può essere spostato ovunque)
-        // ma i dati vengono salvati SEMPRE in AppData per centralizzazione
-        let is_portable = true; // Il programma è portable (può essere spostato)
+        // The program is always "portable" (can be moved anywhere)
+        // but data is ALWAYS saved in AppData for centralization
+        let is_portable = true; // The program is portable (can be moved)
 
-        // SEMPRE usa AppData per i dati, indipendentemente da dove si trova l'exe
+        // ALWAYS use AppData for data, regardless of exe location
         let data_dir = {
             #[cfg(windows)]
             {
                 use std::env;
-                // Prova prima LOCALAPPDATA poi APPDATA
+                // Try LOCALAPPDATA first, then APPDATA
                 env::var("LOCALAPPDATA")
                     .or_else(|_| env::var("APPDATA"))
                     .map(PathBuf::from)
                     .unwrap_or_else(|_| {
-                        // Fallback a directory utente
+                        // Fallback to user directory
                         dirs::config_dir().unwrap_or_else(|| PathBuf::from("."))
                     })
                     .join("TommyMemoryCleaner")
@@ -242,53 +249,53 @@ impl Default for TrayConfig {
         Self {
             show_mem_usage: true,
             text_color_hex: "#FFFFFF".to_string(),
-            background_color_hex: "#2d8a3d".to_string(), // Verde originale ma leggermente meno acceso
+            background_color_hex: "#2d8a3d".to_string(), // Original green but slightly less bright
             transparent_bg: false,
             warning_level: 80,
-            warning_color_hex: "#d97706".to_string(), // Arancione originale ma leggermente meno acceso
+            warning_color_hex: "#d97706".to_string(), // Original orange but slightly less bright
             danger_level: 90,
-            danger_color_hex: "#b91c1c".to_string(), // Rosso originale ma leggermente meno acceso
+            danger_color_hex: "#b91c1c".to_string(), // Original red but slightly less bright
         }
     }
 }
 
 impl TrayConfig {
     fn validate(&mut self) {
-        // Se i colori sono ancora i vecchi default (inclusi quelli "freddi"), aggiornali ai nuovi bilanciati
-        // Lista completa di tutti i vecchi colori da aggiornare
+        // If colors are still old defaults (including "cold" ones), update to new balanced ones
+        // Complete list of all old colors to update
         let old_defaults = [
             "#1C8C2D", "#15803d", "#34c759", "#28a745", "#2d5a3d", "#3d6b4d", "#1c8c2d", "#15803D",
             "#34C759", "#28A745", "#2D5A3D", "#3D6B4D",
-            // Colori "freddi" che potrebbero essere stati usati
+            // "Cold" colors that might have been used
             "#2e7d32", "#388e3c", "#43a047", "#4caf50", "#66bb6a", "#81c784", "#2E7D32", "#388E3C",
             "#43A047", "#4CAF50", "#66BB6A", "#81C784",
         ];
         let old_warning = [
             "#FF9900", "#ff9500", "#8b6f47", "#b8864d", "#ff9900", "#FF9500", "#8B6F47", "#B8864D",
-            // Colori warning "freddi"
+            // "Cold" warning colors
             "#f57c00", "#fb8c00", "#ff9800", "#ffa726", "#ffb74d", "#F57C00", "#FB8C00", "#FF9800",
             "#FFA726", "#FFB74D",
         ];
         let old_danger = [
             "#CC3300", "#ff3b30", "#dc3545", "#6b2d2d", "#8b3d3d", "#cc3300", "#FF3B30", "#DC3545",
-            "#6B2D2D", "#8B3D3D", // Colori danger "freddi"
+            "#6B2D2D", "#8B3D3D", // "Cold" danger colors
             "#c62828", "#d32f2f", "#e53935", "#ef5350", "#e57373", "#C62828", "#D32F2F", "#E53935",
             "#EF5350", "#E57373",
         ];
 
-        // Normalizza i colori per il confronto (uppercase senza spazi)
+        // Normalize colors for comparison (uppercase without spaces)
         let bg_normalized = self.background_color_hex.trim().to_uppercase();
         let warn_normalized = self.warning_color_hex.trim().to_uppercase();
         let danger_normalized = self.danger_color_hex.trim().to_uppercase();
 
-        // Aggiorna solo se sono vecchi colori
+        // Update only if they are old colors
         if old_defaults
             .iter()
             .any(|&c| c.to_uppercase() == bg_normalized)
         {
             self.background_color_hex = "#2d8a3d".to_string();
         } else {
-            // Normalizza il formato se non è un vecchio colore
+            // Normalize format if not an old color
             self.background_color_hex =
                 Self::normalize_hex_color(&self.background_color_hex, "#2d8a3d");
         }
@@ -299,7 +306,7 @@ impl TrayConfig {
         {
             self.warning_color_hex = "#d97706".to_string();
         } else {
-            // Normalizza il formato se non è un vecchio colore
+            // Normalize format if not an old color
             self.warning_color_hex = Self::normalize_hex_color(&self.warning_color_hex, "#d97706");
         }
 
@@ -309,11 +316,11 @@ impl TrayConfig {
         {
             self.danger_color_hex = "#b91c1c".to_string();
         } else {
-            // Normalizza il formato se non è un vecchio colore
+            // Normalize format if not an old color
             self.danger_color_hex = Self::normalize_hex_color(&self.danger_color_hex, "#b91c1c");
         }
 
-        // Normalizza sempre il colore del testo
+        // Always normalize text color
         self.text_color_hex = Self::normalize_hex_color(&self.text_color_hex, "#FFFFFF");
 
         if self.warning_level >= self.danger_level {
@@ -350,7 +357,7 @@ pub struct Config {
     pub language: String,
     pub theme: String,
     #[serde(default = "default_main_color")]
-    pub main_color_hex: String, // Deprecated, mantenuto per compatibilità
+    pub main_color_hex: String, // Deprecated, kept for compatibility
     #[serde(default = "default_main_color_light")]
     pub main_color_hex_light: String,
     #[serde(default = "default_main_color_dark")]
@@ -383,15 +390,15 @@ fn default_config_version() -> u32 {
 }
 
 fn default_main_color_light() -> String {
-    "#9a8a72".to_string() // Default sepia per light theme
+    "#9a8a72".to_string() // Default sepia for light theme
 }
 
 fn default_main_color_dark() -> String {
-    "#0a84ff".to_string() // Default blu per dark theme
+    "#0a84ff".to_string() // Default blue for dark theme
 }
 
 fn default_main_color() -> String {
-    "#9a8a72".to_string() // Default sepia per light theme, sarà sovrascritto in dark
+    "#9a8a72".to_string() // Default sepia for light theme, will be overridden in dark
 }
 
 impl Default for Config {
@@ -400,7 +407,7 @@ impl Default for Config {
         let default_areas = default_profile.get_memory_areas();
         let default_priority = Priority::High; // Default priority is High, not from profile
 
-        // NESSUNA ESCLUSIONE DI DEFAULT!
+        // NO DEFAULT EXCLUSIONS!
         let exclusions = BTreeSet::new();
 
         Self {
@@ -434,14 +441,14 @@ impl Default for Config {
 
 impl Config {
     pub fn validate(&mut self) {
-        // FIX #11: Valida auto_opt_interval_hours - 0 significa "disabilitato" ed è valido
-        // Limita solo se > 0, altrimenti 0 è un valore valido per disabilitare
+        // FIX #11: Validate auto_opt_interval_hours - 0 means "disabled" and is valid
+        // Limit only if > 0, otherwise 0 is a valid value to disable
         if self.auto_opt_interval_hours > 24 {
             self.auto_opt_interval_hours = 24;
         }
-        // 0 è valido (disabilita auto-opt programmata)
+        // 0 is valid (disables scheduled auto-opt)
 
-        // Valida e normalizza main_color_hex
+        // Validate and normalize main_color_hex
         if self.main_color_hex.is_empty() {
             self.main_color_hex = if self.theme == "dark" {
                 "#0a84ff".to_string()
@@ -449,7 +456,7 @@ impl Config {
                 "#007aff".to_string()
             };
         } else {
-            // Usa la funzione di validazione dal modulo security
+            // Use validation function from security module
             if is_valid_hex_color(&self.main_color_hex) {
                 let clean = self.main_color_hex.trim().trim_start_matches('#');
                 self.main_color_hex = format!("#{}", clean.to_uppercase());
@@ -461,12 +468,12 @@ impl Config {
                 };
             }
         }
-        // FIX #11: Valida auto_opt_free_threshold - 0 significa "disabilitato" ed è valido
-        // Limita solo se > 0, altrimenti 0 è un valore valido per disabilitare
+        // FIX #11: Validate auto_opt_free_threshold - 0 means "disabled" and is valid
+        // Limit only if > 0, otherwise 0 is a valid value to disable
         if self.auto_opt_free_threshold > 100 {
             self.auto_opt_free_threshold = 100;
         }
-        // 0 è valido (disabilita auto-opt per memoria bassa)
+        // 0 is valid (disables auto-opt for low memory)
         self.font_size = self.font_size.clamp(8.0, 24.0);
 
         const VALID_LANGUAGES: &[&str] = &["en", "it", "es", "fr", "pt", "de", "ar", "ja", "zh"];
@@ -551,9 +558,9 @@ impl Config {
     pub fn load() -> io::Result<Self> {
         let path = config_path();
 
-        // Prova a migrare da vecchia location se necessario
+        // Try to migrate from old location if needed
         if !path.exists() {
-            // Controlla se c'è un config nella directory dell'exe (vecchia location)
+            // Check if there's a config in exe directory (old location)
             if let Ok(exe_path) = std::env::current_exe() {
                 if let Some(exe_dir) = exe_path.parent() {
                     let old_config = exe_dir.join("config.json");

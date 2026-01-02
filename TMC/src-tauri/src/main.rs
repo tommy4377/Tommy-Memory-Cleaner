@@ -3,6 +3,17 @@
     windows_subsystem = "windows"
 )]
 
+/// Tommy Memory Cleaner - Main Application Entry Point
+/// 
+/// This is the main entry point for the Tommy Memory Cleaner application.
+/// It initializes all subsystems including:
+/// - Memory optimization engine
+/// - System tray integration
+/// - Global hotkeys
+/// - Auto-optimization scheduler
+/// - Notification system
+/// - Security checks
+
 mod antivirus;
 mod auto_optimizer;
 mod cli;
@@ -40,12 +51,17 @@ use tauri_plugin_positioner;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
+/// Global state tracking optimization status
 static OPTIMIZATION_RUNNING: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(false));
+/// Tracks if admin privileges have been initialized
 static PRIVILEGES_INITIALIZED: Lazy<RwLock<bool>> = Lazy::new(|| RwLock::new(false));
+/// Tracks if first optimization has been completed
 static FIRST_OPTIMIZATION_DONE: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(false));
+/// Stores the tray icon ID for updates
 pub(crate) static TRAY_ICON_ID: Lazy<std::sync::Mutex<Option<String>>> =
     Lazy::new(|| std::sync::Mutex::new(None));
 
+/// Application state shared across Tauri commands
 #[derive(Clone)]
 struct AppState {
     cfg: Arc<Mutex<Config>>,
@@ -56,6 +72,7 @@ struct AppState {
 
 // ============= WINDOWS HELPERS =============
 #[cfg(windows)]
+/// Convert UTF-8 string to Windows wide string (UTF-16)
 fn to_wide(s: &str) -> Vec<u16> {
     use std::os::windows::ffi::OsStrExt;
     std::ffi::OsStr::new(s)
@@ -65,13 +82,17 @@ fn to_wide(s: &str) -> Vec<u16> {
 }
 
 // ============= PRIVILEGE MANAGEMENT =============
+/// Initialize required Windows privileges for memory optimization
+/// 
+/// This function ensures the process has the necessary privileges
+/// to perform advanced memory operations on other processes.
 fn ensure_privileges_initialized() -> Result<(), String> {
-    // Check se già inizializzato
+    // Check if already initialized
     if *PRIVILEGES_INITIALIZED.read() {
         return Ok(());
     }
 
-    // Lock per scrittura e ri-controlla
+    // Acquire write lock and re-check
     let mut guard = PRIVILEGES_INITIALIZED.write();
     if *guard {
         return Ok(());
@@ -79,11 +100,11 @@ fn ensure_privileges_initialized() -> Result<(), String> {
 
     tracing::info!("Initializing Windows privileges...");
 
-    // Lista di tutti i privilegi necessari
+    // List of all required privileges
     let privileges = [
-        "SeDebugPrivilege",                // Per ottimizzare working set di altri processi
-        "SeIncreaseQuotaPrivilege",        // Per modificare cache di sistema
-        "SeProfileSingleProcessPrivilege", // Per operazioni avanzate di memoria
+        "SeDebugPrivilege",                // To optimize working set of other processes
+        "SeIncreaseQuotaPrivilege",        // To modify system cache
+        "SeProfileSingleProcessPrivilege", // For advanced memory operations
     ];
 
     let mut success_count = 0;
@@ -115,18 +136,22 @@ fn ensure_privileges_initialized() -> Result<(), String> {
 // Notification helpers moved to notifications/ module
 
 // ============= TRAY MENU (Tauri v2) =============
-// Il menu tray è gestito direttamente nel builder, vedi ui::tray::build()
+// Tray menu is managed directly in the builder, see ui::tray::build()
 
+/// Refresh the tray icon based on current memory usage
+/// 
+/// This function updates the system tray icon to reflect current memory
+/// usage when enabled in settings. Uses non-blocking locks to prevent deadlocks.
 fn refresh_tray_icon(app: &AppHandle) {
     let state = app.state::<AppState>();
 
-    // FIX #2 & #3: Usa try_lock per evitare deadlock e acquisisci tutte le info necessarie
+    // Use try_lock to avoid deadlocks and acquire all necessary info
     let (_show_mem_usage, mem_percent) = {
-        // Prova ad acquisire il lock senza bloccare
+        // Try to acquire lock without blocking
         match state.cfg.try_lock() {
             Ok(c) => {
                 let show_mem = c.tray.show_mem_usage;
-                // Rilascia il lock PRIMA di chiamare engine.memory() per evitare deadlock
+                // Release lock BEFORE calling engine.memory() to avoid deadlock
                 drop(c);
 
                 if !show_mem {
@@ -135,12 +160,12 @@ fn refresh_tray_icon(app: &AppHandle) {
                     );
                     (false, 0)
                 } else {
-                    // Ora che il lock è rilasciato, possiamo chiamare memory() in sicurezza
+                    // Now that lock is released, we can safely call memory()
                     let mem_percent = state
                         .engine
                         .memory()
                         .map(|mem| {
-                            // Clamp percentage tra 0-100 (dovrebbe essere già nel range, ma per sicurezza)
+                            // Clamp percentage between 0-100 (should already be in range, but for safety)
                             mem.physical.used.percentage.min(100)
                         })
                         .unwrap_or_else(|e| {
@@ -157,11 +182,12 @@ fn refresh_tray_icon(app: &AppHandle) {
         }
     };
 
-    // Se show_mem_usage è false, update_tray_icon userà l'icona di default
+    // If show_mem_usage is false, update_tray_icon will use default icon
     crate::ui::tray::update_tray_icon(app, mem_percent);
 }
 
 // ============= AREA PARSING =============
+/// Parse areas string from configuration into Areas bitflags
 fn parse_areas_string(areas_str: &str) -> Areas {
     let mut result = Areas::empty();
     for flag in areas_str.split('|') {
@@ -193,6 +219,13 @@ fn parse_areas_string(areas_str: &str) -> Areas {
 // code_from_str moved to hotkeys/codes.rs
 
 // ============= OPTIMIZATION LOGIC =============
+/// Perform memory optimization with specified parameters
+/// 
+/// This is the core optimization function that:
+/// - Checks if optimization is already running
+/// - Ensures proper privileges are acquired
+/// - Executes optimization with progress updates
+/// - Handles cleanup and error recovery
 async fn perform_optimization(
     app: AppHandle,
     engine: Engine,
@@ -201,7 +234,7 @@ async fn perform_optimization(
     with_progress: bool,
     areas_override: Option<Areas>,
 ) {
-    // Controlla se un'ottimizzazione è già in corso
+    // Check if optimization is already running
     if OPTIMIZATION_RUNNING
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
         .is_err()
@@ -210,23 +243,23 @@ async fn perform_optimization(
         return;
     }
 
-    // FIX: Usa scopeguard per assicurarsi che il flag venga sempre rilasciato
-    // anche in caso di panic o early return
+    // Use scopeguard to ensure flag is always released
+    // even in case of panic or early return
     let _guard = scopeguard::guard((), |_| {
         OPTIMIZATION_RUNNING.store(false, Ordering::SeqCst);
     });
 
-    // Assicura che i privilegi siano inizializzati
+    // Ensure privileges are initialized
     if let Err(e) = ensure_privileges_initialized() {
         tracing::warn!("Failed to initialize privileges: {}", e);
     }
 
-    // FIX: Se è la prima ottimizzazione, forza l'acquisizione dei privilegi
-    // Questo è CRITICO perché alcuni privilegi potrebbero non essere stati acquisiti all'avvio
+    // If this is the first optimization, force privilege acquisition
+    // This is CRITICAL because some privileges might not have been acquired at startup
     if !FIRST_OPTIMIZATION_DONE.load(Ordering::SeqCst) {
         tracing::info!("First optimization - ensuring privileges are acquired...");
 
-        // Forza re-inizializzazione privilegi con retry più aggressivo
+        // Force re-initialization of privileges with more aggressive retry
         let mut retry_count = 0;
         let max_retries = 5;
         let mut privileges_ok = false;
@@ -264,7 +297,7 @@ async fn perform_optimization(
             }
         }
 
-        // Piccolo delay per assicurarsi che i privilegi siano completamente attivi
+        // Small delay to ensure privileges are fully active
         tokio::time::sleep(Duration::from_millis(200)).await;
 
         FIRST_OPTIMIZATION_DONE.store(true, Ordering::SeqCst);
@@ -274,13 +307,14 @@ async fn perform_optimization(
     let (areas, show_notif, profile, _language) = {
         match cfg.lock() {
             Ok(c) => {
-                // Se areas_override è specificato, usalo, altrimenti usa le aree dal profilo
-                let areas = areas_override.unwrap_or_else(|| {
-                    // FIX: Sempre ricarica le aree dal profilo per assicurarsi di avere tutte quelle disponibili
-                    // Questo è importante perché le aree disponibili possono cambiare o essere state salvate
-                    // con una versione precedente di Windows
+                // If areas_override is specified, use it, otherwise use areas from profile
+                let areas = if let Some(override_areas) = areas_override {
+                    override_areas
+                } else {
+                    // This is important because available areas can change or have been saved
+                    // with a previous version of Windows
                     c.profile.get_memory_areas()
-                });
+                };
                 tracing::info!(
                     "Profile: {:?}, Areas: {:?} ({} areas, override: {})",
                     c.profile,
@@ -415,7 +449,7 @@ async fn perform_optimization(
 // ============= WINDOW MANAGEMENT =============
 
 // ============= TRAY MENU MANAGEMENT (ROBUST) =============
-/// Mostra il tray menu con retry e fallback robusti
+/// Show tray menu with retry and robust fallbacks
 async fn show_tray_menu_with_retry(app: &AppHandle) {
     const MAX_RETRIES: u32 = 3;
     const RETRY_DELAY_MS: u64 = 100;
@@ -427,14 +461,14 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
             MAX_RETRIES
         );
 
-        // Prova prima a ottenere la finestra esistente
+        // First try to get existing window
         if let Some(menu_win) = app.get_webview_window("tray_menu") {
-            // ⭐ Aggiungi event handler per chiusura automatica (se non già presente)
+            // Add event handler for auto-close (if not already present)
             let menu_win_clone = menu_win.clone();
             menu_win.on_window_event(move |event| {
                 match event {
                     tauri::WindowEvent::Focused(false) => {
-                        // Quando il menu perde il focus, nascondilo
+                        // When menu loses focus, hide it
                         tracing::debug!("Tray menu lost focus, hiding...");
                         let _ = menu_win_clone.hide();
                     }
@@ -442,12 +476,12 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
                 }
             });
 
-            // Verifica che la finestra sia valida
+            // Verify window is valid
             if let Ok(is_visible) = menu_win.is_visible() {
-                // Se già visibile, non fare nulla
+                // If already visible, do nothing
                 if is_visible {
                     tracing::debug!("Tray menu already visible, resetting auto-close timer");
-                    // Reset del timer di chiusura automatica nel frontend
+                    // Reset auto-close timer in frontend
                     let _ = menu_win.eval(
                         r#"
                         if (typeof showMenu === 'function') {
@@ -617,7 +651,7 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
             }
         }
 
-        // Se non è riuscito, aspetta prima di riprovare
+        // If failed, wait before retrying
         if attempt < MAX_RETRIES {
             tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS * attempt as u64)).await;
         }
@@ -628,6 +662,7 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
 
 // ============= WEBVIEW2 CHECK =============
 #[cfg(windows)]
+/// Check if WebView2 runtime is installed
 fn check_webview2() {
     use std::process::Command;
 
@@ -715,15 +750,15 @@ fn main() {
         let app_id_wide: Vec<u16> = OsStr::new(app_id).encode_wide().chain(Some(0)).collect();
 
         unsafe {
-            // SetCurrentProcessExplicitAppUserModelID ritorna HRESULT:
-            // S_OK (0) = successo
-            // Altri valori = errore
+            // SetCurrentProcessExplicitAppUserModelID returns HRESULT:
+            // S_OK (0) = success
+            // Other values = error
             let result = SetCurrentProcessExplicitAppUserModelID(app_id_wide.as_ptr());
             if result == 0 {
                 tracing::info!("✓ AppUserModelID set explicitly: {}", app_id);
                 eprintln!("[TMC] AppUserModelID set explicitly: {}", app_id);
             } else {
-                // Log l'errore ma non bloccare l'app (alcune versioni di Windows potrebbero non supportarlo)
+                // Log error but don't block the app (some Windows versions might not support it)
                 tracing::warn!(
                     "✗ Failed to set AppUserModelID explicitly: HRESULT 0x{:08X}",
                     result
@@ -739,28 +774,28 @@ fn main() {
         }
     }
 
-    // Registra l'app per Windows Toast notifications PRIMA di tutto
-    // Questo è fondamentale per mostrare correttamente nome e icona nelle notifiche
+    // Register app for Windows Toast notifications BEFORE everything else
+    // This is critical to correctly show name and icon in notifications
     #[cfg(windows)]
     {
         register_app_for_notifications();
     }
 
-    // CONTROLLO CRITICO: Verifica che il programma sia eseguito come amministratore
+    // CRITICAL CHECK: Verify program is running as administrator
     #[cfg(windows)]
     {
         use crate::system::is_app_elevated;
         if !is_app_elevated() {
             eprintln!(
-                "ERRORE CRITICO: Tommy Memory Cleaner deve essere eseguito come Amministratore!"
+                "CRITICAL ERROR: Tommy Memory Cleaner must be run as Administrator!"
             );
             eprintln!("CRITICAL ERROR: Tommy Memory Cleaner must be run as Administrator!");
 
-            // Mostra messaggio di errore all'utente
+            // Show error message to user
             let error_msg = format!(
-                "Tommy Memory Cleaner richiede privilegi amministratore per funzionare correttamente.\n\n\
+                "Tommy Memory Cleaner requires administrator privileges to work properly.\n\n\
                 Tommy Memory Cleaner requires administrator privileges to work properly.\n\n\
-                Per favore, clicca destro sull'eseguibile e seleziona \"Esegui come amministratore\".\n\
+                Please right-click the executable and select \"Run as administrator\".\n\
                 Please right-click the executable and select \"Run as administrator\"."
             );
 
@@ -799,9 +834,9 @@ fn main() {
         tracing::info!("Admin privileges confirmed - application running with elevated privileges");
     }
 
-    // Inizializza privilegi all'avvio con retry
-    // IMPORTANTE: I privilegi devono essere acquisiti PRIMA della prima ottimizzazione
-    // Alcuni privilegi potrebbero richiedere privilegi elevati, ma proviamo comunque
+    // Initialize privileges at startup with retry
+    // IMPORTANT: Privileges must be acquired BEFORE first optimization
+    // Some privileges might require elevated privileges, but we try anyway
     let mut retry_count = 0;
     let max_retries = 3;
     while retry_count < max_retries {
@@ -836,21 +871,21 @@ fn main() {
         }
     }
 
-    // Registra l'app come trusted per ridurre falsi positivi antivirus
+    // Register app as trusted to reduce antivirus false positives
     #[cfg(windows)]
     if let Err(e) = antivirus::whitelist::register_as_trusted() {
         tracing::debug!("Failed to register as trusted (non-critical): {}", e);
     }
 
-    // Carica configurazione
+    // Load configuration
     let cfg = Arc::new(Mutex::new(Config::load().unwrap_or_else(|e| {
         tracing::warn!("Failed to load config: {}, using defaults", e);
         Config::default()
     })));
     let engine = Engine::new(cfg.clone());
     let rate_limiter = crate::security::RateLimiter::new(
-        100,                                // max 100 richieste
-        std::time::Duration::from_secs(60), // per minuto
+        100,                                // max 100 requests
+        std::time::Duration::from_secs(60), // per minute
     );
     let state = AppState {
         cfg: cfg.clone(),
@@ -1036,13 +1071,13 @@ fn main() {
                     .map(|c| !c.setup_completed)
                     .unwrap_or(true);
 
-                // ⭐ Fallback 2: verifica anche se il file config esiste
-                // Se il file esiste ma setup_completed è false, potrebbe essere un problema
-                // In quel caso, assumiamo che il setup sia già stato fatto
+                // Fallback 2: also check if config file exists
+                // If file exists but setup_completed is false, it might be an issue
+                // In that case, we assume setup has already been done
                 if should_show {
                     let config_path = crate::config::get_portable_detector().config_path();
                     if config_path.exists() {
-                        // Il file esiste, verifica se contiene setup_completed
+                        // File exists, check if it contains setup_completed
                         if let Ok(content) = std::fs::read_to_string(&config_path) {
                             if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
                                 if let Some(setup_completed) = json.get("setup_completed").and_then(|v| v.as_bool()) {
@@ -1195,21 +1230,21 @@ fn main() {
         })
         .on_window_event(|app, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                // In Tauri v2, otteniamo la finestra dal parametro app usando il window dall'evento
-                // Ma dobbiamo controllare quale finestra ha emesso l'evento
-                // Controlla tutte le finestre per vedere quale sta chiudendo
+                // In Tauri v2, we get the window from app parameter using the window from event
+                // But we need to check which window emitted the event
+                // Check all windows to see which one is closing
                 if let Some(setup_window) = app.get_webview_window("setup") {
-                    // Se la finestra setup esiste e sta chiudendo, permette sempre la chiusura
+                    // If setup window exists and is closing, always allow close
                     if let Ok(is_visible) = setup_window.is_visible() {
                         if is_visible {
                             tracing::info!("Setup window close requested, allowing close");
-                            // Permetti la chiusura del setup
+                            // Allow setup to close
                             return;
                         }
                     }
                 }
 
-                // Gestisci la chiusura della finestra principale
+                // Handle main window close
                 if let Some(main_window) = app.get_webview_window("main") {
                     if let Ok(cfg) = main_window.app_handle().state::<AppState>().cfg.lock() {
                         if cfg.minimize_to_tray {
@@ -1218,7 +1253,7 @@ fn main() {
                             }
                             api.prevent_close();
                         } else {
-                            // Se non minimizza al tray, chiudi l'app e logga lo shutdown
+                            // If not minimizing to tray, close app and log shutdown
                             crate::logging::shutdown();
                         }
                     }

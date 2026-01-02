@@ -1,22 +1,22 @@
 #![allow(non_camel_case_types)]
 
-// NOTA: Questo modulo usa API Windows di sistema che possono essere flaggate dagli antivirus come "sospette",
-// ma sono API LEGITTIME e necessarie per un memory cleaner professionale:
+// NOTE: This module uses Windows system APIs that may be flagged by antivirus as "suspicious",
+// but these are LEGITIMATE and necessary APIs for a professional memory cleaner:
 //
-// - K32EmptyWorkingSet: API Microsoft documentata per svuotare il working set di un processo
+// - K32EmptyWorkingSet: Microsoft documented API to empty a process's working set
 //   (https://docs.microsoft.com/en-us/windows/win32/api/psapi/nf-psapi-emptyworkingset)
-//   Usata da molti memory cleaner commerciali legittimi (MemReduct, CleanMem, etc.)
+//   Used by many legitimate commercial memory cleaners (MemReduct, CleanMem, etc.)
 //
-// - NtSetSystemInformation: API NT documentata per ottimizzazioni di sistema
-//   Usata con SYSTEM_MEMORY_LIST_INFORMATION per svuotare liste di memoria standby/modified
-//   Richiede privilegi amministratore (comportamento normale per memory cleaner)
+// - NtSetSystemInformation: Documented NT API for system optimizations
+//   Used with SYSTEM_MEMORY_LIST_INFORMATION to empty standby/modified memory lists
+//   Requires administrator privileges (normal behavior for memory cleaners)
 //
-// - SetSystemFileCacheSize: API Microsoft documentata per gestire la cache del file system
+// - SetSystemFileCacheSize: Microsoft documented API to manage file system cache
 //   (https://docs.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-setsystemfilecachesize)
-//   Permette di limitare la cache file system per liberare memoria fisica
+//   Allows limiting file system cache to free physical memory
 //
-// Tutte queste API sono documentate ufficialmente da Microsoft e utilizzate da software legittimo.
-// I falsi positivi degli antivirus sono comuni per software non firmato che usa API di sistema.
+// All these APIs are officially documented by Microsoft and used by legitimate software.
+// Antivirus false positives are common for unsigned software that uses system APIs.
 
 use crate::memory::privileges::ensure_privileges;
 use crate::memory::types::{mk_stats, MemoryInfo};
@@ -59,7 +59,7 @@ struct MEMORY_COMBINE_INFORMATION_EX {
     flags: u64,
 }
 
-// Cache per la lista processi
+// Cache for process list
 struct ProcessCache {
     list: Vec<(u32, String)>,
     last_update: Instant,
@@ -72,6 +72,7 @@ static PROCESS_CACHE: Lazy<RwLock<ProcessCache>> = Lazy::new(|| {
     })
 });
 
+/// Get Global Memory Status Extended
 fn gmse() -> Result<MEMORYSTATUSEX> {
     unsafe {
         let mut st: MEMORYSTATUSEX = std::mem::zeroed();
@@ -83,6 +84,8 @@ fn gmse() -> Result<MEMORYSTATUSEX> {
     }
 }
 
+/// Get current memory information
+/// Returns physical and commit memory statistics
 pub fn memory_info() -> Result<MemoryInfo> {
     let st = gmse()?;
     let phys_free = st.ullAvailPhys;
@@ -98,8 +101,9 @@ pub fn memory_info() -> Result<MemoryInfo> {
     })
 }
 
+/// Make NT system call with u32 command
 fn nt_call_u32(class: u32, command: u32) -> Result<()> {
-    // FIX: Retry logic per compatibilità con antivirus
+    // FIX: Retry logic for antivirus compatibility
     const MAX_RETRIES: u32 = 3;
     let mut last_error = 0i32;
 
@@ -283,20 +287,21 @@ fn process_list() -> Vec<(u32, String)> {
     out
 }
 
+/// Empty working set for a specific process
 fn empty_ws_process(pid: u32) -> bool {
-    // IMPORTANTE: Questa funzione richiede SE_DEBUG_NAME per funzionare correttamente
-    // Sui processi di sistema. Assicurarsi che sia già stato acquisito PRIMA di chiamare questa funzione.
+    // IMPORTANT: This function requires SE_DEBUG_NAME to work correctly
+    // On system processes. Ensure it has been acquired BEFORE calling this function.
     const MAX_RETRIES: u32 = 2;
 
     for attempt in 1..=MAX_RETRIES {
         unsafe {
-            // Usa PROCESS_ALL_ACCESS se disponibile, altrimenti i permessi minimi necessari
+            // Use PROCESS_ALL_ACCESS if available, otherwise minimum required permissions
             let h: HANDLE = OpenProcess(PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION, 0, pid);
 
             // HANDLE in windows-sys is isize, so compare with 0
             if h == 0 {
                 let error = GetLastError();
-                // ERROR_ACCESS_DENIED (0x5) è comune se SE_DEBUG_NAME non è acquisito
+                // ERROR_ACCESS_DENIED (0x5) is common if SE_DEBUG_NAME is not acquired
                 if error == 5 {
                     tracing::debug!(
                         "Access denied for process {} - SE_DEBUG_NAME privilege may be missing",
@@ -322,17 +327,17 @@ fn empty_ws_process(pid: u32) -> bool {
             let result = K32EmptyWorkingSet(h) != 0;
             CloseHandle(h);
 
-            // Se ha successo, ritorna subito
+            // If successful, return immediately
             if result {
                 return true;
             }
 
-            // Se è l'ultimo tentativo, ritorna false
+            // If it's the last attempt, return false
             if attempt >= MAX_RETRIES {
                 return false;
             }
 
-            // Retry se fallisce
+            // Retry if it fails
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
     }
@@ -340,20 +345,21 @@ fn empty_ws_process(pid: u32) -> bool {
     false
 }
 
+/// Optimize working set for all non-critical processes
 pub fn optimize_working_set(exclusions_lower: &[String]) -> Result<()> {
-    // IMPORTANTE: Sempre acquisire SE_DEBUG_NAME per permettere l'accesso a tutti i processi
-    // Anche se usiamo il metodo globale, SE_DEBUG_NAME garantisce che funzioni su tutti i processi
+    // IMPORTANT: Always acquire SE_DEBUG_NAME to allow access to all processes
+    // Even if we use the global method, SE_DEBUG_NAME ensures it works on all processes
     ensure_privileges(&[SE_DEBUG_NAME, SE_PROFILE_SINGLE_PROCESS_NAME])?;
 
-    // Se non ci sono esclusioni custom, usa l'ottimizzazione globale veloce
-    // Questo metodo richiede SE_DEBUG_NAME per funzionare correttamente su processi di sistema
+    // If there are no custom exclusions, use fast global optimization
+    // This method requires SE_DEBUG_NAME to work correctly on system processes
     if exclusions_lower.is_empty() {
         return crate::antivirus::whitelist::safe_memory_operation(|| {
             nt_call_u32(SYS_MEMORY_LIST_INFORMATION, MEM_EMPTY_WORKING_SETS)
         });
     }
 
-    // Crea HashSet per esclusioni utente
+    // Create HashSet for user exclusions
     let user_exclusions: HashSet<&str> = exclusions_lower.iter().map(|s| s.as_str()).collect();
 
     let processes = process_list();
@@ -362,13 +368,13 @@ pub fn optimize_working_set(exclusions_lower: &[String]) -> Result<()> {
     let mut critical_skip = 0;
 
     for (pid, name) in processes {
-        // PRIMA controlla se è un processo critico
+        // FIRST check if it's a critical process
         if is_critical_process(&name) {
             critical_skip += 1;
             continue;
         }
 
-        // POI controlla le esclusioni utente
+        // THEN check user exclusions
         if user_exclusions.contains(name.as_str()) {
             skip_count += 1;
             continue;
@@ -390,20 +396,20 @@ pub fn optimize_working_set(exclusions_lower: &[String]) -> Result<()> {
 }
 
 pub fn optimize_combined_page_list() -> Result<()> {
-    // Prima assicurati che i privilegi siano corretti
+    // First ensure privileges are correct
     ensure_privileges(&[
         SE_PROFILE_SINGLE_PROCESS_NAME,
-        SE_DEBUG_NAME, // Aggiungi anche questo per Gaming mode
+        SE_DEBUG_NAME, // Also add this for Gaming mode
     ])?;
 
-    // FIX: Usa la funzione has_combined_page_list() invece di controllare manualmente
-    // Questo usa RtlGetVersion che è più affidabile
+    // FIX: Use has_combined_page_list() function instead of checking manually
+    // This uses RtlGetVersion which is more reliable
     if !crate::os::has_combined_page_list() {
         tracing::info!("Combined page list not available on this Windows version, skipping");
         return Ok(());
     }
 
-    // Usa safe_memory_operation per evitare rilevamenti antivirus
+    // Use safe_memory_operation to avoid antivirus detections
     crate::antivirus::whitelist::safe_memory_operation(|| -> Result<(), anyhow::Error> {
         ensure_privileges(&[SE_PROFILE_SINGLE_PROCESS_NAME])?;
 

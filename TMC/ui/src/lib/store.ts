@@ -100,17 +100,17 @@ function parseMemoryAreas(areas: any): number {
 
 // ========== INITIALIZATION ==========
 export async function initApp(): Promise<void> {
-  // FIX #5: Cleanup prima di re-inizializzare per prevenire memory leak
+  // FIX #5: Cleanup before re-initializing to prevent memory leak
   if (appState.initialized) {
     console.warn('App already initialized, cleaning up first...')
     await cleanupApp()
   }
 
-  // FIX #8: Rimuoviamo il delay hardcoded - non è necessario
-  // Se serve un delay, dovrebbe essere basato su condizioni reali
+  // FIX #8: Remove hardcoded delay - not necessary
+  // If a delay is needed, it should be based on real conditions
 
   try {
-    // Clean up any existing state (doppio check per sicurezza)
+    // Clean up any existing state (double check for safety)
     await cleanupApp()
 
     // Load configuration
@@ -143,7 +143,7 @@ export async function initApp(): Promise<void> {
       localStorage.setItem('tmc_theme', theme)
 
       // Apply main color based on theme
-      // Priorità: main_color_hex_light/dark > main_color_hex personalizzato > default
+      // Priority: main_color_hex_light/dark > custom main_color_hex > default
       let mainColor: string
       if (theme === 'light') {
         if (cfg.main_color_hex_light) {
@@ -153,7 +153,7 @@ export async function initApp(): Promise<void> {
           cfg.main_color_hex !== '#0a84ff' &&
           cfg.main_color_hex !== '#007aff'
         ) {
-          // Se main_color_hex è personalizzato (non è il default dark), usalo
+          // If main_color_hex is custom (not default dark), use it
           mainColor = cfg.main_color_hex
         } else {
           mainColor = '#9a8a72' // Default light
@@ -166,7 +166,7 @@ export async function initApp(): Promise<void> {
           cfg.main_color_hex !== '#9a8a72' &&
           cfg.main_color_hex !== '#007aff'
         ) {
-          // Se main_color_hex è personalizzato (non è il default light), usalo
+          // If main_color_hex is custom (not default light), use it
           mainColor = cfg.main_color_hex
         } else {
           mainColor = '#0a84ff' // Default dark
@@ -300,17 +300,17 @@ export async function updateConfig(
     throw new Error('No config available to update')
   }
 
-  // FIX #6: Non aggiornare lo store fino a quando il salvataggio non è confermato
-  // Questo evita race conditions e problemi se il salvataggio fallisce
-  // Create updated config per calcoli locali
+  // FIX #6: Don't update store until save is confirmed
+  // This avoids race conditions and issues if save fails
+  // Create updated config for local calculations
   const updatedConfig = { ...currentConfig, ...partial }
 
   try {
-    // Save to backend PRIMA di aggiornare lo store
+    // Save to backend BEFORE updating store
     const { saveConfig } = await import('./api')
     await saveConfig(partial)
 
-    // Solo dopo il salvataggio riuscito, aggiorna lo store
+    // Only after successful save, update store
     config.set(updatedConfig)
 
     // Apply side effects
@@ -327,15 +327,15 @@ export async function updateConfig(
       }
     }
 
-    // Theme change - applica il colore corretto quando cambia il tema
-    // IMPORTANTE: mantiene i colori personalizzati separati per tema
+    // Theme change - apply correct color when theme changes
+    // IMPORTANT: maintain custom colors separated by theme
     if (partial.theme !== undefined) {
       const newTheme = partial.theme === 'light' ? 'light' : 'dark'
       document.documentElement.setAttribute('data-theme', newTheme)
       localStorage.setItem('tmc_theme', newTheme)
 
-      // Applica il colore corretto per il nuovo tema
-      // Priorità: main_color_hex_light/dark > main_color_hex personalizzato > default
+      // Apply correct color for new theme
+      // Priority: main_color_hex_light/dark > custom main_color_hex > default
       let mainColor: string
       if (newTheme === 'light') {
         if (currentConfig.main_color_hex_light) {
