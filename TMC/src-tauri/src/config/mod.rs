@@ -54,12 +54,12 @@ impl PortableDetector {
             }
         };
 
-        // Crea directory se non esiste
+        // Create directory if it doesn't exist
         if !data_dir.exists() {
             fs::create_dir_all(&data_dir)?;
         }
 
-        // Log dove salviamo i dati
+        // Log where we save the data
         tracing::info!("Data directory: {}", data_dir.display());
         tracing::info!(
             "Portable executable: {} (can be moved anywhere, data saved in AppData)",
@@ -146,7 +146,7 @@ impl Profile {
     pub fn get_memory_areas(&self) -> Areas {
         match self {
             Profile::Normal => {
-                // Light profile: Essential and safest areas only
+        // Light profile: Essential and safest areas only
                 // - WORKING_SET: Core optimization, high impact, safe (critical processes protected)
                 // - MODIFIED_PAGE_LIST: Very safe, clears pages waiting for disk write
                 // - REGISTRY_CACHE: Lightweight, very safe, cache rebuilds automatically
@@ -155,7 +155,7 @@ impl Profile {
                 Areas::WORKING_SET | Areas::MODIFIED_PAGE_LIST | Areas::REGISTRY_CACHE
             }
             Profile::Balanced => {
-                // Balanced profile: Good balance between memory freed and system performance
+        // Balanced profile: Good balance between memory freed and system performance
                 // Includes all Normal areas plus:
                 // - STANDBY_LIST: High memory freed, safe, low-medium performance impact
                 // - SYSTEM_FILE_CACHE: High memory freed, safe with auto-rebuild
@@ -177,7 +177,7 @@ impl Profile {
                 areas
             }
             Profile::Gaming => {
-                // Aggressive profile: All available areas for maximum memory freeing
+        // Aggressive profile: All available areas for maximum memory freeing
                 // Suitable for gaming and resource-intensive applications
                 // Includes all areas from Balanced plus:
                 // - STANDBY_LIST_LOW: Low-priority standby memory (if available)
@@ -421,7 +421,7 @@ impl Default for Config {
             font_size: 13.0,
             language: "en".to_string(),
             theme: "dark".to_string(),
-            main_color_hex: "#0a84ff".to_string(), // Deprecated, mantenuto per compatibilità
+            main_color_hex: "#0a84ff".to_string(), // Deprecated, kept for compatibility
             main_color_hex_light: default_main_color_light(),
             main_color_hex_dark: default_main_color_dark(),
             profile: default_profile,
@@ -536,8 +536,8 @@ impl Config {
     }
 
     fn load_installer_settings() -> Option<serde_json::Value> {
-        // Prova a leggere tutte le impostazioni dal file di configurazione creato dall'installer
-        // L'installer salva in {userappdata}\TommyMemoryCleaner\config.json
+        // Try to read all settings from the configuration file created by the installer
+        // The installer saves in {userappdata}\TommyMemoryCleaner\config.json
         #[cfg(windows)]
         {
             use std::env;
@@ -571,11 +571,11 @@ impl Config {
                             path.display()
                         );
 
-                        // Copia il vecchio config nella nuova location
+                        // Copy old config to new location
                         if let Err(e) = fs::copy(&old_config, &path) {
                             tracing::warn!("Failed to migrate config: {}", e);
                         } else {
-                            // Rinomina il vecchio per backup
+                            // Rename old one for backup
                             if let Err(e) = fs::rename(&old_config, exe_dir.join("config.json.old"))
                             {
                                 tracing::debug!("Failed to rename old config for backup: {}", e);
@@ -631,24 +631,24 @@ impl Config {
             default
         };
 
-        // FIX: Applica sempre le impostazioni dall'installer se presente (non solo se sono default)
+        // FIX: Always apply settings from installer if present (not only if they are default)
         if let Some(installer_json) = Self::load_installer_settings() {
-            // Applica sempre la lingua dall'installer se presente
+            // Always apply language from installer if present
             if let Some(lang) = installer_json.get("language").and_then(|v| v.as_str()) {
                 cfg.language = lang.to_string();
             }
-            // Applica sempre il tema dall'installer se presente
+            // Always apply theme from installer if present
             if let Some(theme) = installer_json.get("theme").and_then(|v| v.as_str()) {
                 cfg.theme = theme.to_string();
             }
-            // Applica sempre always_on_top dall'installer se presente
+            // Always apply always_on_top from installer if present
             if let Some(always_on_top) = installer_json
                 .get("always_on_top")
                 .and_then(|v| v.as_bool())
             {
                 cfg.always_on_top = always_on_top;
             }
-            // Applica sempre le notifiche dall'installer se presente
+            // Always apply notifications from installer if present
             if let Some(notifications) = installer_json
                 .get("show_opt_notifications")
                 .and_then(|v| v.as_bool())
@@ -669,12 +669,12 @@ impl Config {
     pub fn save(&self) -> io::Result<()> {
         let path = config_path();
 
-        // ⭐ Fallback 1: Assicurati che la directory esista con retry
+        // Fallback 1: Ensure directory exists with retry
         {
             let portable = PORTABLE.read();
             let data_dir = portable.data_dir();
             if !data_dir.exists() {
-                // Retry fino a 3 volte per creare la directory
+                // Retry up to 3 times to create directory
                 let mut last_error = None;
                 for attempt in 1..=3 {
                     match fs::create_dir_all(&data_dir) {
@@ -704,14 +704,14 @@ impl Config {
             }
         }
 
-        // ⭐ Fallback 2: Crea anche il parent directory se necessario
+        // Fallback 2: Also create parent directory if necessary
         if let Some(parent) = path.parent() {
             if !parent.exists() {
                 fs::create_dir_all(parent)?;
             }
         }
 
-        // ⭐ Fallback 3: Serializza con retry
+        // Fallback 3: Serialize with retry
         let content = match serde_json::to_string_pretty(self) {
             Ok(c) => c,
             Err(e) => {
@@ -723,19 +723,19 @@ impl Config {
             }
         };
 
-        // ⭐ Fallback 4: Salvataggio atomico con retry e backup
+        // Fallback 4: Atomic save with retry and backup
         let temp_path = path.with_extension("tmp");
         let backup_path = path.with_extension("json.bak");
 
-        // Crea backup del file esistente se presente
+        // Create backup of existing file if present
         if path.exists() {
             if let Err(e) = fs::copy(&path, &backup_path) {
                 tracing::warn!("Failed to create backup: {:?}", e);
-                // Non bloccare il salvataggio se il backup fallisce
+                // Don't block save if backup fails
             }
         }
 
-        // Retry fino a 3 volte per scrivere il file temporaneo
+        // Retry up to 3 times to write temporary file
         let mut last_error = None;
         for attempt in 1..=3 {
             match fs::write(&temp_path, &content) {
@@ -759,19 +759,19 @@ impl Config {
             tracing::error!(
                 "Failed to write config after retries, restoring from backup if available"
             );
-            // Ripristina backup se disponibile
+            // Restore backup if available
             if backup_path.exists() && path.exists() {
                 let _ = fs::copy(&backup_path, &path);
             }
             return Err(e);
         }
 
-        // ⭐ Fallback 5: Rename atomico con retry
+        // Fallback 5: Atomic rename with retry
         for attempt in 1..=3 {
             match fs::rename(&temp_path, &path) {
                 Ok(_) => {
                     tracing::debug!("Config saved successfully to: {}", path.display());
-                    // Rimuovi backup vecchio se tutto ok
+                    // Remove old backup if everything is ok
                     if backup_path.exists() {
                         let _ = fs::remove_file(&backup_path);
                     }
@@ -814,7 +814,7 @@ impl Config {
     }
 
     fn migrate_v1_to_v2(&mut self) {
-        // NON aggiungere esclusioni di default nella migrazione
+        // DO NOT add default exclusions in migration
 
         if self.memory_areas.is_empty() {
             self.memory_areas = self.profile.get_memory_areas();

@@ -1,10 +1,20 @@
+//! Global Shortcut Management Module
+//!
+//! This module handles the registration and parsing of system-wide hotkeys
+//! using the Tauri v2 Global Shortcut plugin. It provides utilities to 
+//! convert string representations of shortcuts into hardware-level key codes
+//! and modifier bitflags.
+
 use crate::config::Config;
 use crate::hotkeys::codes::code_from_str;
 use std::sync::{Arc, Mutex};
 use tauri::AppHandle;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Modifiers, Shortcut};
 
-/// Parse a hotkey string into Modifiers and key string for Tauri v2
+/// Parses a human-readable hotkey string into Tauri Modifiers and a key identifier.
+///
+/// Supported modifiers: CTRL, ALT, SHIFT, SUPER/WIN.
+/// The last element in the plus-separated string is treated as the primary key.
 pub fn parse_hotkey_for_v2(hotkey: &str) -> Result<(Modifiers, String), String> {
     let parts: Vec<&str> = hotkey.split('+').map(|s| s.trim()).collect();
     let mut mods = Modifiers::empty();
@@ -21,40 +31,46 @@ pub fn parse_hotkey_for_v2(hotkey: &str) -> Result<(Modifiers, String), String> 
     }
 
     if key.is_empty() {
-        return Err("No key specified in hotkey".to_string());
+        return Err("No primary key found in hotkey string".to_string());
     }
 
     Ok((mods, key))
 }
 
-/// Register a global hotkey using Tauri v2 API
+/// Configures and registers a global hotkey within the Tauri application context.
+///
+/// This function ensures that any previously registered shortcuts are cleared
+/// before attempting to register the new hotkey to prevent conflicts.
 pub fn register_global_hotkey_v2(
     app: &AppHandle,
     hotkey: &str,
     _cfg: Arc<Mutex<Config>>,
 ) -> Result<(), String> {
-    // First unregister all existing hotkeys
+    // Clear previous registrations to ensure a clean state
     app.global_shortcut()
         .unregister_all()
         .map_err(|e| e.to_string())?;
 
-    // Parse hotkey string
+    // Deconstruct hotkey string and resolve hardware key code
     let (modifiers, key) = parse_hotkey_for_v2(hotkey)?;
     let code = code_from_str(&key)?;
 
-    // Create shortcut
+    // Initialize the shortcut structure
     let shortcut = Shortcut::new(Some(modifiers), code);
 
-    // Register the hotkey
+    // Final registration with the operating system via Tauri plugin
     app.global_shortcut()
         .register(shortcut)
         .map_err(|e| e.to_string())?;
 
-    tracing::info!("Global hotkey registered: {}", hotkey);
+    tracing::info!("Global hotkey successfully registered: {}", hotkey);
     Ok(())
 }
 
-/// Tauri command to register a global hotkey
+/// Tauri IPC command to dynamically update the global hotkey from the frontend.
+///
+/// Accesses the application state to retrieve configuration before triggering
+/// the underlying registration logic.
 #[tauri::command]
 pub fn cmd_register_hotkey(
     app: AppHandle,

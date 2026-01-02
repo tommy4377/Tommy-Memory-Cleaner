@@ -1,13 +1,26 @@
+/// Command-line argument parser and console mode executor.
+/// 
+/// This module handles parsing of command-line arguments for memory optimization
+/// and executes the optimization in console mode without GUI. It supports both
+/// individual memory area selection and predefined profiles.
+
 use crate::config::{Config, Profile};
 use crate::engine::Engine;
 use crate::memory::types::{Areas, Reason};
 use std::sync::{Arc, Mutex};
 
-/// Run the application in console mode (CLI)
+/// Runs the application in console mode with command-line arguments.
+/// 
+/// Parses the provided arguments to determine which memory areas to optimize
+/// or which profile to use, then executes the optimization and reports results.
+/// 
+/// # Arguments
+/// 
+/// * `args` - Slice of command-line arguments
 pub fn run_console_mode(args: &[String]) {
     use std::io::{self, Write};
 
-    // Parse arguments
+    // Parse command-line arguments
     let mut areas = Areas::empty();
     let mut profile_mode = false;
     let mut profile_name = String::new();
@@ -58,7 +71,7 @@ pub fn run_console_mode(args: &[String]) {
         }
     }
 
-    // Se profile mode è specificato, usa le aree del profilo
+    // If profile mode is specified, use the profile's areas
     if profile_mode {
         let profile = match profile_name.as_str() {
             "Normal" => Profile::Normal,
@@ -76,7 +89,7 @@ pub fn run_console_mode(args: &[String]) {
         println!("Using profile: {:?}", profile);
     }
 
-    // Se nessuna area è specificata, usa il profilo Balanced di default
+    // If no areas are specified, use Balanced profile by default
     if areas.is_empty() {
         areas = Profile::Balanced.get_memory_areas();
         println!("No areas specified, using Balanced profile");
@@ -85,10 +98,10 @@ pub fn run_console_mode(args: &[String]) {
     println!("Optimizing memory areas: {:?}", areas.get_names());
     io::stdout().flush().unwrap();
 
-    // Esegui ottimizzazione in modo sincrono (console mode)
+    // Execute optimization synchronously in console mode
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
-        // Inizializza config
+        // Initialize configuration
         let cfg = match Config::load() {
             Ok(c) => c,
             Err(e) => {
@@ -98,18 +111,18 @@ pub fn run_console_mode(args: &[String]) {
             }
         };
 
-        // Crea Arc<Mutex<Config>> per l'engine
+        // Create Arc<Mutex<Config>> for the engine
         let cfg_arc = Arc::new(Mutex::new(cfg));
         let engine = Engine::new(cfg_arc.clone());
 
-        // Esegui ottimizzazione
+        // Execute memory optimization
         match engine.optimize::<fn(u8, u8, String)>(Reason::Manual, areas, None) {
             Ok(result) => {
                 let freed_mb = result.freed_physical_bytes.abs() as f64 / 1024.0 / 1024.0;
                 println!("Optimization completed successfully");
                 println!("Freed: {:.2} MB", freed_mb);
 
-                // Mostra risultati per area
+                // Display results for each optimized area
                 for area in result.areas {
                     if let Some(error) = area.error {
                         eprintln!("  {}: FAILED - {}", area.name, error);

@@ -1,15 +1,28 @@
+/// Configuration management commands.
+/// 
+/// This module provides Tauri commands for managing application configuration,
+/// including loading, saving, and updating various settings such as profiles,
+/// memory areas, themes, and system preferences.
+
 use crate::config::{Config, Priority, Profile};
 use crate::memory::types::Areas;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-/// Exit the application
+/// Exits the application gracefully.
+/// 
+/// This command terminates the application process after logging the exit event.
 #[tauri::command]
 pub fn cmd_exit(_app: AppHandle) {
     tracing::info!("Exiting application...");
     std::process::exit(0);
 }
 
-/// Get current configuration
+/// Retrieves the current application configuration.
+/// 
+/// # Returns
+/// 
+/// Returns a clone of the current configuration or an error if the
+/// configuration lock is poisoned.
 #[tauri::command]
 pub fn cmd_get_config(state: State<'_, crate::AppState>) -> Result<Config, String> {
     state
@@ -19,14 +32,28 @@ pub fn cmd_get_config(state: State<'_, crate::AppState>) -> Result<Config, Strin
         .map(|c| c.clone())
 }
 
-/// Save configuration from JSON
+/// Saves configuration changes from JSON data.
+/// 
+/// This command updates the application configuration based on the provided
+/// JSON value. It includes rate limiting to prevent excessive updates.
+/// 
+/// # Arguments
+/// 
+/// * `app` - The application handle for emitting events
+/// * `state` - The application state containing the configuration
+/// * `cfg_json` - JSON value containing the configuration changes
+/// 
+/// # Returns
+/// 
+/// Returns `Ok(())` if the configuration is saved successfully,
+/// or an error string if the operation fails.
 #[tauri::command]
 pub fn cmd_save_config(
     app: AppHandle,
     state: State<'_, crate::AppState>,
     cfg_json: serde_json::Value,
 ) -> Result<(), String> {
-    // Rate limiting check
+    // Rate limiting check to prevent excessive configuration updates
     {
         let mut rl = state
             .rate_limiter
@@ -93,11 +120,11 @@ pub fn cmd_save_config(
         if let Some(v) = obj.get("theme") {
             if let Some(s) = v.as_str() {
                 current_cfg.theme = s.to_string();
-                need_icon_update = true; // Tray icon cambia colore in base al tema
+                need_icon_update = true; // Tray icon changes color based on theme
             }
         }
 
-        // Main color - supporto per light/dark separati
+        // Main color - support for separate light/dark colors
         if let Some(v) = obj.get("main_color_hex_light") {
             if let Some(s) = v.as_str() {
                 current_cfg.main_color_hex_light = s.to_string();
@@ -141,7 +168,7 @@ pub fn cmd_save_config(
         update_bool!(show_opt_notifications);
         update_bool!(auto_update);
         update_bool!(close_after_opt);
-        // ⭐ Setup completed - importante per evitare che il setup si apra più volte
+        // Setup completed - important to prevent setup from opening multiple times
         if let Some(v) = obj.get("setup_completed") {
             if let Some(b) = v.as_bool() {
                 current_cfg.setup_completed = b;
@@ -150,12 +177,12 @@ pub fn cmd_save_config(
         // Handle run_on_startup specially - it needs to call the system function
         if let Some(v) = obj.get("run_on_startup") {
             if let Some(b) = v.as_bool() {
-                // Esegui l'operazione e logga eventuali errori
+                // Execute operation and log any errors
                 if let Err(e) = crate::system::startup::set_run_on_startup(b) {
-                    tracing::error!("Errore attivazione avvio automatico (settings): {:?}", e);
+                    tracing::error!("Error enabling automatic startup (settings): {:?}", e);
                 }
-                // Forziamo il valore booleano scelto dall'utente nel config,
-                // invece di ri-leggerlo dal sistema che potrebbe essere lento ad aggiornarsi
+                // Force the boolean value chosen by user in config,
+                // instead of re-reading from system which might be slow to update
                 current_cfg.run_on_startup = b;
             }
         }
@@ -210,7 +237,7 @@ pub fn cmd_save_config(
     // Validate and save
     current_cfg.validate();
 
-    // ⭐ FIX #2: Rilascia il lock il prima possibile - salva la config con retry e poi rilascia
+    // FIX #2: Release lock as soon as possible - save config with retry then release
     {
         let mut guard = state
             .cfg
@@ -218,7 +245,7 @@ pub fn cmd_save_config(
             .map_err(|_| "Config lock poisoned".to_string())?;
         *guard = current_cfg.clone();
 
-        // ⭐ Salvataggio con retry per maggiore affidabilità
+        // Save with retry for better reliability
         let save_result = guard.save();
         match save_result {
             Ok(_) => {
@@ -226,7 +253,7 @@ pub fn cmd_save_config(
             }
             Err(e) => {
                 tracing::warn!("Failed to save config: {:?}, retrying...", e);
-                // Retry una volta dopo un breve delay
+                // Retry once after a short delay
                 std::thread::sleep(std::time::Duration::from_millis(100));
                 guard.save().map_err(|e2| {
                     tracing::error!("Failed to save config on retry: {:?}", e2);
@@ -234,11 +261,11 @@ pub fn cmd_save_config(
                 })?;
             }
         }
-        // Lock viene rilasciato qui automaticamente
+        // Lock is automatically released here
     }
 
-    // Update UI - tutte queste operazioni avvengono DOPO che il lock è stato rilasciato
-    // Nota: update_menu non esiste più, il menu è gestito via HTML
+    // Update UI - all these operations happen AFTER the lock has been released
+    // Note: update_menu no longer exists, menu is managed via HTML
 
     if need_icon_update {
         crate::refresh_tray_icon(&app);
@@ -258,7 +285,23 @@ pub fn cmd_save_config(
     Ok(())
 }
 
-/// Complete setup wizard
+/// Completes the setup wizard with provided configuration.
+/// 
+/// This command applies the initial configuration settings chosen during
+/// the first-time setup, including startup preferences, theme, language,
+/// and window behavior. It also handles the transition from setup window
+/// to the main application window.
+/// 
+/// # Arguments
+/// 
+/// * `app` - The application handle for window management
+/// * `state` - The application state containing the configuration
+/// * `setup_data` - JSON value containing the setup configuration
+/// 
+/// # Returns
+/// 
+/// Returns `Ok(())` if setup is completed successfully,
+/// or an error string if the operation fails.
 #[tauri::command]
 pub fn cmd_complete_setup(
     app: AppHandle,
@@ -270,16 +313,16 @@ pub fn cmd_complete_setup(
         .lock()
         .map_err(|_| "Config lock poisoned".to_string())?;
 
-    // Applica le impostazioni dal setup
+    // Apply settings from setup
     if let Some(obj) = setup_data.as_object() {
         if let Some(v) = obj.get("run_on_startup") {
             if let Some(b) = v.as_bool() {
-                // Esegui l'operazione e logga eventuali errori
+                // Execute operation and log any errors
                 if let Err(e) = crate::system::startup::set_run_on_startup(b) {
                     tracing::error!("Failed to set startup during setup: {:?}", e);
                 }
-                // Forziamo il valore booleano scelto dall'utente nel config,
-                // invece di ri-leggerlo dal sistema che potrebbe essere lento ad aggiornarsi
+                // Force the boolean value chosen by user in config,
+                // instead of re-reading from system which might be slow to update
                 cfg.run_on_startup = b;
             }
         }
@@ -288,11 +331,11 @@ pub fn cmd_complete_setup(
             if let Some(s) = v.as_str() {
                 cfg.theme = s.to_string();
 
-                // Se il tema è light e non c'è un colore principale per light, imposta il default
+                // If theme is light and no main color for light is set, set default
                 if s == "light" && cfg.main_color_hex_light.is_empty() {
                     cfg.main_color_hex_light = "#9a8a72".to_string();
                 }
-                // Se il tema è dark e non c'è un colore principale per dark, imposta il default
+                // If theme is dark and no main color for dark is set, set default
                 if s == "dark" && cfg.main_color_hex_dark.is_empty() {
                     cfg.main_color_hex_dark = "#0a84ff".to_string();
                 }
@@ -319,10 +362,10 @@ pub fn cmd_complete_setup(
         }
     }
 
-    // ⭐ Segna il setup come completato e salva con retry
+    // Mark setup as completed and save with retry
     cfg.setup_completed = true;
 
-    // ⭐ Salvataggio con retry per assicurarsi che setup_completed venga salvato
+    // Save with retry to ensure setup_completed is saved
     let save_result = cfg.save();
     match save_result {
         Ok(_) => {
@@ -330,7 +373,7 @@ pub fn cmd_complete_setup(
         }
         Err(e) => {
             tracing::error!("Failed to save config after setup: {:?}", e);
-            // ⭐ Retry una volta dopo un breve delay
+            // Retry once after a short delay
             std::thread::sleep(std::time::Duration::from_millis(200));
             match cfg.save() {
                 Ok(_) => {
@@ -344,7 +387,7 @@ pub fn cmd_complete_setup(
         }
     }
 
-    // ⭐ Verifica che setup_completed sia stato salvato correttamente
+    // Verify that setup_completed was saved correctly
     let config_path = crate::config::get_portable_detector().config_path();
     if config_path.exists() {
         if let Ok(content) = std::fs::read_to_string(&config_path) {
@@ -361,11 +404,11 @@ pub fn cmd_complete_setup(
         }
     }
 
-    // Log delle impostazioni applicate per debug
+    // Log applied settings for debugging
     tracing::info!("Setup completed - Theme: {}, Language: {}, AlwaysOnTop: {}, ShowNotifications: {}, RunOnStartup: {}, SetupCompleted: {}", 
         cfg.theme, cfg.language, cfg.always_on_top, cfg.show_opt_notifications, cfg.run_on_startup, cfg.setup_completed);
 
-    // Prepara i dati per la sincronizzazione PRIMA di creare/mostrare la finestra
+    // Prepare data for synchronization BEFORE creating/showing the window
     let theme = cfg.theme.clone();
     let main_color_light = cfg.main_color_hex_light.clone();
     let main_color_dark = cfg.main_color_hex_dark.clone();
@@ -385,14 +428,14 @@ pub fn cmd_complete_setup(
     let language = cfg.language.clone();
     let always_on_top = cfg.always_on_top;
 
-    // Mostra PRIMA la finestra principale, POI chiudi il setup
-    // Assicurati che la finestra principale esista, altrimenti creala
+    // Show the main window FIRST, THEN close setup
+    // Ensure the main window exists, otherwise create it
     let main_window = if let Some(window) = app.get_webview_window("main") {
         tracing::info!("Main window already exists, showing it...");
         Some(window)
     } else {
         tracing::info!("Main window not found, creating it...");
-        // Crea la finestra principale se non esiste
+        // Create the main window if it doesn't exist
         match tauri::WebviewWindowBuilder::new(
             &app,
             "main",
@@ -417,60 +460,60 @@ pub fn cmd_complete_setup(
         }
     };
 
-    // Mostra la finestra principale e applica le impostazioni
+    // Show the main window and apply settings
     let main_window_shown = if let Some(main_window) = main_window {
         tracing::info!("Showing main window after setup...");
 
-        // Applica always_on_top (sia true che false) - fallback se la finestra principale non risponde
+        // Apply always_on_top (both true and false) - fallback if main window doesn't respond
         let _ = crate::system::window::set_always_on_top(&app, always_on_top);
 
-        // Assicurati che la finestra sia visibile e non nascosta
-        // Ordine corretto secondo best practices: skip_taskbar -> unminimize -> show -> center -> focus
+        // Ensure the window is visible and not hidden
+        // Correct order according to best practices: skip_taskbar -> unminimize -> show -> center -> focus
         let _ = main_window.set_skip_taskbar(false);
 
-        // Unminimize prima di show (se minimizzata)
+        // Unminimize before show (if minimized)
         let _ = main_window.unminimize();
 
-        // Mostra la finestra
+        // Show the window
         let show_result = main_window.show();
         if let Err(e) = show_result {
             tracing::error!("Failed to show main window: {:?}", e);
             false
         } else {
-            // Centra la finestra
+            // Center the window
             let _ = main_window.center();
 
-            // Focalizza la finestra (dopo show e center)
+            // Focus the window (after show and center)
             if let Err(e) = main_window.set_focus() {
                 tracing::warn!("Failed to focus main window: {:?}", e);
             }
 
-            // Applica always_on_top anche alla finestra principale direttamente
+            // Apply always_on_top directly to the main window as well
             if let Err(e) = main_window.set_always_on_top(always_on_top) {
                 tracing::warn!("Failed to set always_on_top on main window: {:?}", e);
             }
 
-            // Emetti evento per applicare il tema e il colore nella finestra principale
-            // Il frontend ascolterà questo evento e applicherà il tema e il colore corretto
+            // Emit event to apply theme and color in the main window
+            // The frontend will listen for this event and apply the theme and correct color
             let _ = main_window.eval(&format!(
                 r#"
                 (function() {{
-                    // Applica il tema
+                    // Apply the theme
                     document.documentElement.setAttribute('data-theme', '{}');
                     localStorage.setItem('tmc_theme', '{}');
                     
-                    // Applica il colore principale corretto per il tema
+                    // Apply the correct main color for the theme
                     const root = document.documentElement;
                     root.style.setProperty('--btn-bg', '{}');
                     root.style.setProperty('--bar-fill', '{}');
                     root.style.setProperty('--input-focus', '{}');
                     
-                    // Applica la lingua se disponibile
+                    // Apply the language if available
                     if (typeof window.setLanguage === 'function') {{
                         window.setLanguage('{}');
                     }}
                     
-                    // Notifica il frontend di ricaricare la config
+                    // Notify frontend to reload config
                     if (typeof window.dispatchEvent !== 'undefined') {{
                         window.dispatchEvent(new CustomEvent('config-updated'));
                     }}
@@ -479,7 +522,7 @@ pub fn cmd_complete_setup(
                 theme, theme, main_color, main_color, main_color, language
             ));
 
-            // Piccolo delay per assicurarsi che la finestra principale sia completamente caricata
+            // Small delay to ensure main window is fully loaded
             std::thread::sleep(std::time::Duration::from_millis(200));
             true
         }
@@ -488,8 +531,8 @@ pub fn cmd_complete_setup(
         false
     };
 
-    // Emetti evento per notificare il frontend che il setup è completato
-    // Il frontend chiuderà il setup dopo aver verificato che la finestra principale è pronta
+    // Emit event to notify frontend that setup is completed
+    // Frontend will close setup after verifying main window is ready
     tracing::info!(
         "Setup completed, emitting setup-complete event (main window shown: {})...",
         main_window_shown
@@ -499,8 +542,8 @@ pub fn cmd_complete_setup(
     // Emit config-changed event since setup modifies configuration
     let _ = app.emit("config-changed", ());
 
-    // NON chiudere il setup qui - lascia che il frontend lo chiuda dopo aver verificato
-    // che la finestra principale è pronta. Questo evita race conditions e crash.
+    // DO NOT close setup here - let frontend close it after verifying
+    // that main window is ready. This avoids race conditions and crashes.
 
     Ok(())
 }

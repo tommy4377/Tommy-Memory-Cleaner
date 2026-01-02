@@ -1,9 +1,19 @@
-/// Memory management commands for Tauri backend
+/// Memory management commands for the Tauri backend.
+/// 
+/// This module provides Tauri commands for memory optimization operations,
+/// including memory information retrieval, process listing, and both synchronous
+/// and asynchronous memory optimization functionality.
+
 use crate::memory::types::{Areas, Reason};
 use std::time::Duration;
 use tauri::{AppHandle, Manager, State};
 
-/// Get current memory usage information
+/// Retrieves current memory usage information.
+/// 
+/// # Returns
+/// 
+/// Returns a `MemoryInfo` struct containing detailed memory statistics
+/// for physical and virtual memory, or an error string if the operation fails.
 #[tauri::command]
 pub fn cmd_memory_info(
     state: State<'_, crate::AppState>,
@@ -11,19 +21,47 @@ pub fn cmd_memory_info(
     state.engine.memory().map_err(|e| e.to_string())
 }
 
-/// Get list of all running process names
+/// Retrieves a list of all running process names.
+/// 
+/// # Returns
+/// 
+/// Returns a vector containing the names of all currently running processes
+/// on the system.
 #[tauri::command]
 pub fn cmd_list_process_names() -> Result<Vec<String>, String> {
     Ok(crate::memory::ops::list_process_names())
 }
 
-/// Get list of critical system processes
+/// Retrieves a list of critical system processes.
+/// 
+/// These processes should not be terminated during memory optimization
+/// to maintain system stability.
+/// 
+/// # Returns
+/// 
+/// Returns a vector containing the names of critical system processes
+/// that are protected from optimization.
 #[tauri::command]
 pub fn cmd_get_critical_processes() -> Result<Vec<String>, String> {
     Ok(crate::memory::critical_processes::get_critical_processes_list())
 }
 
-/// Execute memory optimization asynchronously
+/// Executes memory optimization asynchronously.
+/// 
+/// This command initiates memory optimization in a background task,
+/// allowing the UI to remain responsive during the operation.
+/// 
+/// # Arguments
+/// 
+/// * `app` - The application handle for window management
+/// * `state` - The application state containing the engine and configuration
+/// * `reason` - The reason for optimization (manual, scheduled, low memory)
+/// * `areas` - String representation of memory areas to optimize
+/// 
+/// # Returns
+/// 
+/// Returns `Ok(())` if the optimization task is started successfully,
+/// or an error string if rate limiting is exceeded.
 #[tauri::command]
 pub fn cmd_optimize_async(
     app: AppHandle,
@@ -31,7 +69,7 @@ pub fn cmd_optimize_async(
     reason: Reason,
     areas: String,
 ) -> Result<(), String> {
-    // Rate limiting check
+    // Rate limiting check to prevent excessive optimization requests
     {
         let mut rl = state
             .rate_limiter
@@ -47,7 +85,7 @@ pub fn cmd_optimize_async(
     let engine = state.engine.clone();
     let cfg = state.cfg.clone();
 
-    // Parse areas string to bitflags
+    // Parse areas string to bitflags for memory optimization
     let areas_flags = {
         let mut result = Areas::empty();
         for flag in areas.split('|') {
@@ -73,7 +111,7 @@ pub fn cmd_optimize_async(
         result
     };
 
-    // Run optimization in background
+    // Run optimization in background task to avoid blocking UI
     tauri::async_runtime::spawn(async move {
         crate::perform_optimization(
             app.clone(),
@@ -85,7 +123,7 @@ pub fn cmd_optimize_async(
         )
         .await;
 
-        // Handle auto-close after optimization
+        // Handle automatic window closing after optimization if configured
         if reason == Reason::Manual {
             let should_close = cfg.lock().map(|c| c.close_after_opt).unwrap_or(false);
 

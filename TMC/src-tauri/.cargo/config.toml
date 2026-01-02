@@ -1,5 +1,5 @@
-# Configurazione per linkare staticamente il runtime MSVC
-# Questo elimina la dipendenza da VCRUNTIME140.dll
+# Configuration for statically linking the MSVC runtime
+# This eliminates the dependency on VCRUNTIME140.dll
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-C", "target-feature=+crt-static"]
 

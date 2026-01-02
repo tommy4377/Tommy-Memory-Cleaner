@@ -15,7 +15,7 @@ pub fn start_auto_optimizer(app: AppHandle, engine: Engine, cfg: Arc<Mutex<Confi
         let mut last_low_mem_opt = Instant::now();
         let mut check_interval = Duration::from_secs(30);
 
-        // Aspetta un po' prima di iniziare i controlli
+        // Wait before starting checks
         tokio::time::sleep(Duration::from_secs(10)).await;
 
         loop {
@@ -48,8 +48,8 @@ pub fn start_auto_optimizer(app: AppHandle, engine: Engine, cfg: Arc<Mutex<Confi
                     let cfg_clone = cfg.clone();
 
                     tauri::async_runtime::spawn(async move {
-                        // FIX: Usa with_progress: true per aggiornare la UI durante le ottimizzazioni automatiche
-                        // Questo evita sovrapposizioni e mostra correttamente lo stato
+                        // FIX: Use with_progress: true to update the UI during automatic optimizations
+                        // This prevents overlaps and correctly shows the status
                         crate::perform_optimization(
                             app_clone,
                             engine_clone,
@@ -66,15 +66,15 @@ pub fn start_auto_optimizer(app: AppHandle, engine: Engine, cfg: Arc<Mutex<Confi
                 }
             }
 
-            // LOW MEMORY OPTIMIZATION (FIX del bug)
+            // LOW MEMORY OPTIMIZATION (bug fix)
             if conf.auto_opt_free_threshold > 0 && !action_taken {
-                // Controlla la memoria
+                // Check memory status
                 if let Ok(mem) = engine.memory() {
                     let free_percent = mem.physical.free.percentage;
 
-                    // FIX: Confronta correttamente con la soglia
+                    // FIX: Correctly compare with threshold
                     if free_percent < conf.auto_opt_free_threshold {
-                        // Verifica cooldown di 5 minuti
+                        // Verify 5-minute cooldown
                         if last_low_mem_opt.elapsed() >= Duration::from_secs(300) {
                             tracing::info!(
                                 "Triggering low memory optimization: {}% free < {}% threshold",
@@ -82,7 +82,7 @@ pub fn start_auto_optimizer(app: AppHandle, engine: Engine, cfg: Arc<Mutex<Confi
                                 conf.auto_opt_free_threshold
                             );
 
-                            // Log evento automatico
+                            // Log automatic event
                             crate::logging::event_viewer::log_auto_optimization_event(
                                 "Low Memory",
                                 conf.auto_opt_free_threshold,
@@ -93,8 +93,8 @@ pub fn start_auto_optimizer(app: AppHandle, engine: Engine, cfg: Arc<Mutex<Confi
                             let cfg_clone = cfg.clone();
 
                             tauri::async_runtime::spawn(async move {
-                                // FIX: Usa with_progress: true per aggiornare la UI durante le ottimizzazioni automatiche
-                                // Questo evita sovrapposizioni e mostra correttamente lo stato
+                                // FIX: Use with_progress: true to update UI during automatic optimizations
+                                // This prevents overlaps and correctly shows status
                                 crate::perform_optimization(
                                     app_clone,
                                     engine_clone,
@@ -116,10 +116,10 @@ pub fn start_auto_optimizer(app: AppHandle, engine: Engine, cfg: Arc<Mutex<Confi
                             );
                         }
 
-                        // Aumenta frequenza controlli quando memoria bassa
+                        // Increase check frequency when memory is low
                         check_interval = Duration::from_secs(30);
                     } else {
-                        // Memoria OK, riduci frequenza controlli
+                        // Memory OK, reduce check frequency
                         check_interval = Duration::from_secs(60);
                     }
                 }

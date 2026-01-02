@@ -1,3 +1,8 @@
+/// Retrieves the current system theme from Windows registry.
+/// 
+/// Reads the AppsUseLightTheme value from Windows Personalization settings.
+/// Returns "dark" or "light" based on the system preference.
+/// Defaults to "dark" theme if detection fails.
 #[tauri::command]
 pub fn cmd_get_system_theme() -> Result<String, String> {
     #[cfg(windows)]
@@ -43,7 +48,7 @@ pub fn cmd_get_system_theme() -> Result<String, String> {
             }
 
             if read_result == 0 && value_type == REG_DWORD {
-                // 0 = dark, 1 = light
+        // Registry value: 0 = dark theme, 1 = light theme
                 return Ok(if value_data == 0 {
                     "dark".to_string()
                 } else {
@@ -53,10 +58,15 @@ pub fn cmd_get_system_theme() -> Result<String, String> {
         }
     }
 
-    // Default a dark se non riusciamo a rilevare
+    // Default to dark theme if detection fails
     Ok("dark".to_string())
 }
 
+/// Retrieves the system language from Windows registry.
+/// 
+/// Reads the LocaleName value from Windows international settings.
+/// Maps the locale to supported language codes.
+/// Defaults to "en" (English) if detection fails.
 #[tauri::command]
 pub fn cmd_get_system_language() -> Result<String, String> {
     #[cfg(windows)]
@@ -65,7 +75,7 @@ pub fn cmd_get_system_language() -> Result<String, String> {
         use std::os::windows::ffi::OsStrExt;
         use windows_sys::Win32::System::Registry::*;
 
-        // Leggi la lingua dal registro Windows
+        // Read the language from Windows registry
         let key_path: Vec<u16> = OsStr::new(r"Control Panel\International")
             .encode_wide()
             .chain(std::iter::once(0))
@@ -102,17 +112,17 @@ pub fn cmd_get_system_language() -> Result<String, String> {
             }
 
             if read_result == 0 && value_type == REG_SZ {
-                // Trova la fine della stringa (primo null)
+                // Find the end of the string (first null terminator)
                 let len = value_data
                     .iter()
                     .position(|&x| x == 0)
                     .unwrap_or(value_data.len());
                 let locale_str = String::from_utf16_lossy(&value_data[..len]);
 
-                // Estrai il codice lingua (es. "it-IT" -> "it", "en-US" -> "en")
+                // Extract language code (e.g., "it-IT" -> "it", "en-US" -> "en")
                 let lang_code = locale_str.split('-').next().unwrap_or("en").to_lowercase();
 
-                // Mappa i codici lingua supportati
+                // Map to supported language codes
                 match lang_code.as_str() {
                     "it" => return Ok("it".to_string()),
                     "es" => return Ok("es".to_string()),
@@ -128,6 +138,6 @@ pub fn cmd_get_system_language() -> Result<String, String> {
         }
     }
 
-    // Default a inglese se non riusciamo a rilevare
+    // Default to English if detection fails
     Ok("en".to_string())
 }

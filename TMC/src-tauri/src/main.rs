@@ -200,7 +200,7 @@ fn parse_areas_string(areas_str: &str) -> Areas {
             "STANDBY_LIST_LOW" => result |= Areas::STANDBY_LIST_LOW,
             "SYSTEM_FILE_CACHE" => result |= Areas::SYSTEM_FILE_CACHE,
             "WORKING_SET" => result |= Areas::WORKING_SET,
-            "" => {} // Ignora stringhe vuote
+            "" => {} // Ignore empty strings
             unknown => {
                 tracing::warn!(
                     "Unknown memory area flag: '{}' in areas string: '{}'",
@@ -281,7 +281,7 @@ async fn perform_optimization(
                             retry_count,
                             e
                         );
-                        // Delay progressivo: 200ms, 400ms, 600ms, 800ms, 1000ms
+                        // Progressive delay: 200ms, 400ms, 600ms, 800ms, 1000ms
                         tokio::time::sleep(Duration::from_millis(200 * retry_count as u64)).await;
                     } else {
                         tracing::error!(
@@ -338,7 +338,7 @@ async fn perform_optimization(
         }
     };
 
-    // Esegui ottimizzazione
+    // Execute optimization
     let _before = engine.memory().ok();
 
     let result = if with_progress {
@@ -351,7 +351,7 @@ async fn perform_optimization(
         engine.optimize::<fn(u8, u8, String)>(reason, areas, None)
     };
 
-    // Delay per stabilizzazione metriche
+    // Delay for metrics stabilization
     tokio::time::sleep(Duration::from_millis(300)).await;
 
     let after = engine.memory().ok();
@@ -360,20 +360,20 @@ async fn perform_optimization(
         let _ = app.emit(EV_DONE, ());
     }
 
-    // FIX: Mostra notifica solo se l'ottimizzazione ha avuto successo reale
+    // FIX: Only show notification if optimization was actually successful
     if show_notif {
         if let (Ok(res), Some(aft)) = (result, after) {
             let freed_mb = res.freed_physical_bytes.abs() as f64 / 1024.0 / 1024.0;
             let free_gb = aft.physical.free.bytes as f64 / 1024.0 / 1024.0 / 1024.0;
 
-            // Verifica che almeno una area sia stata ottimizzata con successo
+            // Verify that at least one area was successfully optimized
             let has_successful_area = res.areas.iter().any(|a| a.error.is_none());
 
-            // Mostra notifica solo se:
-            // 1. Abbiamo liberato almeno 1MB OPPURE
-            // 2. Abbiamo almeno un'area ottimizzata con successo (anche se poco memoria liberata)
+            // Show notification only if:
+            // 1. We freed at least 1MB OR
+            // 2. We have at least one successfully optimized area (even if little memory freed)
             if freed_mb > 1.0 || has_successful_area {
-                // Usa traduzioni cache dal frontend
+                // Use cached translations from frontend
                 let title_key = match reason {
                     Reason::Manual => "TMC • Optimization completed",
                     Reason::Schedule => "TMC • Scheduled optimization",
@@ -386,7 +386,7 @@ async fn perform_optimization(
                     crate::commands::get_translation(&state.translations, title_key)
                 };
 
-                // Formatta il corpo della notifica usando le traduzioni
+                // Format notification body using translations
                 let profile_key = match profile {
                     Profile::Normal => "Normal",
                     Profile::Balanced => "Balanced",
@@ -410,7 +410,7 @@ async fn perform_optimization(
                     .replace("%.1f", &format!("{:.1}", freed_mb.abs()))
                     .replace("%.2f", &format!("{:.2}", free_gb))
                     .replace("%s", &profile_name);
-                // Ottieni il tema corrente dalla configurazione
+                // Get current theme from configuration
                 let theme = {
                     let state = app.state::<AppState>();
                     let theme_result = match state.cfg.try_lock() {
@@ -437,7 +437,7 @@ async fn perform_optimization(
         }
     }
 
-    // Il flag viene rilasciato automaticamente dal guard
+    // The flag is automatically released by the guard
 }
 
 // ============= TAURI COMMANDS =============
@@ -723,23 +723,23 @@ fn check_webview2() {
 
 // ============= MAIN ENTRY POINT =============
 fn main() {
-    // Inizializza logging
+    // Initialize logging
     logging::init();
 
-    // Console mode: controlla se ci sono argomenti da linea di comando
+    // Console mode: check if there are command line arguments
     let args: Vec<String> = std::env::args().skip(1).collect();
     if !args.is_empty() {
         return run_console_mode(&args);
     }
 
-    // Controllo WebView2 (solo Windows)
+    // WebView2 check (Windows only)
     #[cfg(windows)]
     check_webview2();
 
-    // CRITICO: Imposta l'AppUserModelID esplicitamente PRIMA di qualsiasi altra operazione
-    // Questo forza Windows a usare il DisplayName registrato invece dell'AppUserModelID
-    // IMPORTANTE: Questa funzione DEVE essere chiamata prima di qualsiasi altra API Windows
-    // che potrebbe usare l'AppUserModelID (come shell notifications, jump lists, ecc.)
+    // CRITICAL: Set AppUserModelID explicitly BEFORE any other operation
+    // This forces Windows to use the registered DisplayName instead of AppUserModelID
+    // IMPORTANT: This function MUST be called before any other Windows API
+    // that might use AppUserModelID (like shell notifications, jump lists, etc.)
     #[cfg(windows)]
     {
         use std::ffi::OsStr;
@@ -807,7 +807,7 @@ fn main() {
                 };
 
                 let title: Vec<u16> = std::ffi::OsStr::new(
-                    "Tommy Memory Cleaner - Privilegi Richiesti / Privileges Required",
+                    "Tommy Memory Cleaner - Privileges Required",
                 )
                 .encode_wide()
                 .chain(std::iter::once(0))
@@ -955,10 +955,10 @@ fn main() {
         .setup(move |app| {
             let app_handle = app.handle();
 
-            // Log iniziale
+            // Initial log
             tracing::info!("Application setup started");
 
-            // Assicurati che la finestra principale sia visibile all'avvio
+            // Ensure main window is visible on startup
             if let Some(window) = app_handle.get_webview_window("main") {
                 tracing::info!("Main window found, showing it...");
                 let _ = window.set_skip_taskbar(false);
@@ -972,7 +972,7 @@ fn main() {
                 tracing::warn!("Main window not found at setup start");
             }
 
-            // Build tray icon - gestisci errori senza crashare
+            // Build tray icon - handle errors without crashing
             let mut tray_builder = match ui::tray::build(app_handle) {
                 Ok(builder) => {
                     tracing::info!("Tray icon builder created successfully");
