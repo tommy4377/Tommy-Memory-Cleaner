@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::ptr::null_mut;
 use windows_sys::Win32::{
-    Foundation::{CloseHandle, GetLastError, HANDLE},
+    Foundation::{CloseHandle, GetLastError, HANDLE, INVALID_HANDLE_VALUE},
     Storage::FileSystem::{
         CreateFileW, FlushFileBuffers, GetDriveTypeW, FILE_ATTRIBUTE_NORMAL,
         FILE_FLAG_NO_BUFFERING, FILE_GENERIC_READ, FILE_GENERIC_WRITE, FILE_SHARE_READ,
@@ -54,8 +54,8 @@ fn open_volume(letter: char) -> Option<HANDLE> {
             FILE_ATTRIBUTE_NORMAL | FILE_FLAG_NO_BUFFERING,
             0, // lpTemplateFile: HANDLE in windows-sys is isize, use 0 instead of null_mut()
         );
-        // HANDLE in windows-sys is isize, so compare with 0
-        if h == 0 {
+        // HANDLE in windows-sys is isize, INVALID_HANDLE_VALUE is -1
+        if h == INVALID_HANDLE_VALUE {
             None
         } else {
             Some(h)
@@ -64,6 +64,12 @@ fn open_volume(letter: char) -> Option<HANDLE> {
 }
 
 pub fn flush_modified_file_cache_all() -> Result<()> {
+    // Ensure required privileges before attempting volume operations
+    if let Err(e) = crate::memory::privileges::ensure_privileges(&["SeManageVolumePrivilege"]) {
+        tracing::warn!("Failed to acquire SeManageVolumePrivilege: {}", e);
+        // Continue anyway as some operations might still work
+    }
+
     let mut any_success = false;
     let mut last_error = 0;
 
@@ -76,7 +82,13 @@ pub fn flush_modified_file_cache_all() -> Result<()> {
             unsafe {
                 let mut _ret: u32 = 0;
 
-                // Best-effort: non bloccare su errori, ma logga per debug
+                // First flush any pending writes
+                let flush_result = FlushFileBuffers(h);
+                if flush_result == 0 {
+                    tracing::debug!("FlushFileBuffers failed for {}: {}", letter, GetLastError());
+                }
+
+                // Then reset write order
                 let result1 = DeviceIoControl(
                     h,
                     FSCTL_RESET_WRITE_ORDER,
@@ -88,13 +100,21 @@ pub fn flush_modified_file_cache_all() -> Result<()> {
                     null_mut(),
                 );
                 if result1 == 0 {
+                    let error = GetLastError();
                     tracing::debug!(
                         "DeviceIoControl(FSCTL_RESET_WRITE_ORDER) failed for {}: {}",
                         letter,
-                        GetLastError()
+                        error
                     );
+                    // ERROR_INVALID_HANDLE (6) is critical
+                    if error == 6 {
+                        tracing::error!("Invalid handle detected for volume {} - possible permission issue", letter);
+                        CloseHandle(h);
+                        continue;
+                    }
                 }
 
+                // Finally discard volume cache
                 let result2 = DeviceIoControl(
                     h,
                     FSCTL_DISCARD_VOLUME_CACHE,
@@ -106,22 +126,23 @@ pub fn flush_modified_file_cache_all() -> Result<()> {
                     null_mut(),
                 );
                 if result2 == 0 {
+                    let error = GetLastError();
                     tracing::debug!(
                         "DeviceIoControl(FSCTL_DISCARD_VOLUME_CACHE) failed for {}: {}",
                         letter,
-                        GetLastError()
+                        error
                     );
+                    // ERROR_INVALID_FUNCTION (1) means operation not supported
+                    if error != 1 {
+                        last_error = error;
+                    }
                 }
 
-                // Flush obbligatorio
-                let ok = FlushFileBuffers(h);
                 CloseHandle(h);
-
-                if ok != 0 {
+                
+                // Consider success if at least one operation completed
+                if result1 != 0 || result2 != 0 || flush_result != 0 {
                     any_success = true;
-                } else {
-                    last_error = GetLastError();
-                    tracing::warn!("FlushFileBuffers({letter}:) failed: {}", last_error);
                 }
             }
         }
