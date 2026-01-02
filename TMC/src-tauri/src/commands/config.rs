@@ -236,6 +236,9 @@ pub fn cmd_save_config(app: AppHandle, state: State<'_, crate::AppState>, cfg_js
         }
     }
     
+    // Emit config-changed event for tray menu
+    let _ = app.emit("config-changed", ());
+    
     Ok(())
 }
 
@@ -470,6 +473,9 @@ pub fn cmd_complete_setup(
     // Il frontend chiuderà il setup dopo aver verificato che la finestra principale è pronta
     tracing::info!("Setup completed, emitting setup-complete event (main window shown: {})...", main_window_shown);
     let _ = app.emit("setup-complete", ());
+    
+    // Emit config-changed event since setup modifies configuration
+    let _ = app.emit("config-changed", ());
     
     // NON chiudere il setup qui - lascia che il frontend lo chiuda dopo aver verificato
     // che la finestra principale è pronta. Questo evita race conditions e crash.

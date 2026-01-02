@@ -53,7 +53,12 @@ async function setupEventListeners() {
     // Ascolta eventi di apertura menu per ricaricare la configurazione
     await listen('tray-menu-open', async () => {
         console.log('Tray menu opened, reloading config...');
-        // Ricarica solo la configurazione, non i listener
+        await reloadTrayConfig();
+    });
+    
+    // Ascolta eventi di cambio configurazione
+    await listen('config-changed', async () => {
+        console.log('Config changed, reloading tray config...');
         await reloadTrayConfig();
     });
 }
@@ -262,20 +267,6 @@ document.addEventListener('keydown', (e) => {
 
 // Esponi loadConfig globalmente per permettere chiamate esterne
 (window as any).loadConfig = loadConfig;
-
-// Polling periodico per controllare i cambiamenti di tema dalla configurazione
-setInterval(async () => {
-    try {
-        const config = await invoke('cmd_get_config') as any;
-        const newTheme = config.theme || 'dark';
-        const currentTheme = document.body.getAttribute('data-theme');
-        if (currentTheme !== newTheme) {
-            loadConfig();
-        }
-    } catch (err: any) {
-        // Ignora errori silenziosamente
-    }
-}, 500);
 
 // Carica configurazione all'avvio
 async function initializeTray() {
