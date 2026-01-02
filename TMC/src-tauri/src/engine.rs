@@ -10,7 +10,6 @@ use crate::memory::ops::{
 };
 use crate::memory::advanced::{
     trim_memory_compression_store, aggressive_modified_page_flush, 
-    force_process_low_priority, empty_working_set_stealth, init_advanced_features,
 };
 use crate::memory::types::{Areas, MemoryInfo, Reason};
 use crate::os;
@@ -470,8 +469,7 @@ impl Engine {
                 optimize_working_set(&excl)
             }
             "SystemFileCache" => {
-                // Always try to elevate to SYSTEM for deeper cache access
-                let _ = elevate_to_system();
+                // System cache optimization
                 optimize_system_file_cache()
             }
             "ModifiedPageList" => {

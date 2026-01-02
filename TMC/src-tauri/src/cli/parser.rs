@@ -37,7 +37,7 @@ pub fn run_console_mode(args: &[String]) {
                 use windows_sys::Win32::System::Console::{AttachConsole, ATTACH_PARENT_PROCESS};
                 AttachConsole(ATTACH_PARENT_PROCESS);
                 let new_handle = GetStdHandle(STD_OUTPUT_HANDLE);
-                if new_handle != 0 && new_handle != !0 {
+                if new_handle as isize != 0 && new_handle as isize != !0 {
                     CONSOLE_HANDLE.store(new_handle as *mut std::ffi::c_void, Ordering::Relaxed);
                 }
             }

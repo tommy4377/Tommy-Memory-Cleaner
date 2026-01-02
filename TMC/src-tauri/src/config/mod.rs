@@ -148,7 +148,7 @@ impl Profile {
                 // Profilo Normal: Working Set + Registry Cache + Standby List (Low Priority)
                 // - Liberazione immediata senza latenza percepibile
                 // ~540MB Working Set + ~1.86MB Registry Cache
-                // NOTA: MODIFIED_PAGE_LIST non è incluso nel profilo Normal (come da specifiche utente)
+                // - Uses aggressive optimizations for maximum performance
                 let mut areas = Areas::WORKING_SET | Areas::REGISTRY_CACHE;
                 
                 // Aggiunge Standby List Low Priority se disponibile
@@ -161,6 +161,7 @@ impl Profile {
             Profile::Balanced => {
                 // Profilo Balanced: Include Normal + System File Cache + File Cache + Standby List (Full)
                 // - Refresh profondo del sistema dopo uso intenso
+                // - Uses aggressive optimizations for maximum performance
                 let mut areas = Areas::WORKING_SET | Areas::REGISTRY_CACHE;
                 
                 // Aggiunge aree aggiuntive

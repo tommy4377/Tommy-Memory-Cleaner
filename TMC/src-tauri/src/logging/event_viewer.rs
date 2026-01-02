@@ -69,13 +69,13 @@ impl EventLoggerInner {
             let handle = RegisterEventSourceW(null_mut(), source.as_ptr());
 
             // HANDLE in windows-sys is isize, so compare with 0
-            if handle == 0 {
+            if handle.is_null() {
                 // Fallback: prova con Application direttamente
                 let app_source = to_wide("Application");
                 let fallback_handle = RegisterEventSourceW(null_mut(), app_source.as_ptr());
 
                 // HANDLE in windows-sys is isize, so compare with 0
-                if fallback_handle == 0 {
+                if fallback_handle.is_null() {
                     anyhow::bail!(
                         "Failed to register event source (error: {})",
                         GetLastError()
@@ -95,7 +95,7 @@ impl EventLoggerInner {
 
     fn ensure_event_source_registered() {
         unsafe {
-            let mut hkey: HKEY = 0;
+            let mut hkey: HKEY = null_mut();
             let path = to_wide(REGISTRY_PATH);
 
             // Prova a creare/aprire la chiave del registro
@@ -112,7 +112,7 @@ impl EventLoggerInner {
             );
 
             // HKEY in windows-sys is isize, so compare with 0
-            if result != 0 || hkey == 0 {
+            if result != 0 || hkey.is_null() {
                 // Non riusciamo a creare la chiave, probabilmente non siamo admin
                 // Non è un errore critico, continua comunque
                 return;
