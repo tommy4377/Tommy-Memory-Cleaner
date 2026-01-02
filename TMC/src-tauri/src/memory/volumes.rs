@@ -190,6 +190,7 @@ pub fn flush_modified_file_cache_all() -> Result<()> {
     // Provide detailed feedback about volume operations
     if volumes_total == 0 {
         tracing::info!("No fixed drives found to optimize");
+        Ok(())
     } else if volumes_failed == volumes_total {
         // All volumes failed - this is expected in some environments
         tracing::warn!(
