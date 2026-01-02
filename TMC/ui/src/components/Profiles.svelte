@@ -9,7 +9,6 @@
   let unsub: (() => void) | null = null
   let selected: Profile = 'Balanced'
   let isChanging = false
-  let changeTimeout: number | null = null
 
   onMount(() => {
     unsub = config.subscribe((value) => {
@@ -25,38 +24,26 @@
       unsub()
       unsub = null
     }
-    if (changeTimeout) {
-      clearTimeout(changeTimeout)
-      changeTimeout = null
-    }
   })
 
   async function selectProfile(profile: Profile) {
     if (isChanging || selected === profile) return
 
-    // Clear any existing timeout
-    if (changeTimeout) {
-      clearTimeout(changeTimeout)
-    }
-
     isChanging = true
-    // Don't update selected immediately to avoid visual flicker
-    const previousSelected = selected
+    // Update selected immediately for responsive UI
+    selected = profile
+    const previousSelected = profile
 
     try {
       await applyProfile(profile)
-      // Only update after successful apply
-      selected = profile
     } catch (error) {
       console.error('Failed to apply profile:', error)
       // Rollback on error
-      selected = previousSelected
+      if (cfg) {
+        selected = cfg.profile
+      }
     } finally {
-      // Add a small delay to prevent rapid clicking
-      changeTimeout = setTimeout(() => {
-        isChanging = false
-        changeTimeout = null
-      }, 200) as unknown as number
+      isChanging = false
     }
   }
 
@@ -204,28 +191,39 @@
   }
 
   .seg button:disabled {
-    opacity: 0.7;
+    opacity: 0.8;
     cursor: wait;
     position: relative;
   }
 
-  /* Add loading spinner for disabled state */
+  /* Subtle loading indicator */
   .seg button:disabled::before {
     content: '';
     position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 12px;
-    height: 12px;
-    margin: -6px 0 0 -6px;
-    border: 2px solid transparent;
-    border-top-color: var(--btn-bg);
+    top: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    border: 1px solid var(--btn-bg);
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    opacity: 0.3;
   }
 
-  @keyframes spin {
-    to { transform: rotate(360deg); }
+  .seg button:disabled::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    background: var(--btn-bg);
+    border-radius: 50%;
+    animation: pulse 1s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.8; }
   }
 
   .info {
