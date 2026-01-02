@@ -100,5 +100,6 @@
   "Since installation": "インストール以来",
   "Total freed": "合計解放量",
   "Just now": "たった今",
-  "Total": "合計"
+  "Total": "合計",
+  "Memory Freed Since Installation": "インストール以来解放されたメモリ"
 }

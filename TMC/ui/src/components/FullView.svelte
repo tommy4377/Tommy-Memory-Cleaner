@@ -2,7 +2,7 @@
   import { onDestroy, onMount } from 'svelte'
   import Profiles from './Profiles.svelte'
   import MemoryBars from './MemoryBars.svelte'
-  import MemoryStats from './MemoryStats.svelte'
+  import MemoryFreed from './MemoryFreed.svelte'
   import BasicSettings from './BasicSettings.svelte'
   import ProcessExclusions from './ProcessExclusions.svelte'
   import AutoOptimization from './AutoOptimization.svelte'
@@ -73,9 +73,9 @@
 
   <div class="content">
     <div class="tab-content" class:active={activeTab === 'main'}>
-      <MemoryStats />
       <Profiles />
       <MemoryBars />
+      <MemoryFreed />
       <AutoOptimization />
     </div>
 
