@@ -78,7 +78,7 @@
     align-items: center;
     background: rgba(0, 0, 0, 0.04);
     border-radius: 8px;
-    padding: 2px 2px 2px 12px; /* Padding minimo per rendere la riga sottile */
+    padding: 4px 8px 4px 12px; /* Aumentato padding top/bottom e aggiunto padding destro */
     transition: background 0.2s ease;
   }
 
@@ -99,8 +99,8 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
     transition: all 0.2s ease;
     cursor: default;
-    /* Assicura che il box non tocchi mai i bordi della corsia grigia */
-    margin: 2px; 
+    /* Maggiore margine per staccare dai bordi */
+    margin: 4px; 
   }
 
   :global([data-theme="light"]) .val {
