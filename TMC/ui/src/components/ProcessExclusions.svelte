@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { config, updateConfig } from '../lib/store';
-  import { listProcessNames } from '../lib/api';
+  import { listProcessNames, getCriticalProcesses } from '../lib/api';
   import type { Config } from '../lib/types';
   import { t } from '../i18n/index';
   
@@ -14,28 +14,19 @@
   let inputEl: HTMLInputElement;
   let selectedIndex = -1;
   let dropdownEl: HTMLDivElement;
-  
-  // Processi critici da nascondere completamente dalla UI
-  const HIDDEN_CRITICAL_PROCESSES = new Set([
-    'system', 'smss.exe', 'csrss.exe', 'wininit.exe', 'winlogon.exe',
-    'services.exe', 'lsass.exe', 'lsm.exe', 'svchost.exe', 'rpcss',
-    'dllhost.exe', 'dwm.exe', 'explorer.exe', 'sihost.exe', 'fontdrvhost.exe',
-    'userinit.exe', 'memory compression', 'registry', 'vmmem', 'vmwp.exe',
-    'ntoskrnl.exe', 'hal.dll', 'win32k.sys', 'win32kbase.sys', 'win32kfull.sys',
-    'audiodg.exe', 'audiosrv', 'searchindexer.exe', 'searchprotocolhost.exe',
-    'taskhostw.exe', 'runtimebroker.exe', 'applicationframehost.exe',
-    'systemsettings.exe', 'settingsynchost.exe', 'securityhealthservice.exe',
-    'sgrmbroker.exe', 'msmpeng.exe', 'nissrv.exe', 'mpcmdrun.exe',
-    'vmcompute.exe', 'vmms.exe', 'conhost.exe', 'ctfmon.exe', 'dashost.exe',
-    'backgroundtaskhost.exe', 'compattelrunner.exe', 'wmiprv.exe', 'spoolsv.exe',
-    'tommymemorycleaner.exe', 'tmc.exe'
-  ]);
+  let criticalProcesses: Set<string> = new Set();
 
   onMount(() => {
     unsub = config.subscribe((v) => (cfg = v));
     
-    // Carica processi e filtra quelli critici
-    listProcessNames().then(processes => {
+    // Carica prima i processi critici dal backend
+    Promise.all([
+      listProcessNames(),
+      getCriticalProcesses()
+    ]).then(([processes, critical]) => {
+      // Memorizza i processi critici in un Set per lookup veloce
+      criticalProcesses = new Set(critical.map(p => p.toLowerCase().replace('.exe', '')));
+      
       const uniqueProcesses = new Set<string>();
       
       for (const process of processes) {
@@ -43,8 +34,8 @@
         const displayName = process.endsWith('.exe') ? process : `${process}.exe`;
         
         // Salta se è un processo critico
-        if (HIDDEN_CRITICAL_PROCESSES.has(cleanName) || 
-            HIDDEN_CRITICAL_PROCESSES.has(displayName.toLowerCase())) {
+        if (criticalProcesses.has(cleanName) || 
+            criticalProcesses.has(displayName.toLowerCase())) {
           continue;
         }
         
@@ -226,8 +217,8 @@
     const cleanName = processName.toLowerCase();
     
     // Verifica che non sia un processo critico
-    if (HIDDEN_CRITICAL_PROCESSES.has(cleanName.replace('.exe', '')) ||
-        HIDDEN_CRITICAL_PROCESSES.has(cleanName)) {
+    if (criticalProcesses.has(cleanName.replace('.exe', '')) ||
+        criticalProcesses.has(cleanName)) {
       selected = '';
       return;
     }

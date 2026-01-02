@@ -32,6 +32,10 @@ export async function listProcessNames(): Promise<string[]> {
   return await invoke<string[]>('cmd_list_process_names');
 }
 
+export async function getCriticalProcesses(): Promise<string[]> {
+  return await invoke<string[]>('cmd_get_critical_processes');
+}
+
 export async function runOnStartup(enable: boolean): Promise<void> {
   await invoke('cmd_run_on_startup', { enable });
 }

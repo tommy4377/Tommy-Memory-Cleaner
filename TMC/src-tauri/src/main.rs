@@ -790,6 +790,7 @@ fn main() {
             // Commands from memory module
             commands::memory::cmd_memory_info,
             commands::memory::cmd_list_process_names,
+            commands::memory::cmd_get_critical_processes,
             commands::memory::cmd_optimize_async,
             // Commands from system module
             commands::system::cmd_run_on_startup,

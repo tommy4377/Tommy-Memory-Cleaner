@@ -13,6 +13,11 @@ pub fn cmd_list_process_names() -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
+pub fn cmd_get_critical_processes() -> Result<Vec<String>, String> {
+    Ok(crate::memory::critical_processes::get_critical_processes_list())
+}
+
+#[tauri::command]
 pub fn cmd_optimize_async(
     app: AppHandle, 
     state: State<'_, crate::AppState>, 
