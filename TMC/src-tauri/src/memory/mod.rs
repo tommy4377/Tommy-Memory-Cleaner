@@ -1,3 +1,4 @@
+pub mod advanced;
 pub mod critical_processes;
 pub mod ops;
 pub mod privileges;

@@ -48,6 +48,13 @@ dirs = "5.0"
 # Random for anti-detection
 rand = "0.8"
 
+# For advanced memory operations
+memmap2 = "0.9"
+page_size = "0.5"
+
+# For thread manipulation
+thread-control = "0.1"
+
 # Windows native notifications
 winrt-notification = "0.5"
 

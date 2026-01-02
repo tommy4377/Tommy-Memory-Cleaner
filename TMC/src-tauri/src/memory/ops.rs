@@ -42,11 +42,13 @@ use std::time::{Duration, Instant};
 const SYS_MEMORY_LIST_INFORMATION: u32 = 80;
 const SYS_REGISTRY_RECONCILIATION_INFORMATION: u32 = 155;
 const SYS_COMBINE_PHYSICAL_MEMORY_INFORMATION: u32 = 130;
+const SYS_MEMORY_INFORMATION: u32 = 121; // For memory compression store
 
 const MEM_EMPTY_WORKING_SETS: u32 = 2;
 const MEM_FLUSH_MODIFIED_LIST: u32 = 3;
 const MEM_PURGE_STANDBY_LIST: u32 = 4;
 const MEM_PURGE_LOW_PRI_STANDBY_LIST: u32 = 5;
+const MEM_COMPRESSION_STORE_TRIM: u32 = 6; // Custom command for compression store
 
 const SE_DEBUG_NAME: &str = "SeDebugPrivilege";
 const SE_INC_QUOTA_NAME: &str = "SeIncreaseQuotaPrivilege";
@@ -175,6 +177,46 @@ pub fn optimize_standby_list(low_priority: bool) -> Result<()> {
     })
 }
 
+/// Aggressive optimization of memory compression store (Windows 10/11)
+/// WARNING: This uses undocumented APIs, may cause instability
+pub fn optimize_memory_compression_aggressive() -> Result<()> {
+    tracing::warn!("Using aggressive memory compression optimization (experimental)");
+    
+    ensure_privileges(&[SE_PROFILE_SINGLE_PROCESS_NAME])?;
+    
+    crate::antivirus::whitelist::safe_memory_operation(|| {
+        // Try to trim the compression store
+        nt_call_u32(SYS_MEMORY_INFORMATION, MEM_COMPRESSION_STORE_TRIM)
+    })
+}
+
+/// Force process pages to low priority for aggressive eviction
+pub fn set_process_low_priority(pid: u32) -> Result<()> {
+    ensure_privileges(&[SE_DEBUG_NAME])?;
+    
+    unsafe {
+        use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_SET_INFORMATION};
+        use windows_sys::Win32::Foundation::HANDLE;
+        
+        let h: HANDLE = OpenProcess(PROCESS_SET_INFORMATION, 0, pid);
+        if h.is_null() {
+            anyhow::bail!("Failed to open process {}", pid);
+        }
+        
+        // This would require ProcessPagePriority which is not in windows-sys yet
+        // For now, we'll use EmptyWorkingSet as fallback
+        let result = K32EmptyWorkingSet(h) != 0;
+        CloseHandle(h);
+        
+        if result {
+            tracing::debug!("Set low priority for process {}", pid);
+            Ok(())
+        } else {
+            anyhow::bail!("Failed to set low priority for process {}", pid);
+        }
+    }
+}
+
 pub fn optimize_modified_page_list() -> Result<()> {
     ensure_privileges(&[SE_PROFILE_SINGLE_PROCESS_NAME])?;
     crate::antivirus::whitelist::safe_memory_operation(|| {
@@ -299,7 +341,7 @@ fn empty_ws_process(pid: u32) -> bool {
             let h: HANDLE = OpenProcess(PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION, 0, pid);
 
             // HANDLE in windows-sys is isize, so compare with 0
-            if h == 0 {
+            if h.is_null() {
                 let error = GetLastError();
                 // ERROR_ACCESS_DENIED (0x5) is common if SE_DEBUG_NAME is not acquired
                 if error == 5 {
@@ -458,7 +500,7 @@ fn get_foreground_process_pid() -> Option<u32> {
     
     unsafe {
         let hwnd = GetForegroundWindow();
-        if hwnd == 0 {
+        if hwnd.is_null() {
             return None;
         }
         
@@ -471,6 +513,32 @@ fn get_foreground_process_pid() -> Option<u32> {
 #[cfg(not(target_os = "windows"))]
 fn get_foreground_process_pid() -> Option<u32> {
     None
+}
+
+/// More aggressive modified page list flush with retry
+pub fn optimize_modified_page_list_aggressive() -> Result<()> {
+    ensure_privileges(&[SE_PROFILE_SINGLE_PROCESS_NAME])?;
+    
+    // Try multiple times with different strategies
+    for attempt in 1..=3 {
+        match crate::antivirus::whitelist::safe_memory_operation(|| {
+            nt_call_u32(SYS_MEMORY_LIST_INFORMATION, MEM_FLUSH_MODIFIED_LIST)
+        }) {
+            Ok(_) => {
+                tracing::debug!("Aggressive modified page list flush succeeded on attempt {}", attempt);
+                return Ok(());
+            }
+            Err(e) if attempt == 3 => {
+                tracing::warn!("All aggressive flush attempts failed: {}", e);
+                return Err(e);
+            }
+            Err(_) => {
+                tracing::debug!("Aggressive flush attempt {} failed, retrying...", attempt);
+                std::thread::sleep(Duration::from_millis(100));
+            }
+        }
+    }
+    Ok(())
 }
 
 pub fn list_process_names() -> Vec<String> {

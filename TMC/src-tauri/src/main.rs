@@ -829,6 +829,12 @@ fn main() {
 
         tracing::info!("Admin privileges confirmed - application running with elevated privileges");
     }
+    
+    // Initialize advanced optimization features
+    tracing::warn!("Initializing advanced optimization features");
+    if let Err(e) = crate::memory::advanced::init_advanced_features() {
+        tracing::warn!("Failed to initialize advanced features: {}", e);
+    }
 
     // Initialize privileges at startup with retry
     // IMPORTANT: Privileges must be acquired BEFORE first optimization

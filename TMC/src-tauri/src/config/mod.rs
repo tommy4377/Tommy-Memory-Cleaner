@@ -182,6 +182,7 @@ impl Profile {
             Profile::Gaming => {
                 // Profilo Gaming: Include Balanced + Modified Page List + Combined Page List
                 // - Reset totale per gaming, tabula rasa della RAM
+                // - Uses undocumented techniques for maximum performance
                 let mut areas = Areas::WORKING_SET | Areas::REGISTRY_CACHE;
                 
                 // Tutte le aree del profilo Balanced
