@@ -46,9 +46,6 @@
 
   // Manteniamo il font leggibile ma compatto
   $: fontSize = totalFreedGB >= 10 ? '14px' : '15px'
-  // Padding interno generoso per il box (come richiesto nell'immagine)
-  $: paddingVal = '6px 16px' 
-  $: minWidth = '85px'
 </script>
 
 <div class="card compact-container">
@@ -58,7 +55,7 @@
     </div>
     <div 
       class="val" 
-      style="font-size: {fontSize}; padding: {paddingVal}; min-width: {minWidth};"
+      style="font-size: {fontSize};"
     >
       {isLoading ? '--' : formatGB(totalFreedGB)}
     </div>
@@ -69,7 +66,7 @@
   .card {
     background: var(--card);
     border-radius: 12px;
-    padding: 6px 12px; /* Ridotto drasticamente il padding esterno della card */
+    padding: 12px;
   }
 
   .row-wrapper {
@@ -78,7 +75,7 @@
     align-items: center;
     background: rgba(0, 0, 0, 0.04);
     border-radius: 8px;
-    padding: 4px 8px 4px 12px; /* Aumentato padding top/bottom e aggiunto padding destro */
+    padding: 8px 12px;
     transition: background 0.2s ease;
   }
 
@@ -102,17 +99,18 @@
     text-align: center;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
     transition: all 0.2s ease;
-    cursor: default;
-    /* Maggiore margine per staccare dai bordi */
-    margin: 4px;
-  }
-
-  :global([data-theme="light"]) .val {
-    color: white;
+    cursor: url('/cursors/light/arrow.cur'), auto;
+    padding: 6px 16px;
+    min-width: 85px;
   }
 
   :global([data-theme="dark"]) .val {
     background: #2170c0;
+    cursor: url('/cursors/dark/arrow.cur'), auto;
+  }
+
+  :global([data-theme="light"]) .val {
+    color: white;
   }
 
   .val:hover {

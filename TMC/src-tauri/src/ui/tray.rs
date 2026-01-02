@@ -277,12 +277,12 @@ pub fn update_tray_icon(app: &AppHandle, mem_percent: u8) {
         tray_cfg.transparent_bg,
     );
 
-    // Try to get translated tooltip, fallback to English if translation not found or empty
+    // Try to get translated tooltip
     let tooltip = {
         let translated = crate::commands::get_translation(&state.translations, "RAM: %d%");
 
-        // If translation is the same as key (not found) or empty, use English format
-        if translated == "RAM: %d%" || translated.is_empty() {
+        // If translation is empty, use English format
+        if translated.is_empty() {
             format!("RAM: {}%", mem_percent)
         } else {
             // Replace placeholder with actual percentage
@@ -354,16 +354,14 @@ pub fn start_tray_updater(app: AppHandle, engine: Engine) {
                 // Clamp percentage tra 0-100 (dovrebbe essere già nel range, ma per sicurezza)
                 let current_percent = mem.physical.used.percentage.min(100) as f32;
 
-                // Aggiorna solo se la variazione è > 1% o è il primo ciclo
-                if last_percent < 0.0 || (current_percent - last_percent).abs() > 1.0 {
+                // Aggiorna solo se la variazione è > 0.5% o è il primo ciclo
+                if last_percent < 0.0 || (current_percent - last_percent).abs() > 0.5 {
                     update_tray_icon(&app, current_percent as u8);
                     last_percent = current_percent;
-                    tracing::debug!("Tray icon updated: {:.1}% (change > 1%)", current_percent);
+                    #[cfg(debug_assertions)]
+                    tracing::debug!("Tray icon updated: {:.1}% (change > 0.5%)", current_percent);
                 } else {
-                    tracing::debug!(
-                        "Skipping tray update: {:.1}% (change < 1%)",
-                        current_percent
-                    );
+                    // No update needed - change too small
                 }
             }
             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
