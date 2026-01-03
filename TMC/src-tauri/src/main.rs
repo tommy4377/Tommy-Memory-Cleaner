@@ -1163,14 +1163,13 @@ fn main() {
                     .shadow(true)
                     .skip_taskbar(false)
                     .always_on_top(true)
-                    .visible(true)
+                    .visible(false)  // Start invisible to apply changes
                     .build()
                 {
                     Ok(setup_window) => {
                         tracing::info!("Setup window created successfully");
                         // Assicura che sia sempre in primo piano
                         let _ = setup_window.set_always_on_top(true);
-                        let _ = setup_window.set_focus();
                         
                         // Apply rounded corners on Windows 10/11
                         #[cfg(windows)]
@@ -1182,6 +1181,12 @@ fn main() {
                                 let _ = crate::system::window::set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND);
                             }
                         }
+                        
+                        // Now show the setup window with all changes applied
+                        if let Err(e) = setup_window.show() {
+                            tracing::error!("Failed to show setup window: {:?}", e);
+                        }
+                        let _ = setup_window.set_focus();
                         
                         // Ri-applica always_on_top dopo un breve delay per sicurezza
                         let app_clone = app_handle.clone();
