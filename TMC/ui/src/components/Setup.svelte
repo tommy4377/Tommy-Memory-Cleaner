@@ -349,8 +349,8 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
-    background: var(--bg) !important;
-    color: var(--text);
+    background: var(--bg);
+    color: var(--fg);
     overflow: hidden;
     border-radius: 10px;
     position: relative;
@@ -416,7 +416,7 @@
     font-size: 20px;
     font-weight: 600;
     margin: 0;
-    color: var(--text);
+    color: var(--fg);
   }
 
   .app-icon {
