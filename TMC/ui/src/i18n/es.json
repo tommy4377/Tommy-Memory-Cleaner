@@ -61,6 +61,7 @@
   "Close to notification area": "Cerrar al área de notificación",
   "Show optimization notifications": "Mostrar notificaciones de optimización",
   "Run on startup": "Ejecutar al inicio",
+  "Request administrator privileges on startup": "Solicitar privilegios de administrador al inicio",
 
   "Priority": "Prioridad",
   "Low": "Baja",

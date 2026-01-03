@@ -55,6 +55,7 @@
   "Close to notification area": "In Benachrichtigungsbereich schließen",
   "Show optimization notifications": "Optimierungsbenachrichtigungen anzeigen",
   "Run on startup": "Beim Start ausführen",
+  "Request administrator privileges on startup": "Administratorrechte beim Start anfordern",
 
   "TMC • Optimization completed": "TMC • Optimierung abgeschlossen",
   "TMC • Scheduled optimization": "TMC • Geplante Optimierung",

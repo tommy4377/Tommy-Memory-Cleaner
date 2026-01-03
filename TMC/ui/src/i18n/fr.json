@@ -52,7 +52,8 @@
   "Close after optimization": "Fermer après optimisation",
   "Close to notification area": "Fermer dans la zone de notification",
   "Show optimization notifications": "Afficher les notifications d'optimisation",
-  "Run on startup": "Lancer au démarrage",
+  "Run on startup": "Exécuter au démarrage",
+  "Request administrator privileges on startup": "Demander les privilèges d'administrateur au démarrage",
 
   "TMC • Optimization completed": "TMC • Optimisation terminée",
   "TMC • Scheduled optimization": "TMC • Optimisation programmée",

@@ -85,7 +85,6 @@ fn to_wide(s: &str) -> Vec<u16> {
 #[cfg(windows)]
 fn restart_with_elevation() -> Result<(), Box<dyn std::error::Error>> {
     use std::env;
-    use std::os::windows::process::CommandExt;
     use windows_sys::Win32::UI::Shell::ShellExecuteW;
     
     let current_exe = env::current_exe()?;
@@ -96,7 +95,7 @@ fn restart_with_elevation() -> Result<(), Box<dyn std::error::Error>> {
     let result = unsafe {
         ShellExecuteW(
             std::ptr::null_mut(),
-            std::ptr::null(),
+            to_wide("runas").as_ptr(), // Use "runas" to trigger UAC elevation
             exe_path.encode_utf16().chain(std::iter::once(0)).collect::<Vec<_>>().as_ptr(),
             std::ptr::null(),
             std::ptr::null(),
@@ -826,15 +825,11 @@ fn main() {
         let is_elevated = is_app_elevated();
         
         // Load config to check elevation preference
-        let config_path = dirs::config_dir()
-            .unwrap_or_else(|| std::env::current_dir().unwrap())
-            .join("Tommy437")
-            .join("Tommy Memory Cleaner")
-            .join("config.toml");
+        let config_path = crate::config::config_path();
         
         if config_path.exists() {
             if let Ok(config_str) = std::fs::read_to_string(&config_path) {
-                if let Ok(config) = toml::from_str::<crate::config::Config>(&config_str) {
+                if let Ok(config) = serde_json::from_str::<crate::config::Config>(&config_str) {
                     if config.request_elevation_on_startup && !is_elevated {
                         tracing::info!("User requested elevation on startup, restarting...");
                         if let Err(e) = restart_with_elevation() {

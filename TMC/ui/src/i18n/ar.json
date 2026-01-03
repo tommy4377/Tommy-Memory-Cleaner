@@ -54,7 +54,8 @@
   "Close after optimization": "الإغلاق بعد التحسين",
   "Close to notification area": "الإغلاق إلى منطقة الإشعارات",
   "Show optimization notifications": "إظهار إشعارات التحسين",
-  "Run on startup": "التشغيل عند بدء النظام",
+  "Run on startup": "التشغيل عند بدء التشغيل",
+  "Request administrator privileges on startup": "طلب امتيازات المسؤول عند بدء التشغيل",
 
   "TMC • Optimization completed": "TMC • اكتمل التحسين",
   "TMC • Scheduled optimization": "TMC • تحسين مجدول",

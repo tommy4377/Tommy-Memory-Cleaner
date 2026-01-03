@@ -53,8 +53,9 @@
   "Auto update": "自動更新",
   "Close after optimization": "最適化後に閉じる",
   "Close to notification area": "通知領域に閉じる",
-  "Show optimization notifications": "最適化通知を表示",
-  "Run on startup": "起動時に実行",
+  "Show optimization notifications": "最適化の通知を表示",
+  "Run on startup": "スタートアップ時に実行",
+  "Request administrator privileges on startup": "スタートアップ時に管理者権限を要求",
 
   "TMC • Optimization completed": "TMC • 最適化完了",
   "TMC • Scheduled optimization": "TMC • スケジュール最適化",

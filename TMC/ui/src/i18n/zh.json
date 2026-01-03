@@ -54,6 +54,7 @@
   "Close to notification area": "关闭到通知区域",
   "Show optimization notifications": "显示优化通知",
   "Run on startup": "开机启动",
+  "Request administrator privileges on startup": "启动时请求管理员权限",
 
   "TMC • Optimization completed": "TMC • 优化完成",
   "TMC • Scheduled optimization": "TMC • 计划优化",

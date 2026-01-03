@@ -77,6 +77,7 @@ export interface Config {
   run_on_startup: boolean
 
   show_opt_notifications: boolean
+  request_elevation_on_startup: boolean
 
   tray: TrayConfig
 }
