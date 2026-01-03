@@ -99,8 +99,8 @@ fn restart_with_elevation() -> Result<(), Box<dyn std::error::Error>> {
     
     let result = unsafe {
         ShellExecuteW(
-            std::ptr::null_mut(),
-            runas.as_ptr(), // Use "runas" to trigger UAC elevation
+            0, // HWND null - deve essere 0 non std::ptr::null_mut()
+            runas.as_ptr(),
             exe_wide.as_ptr(),
             std::ptr::null(),
             std::ptr::null(),
