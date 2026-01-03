@@ -455,22 +455,7 @@
     min-height: 28px;
   }
 
-  .option-row > label:first-child {
-    flex: 0 0 auto;
-    cursor: url('/cursors/light/hand.cur'), pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    user-select: none;
-  }
-  
-  /* Dark theme cursor for label */
-  html[data-theme='dark'] .option-row > label:first-child {
-    cursor: url('/cursors/dark/hand.cur'), pointer;
-  }
-
-  .option-row label {
+  .option-row label:has(input[type='checkbox']) {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -481,9 +466,18 @@
     min-width: 0;
   }
   
-  /* Dark theme cursor for option row label */
-  html[data-theme='dark'] .option-row label {
+  /* Dark theme cursor for checkbox label */
+  html[data-theme='dark'] .option-row label:has(input[type='checkbox']) {
     cursor: url('/cursors/dark/hand.cur'), pointer;
+  }
+  
+  /* Label per select non sono cliccabili */
+  .option-row label[for] {
+    cursor: default !important;
+    user-select: none;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--fg-secondary, var(--fg));
   }
   
   .option-row label > span {
