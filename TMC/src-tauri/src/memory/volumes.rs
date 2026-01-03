@@ -99,10 +99,10 @@ fn try_open_volume(path_w: &[u16], access: u32, flags: u32) -> Option<HANDLE> {
             path_w.as_ptr(),
             access,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
-            0,
+            std::ptr::null(),
             OPEN_EXISTING,
             flags,
-            0,
+            std::ptr::null(),
         );
         if h == INVALID_HANDLE_VALUE {
             None

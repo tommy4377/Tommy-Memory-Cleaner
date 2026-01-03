@@ -7,7 +7,6 @@ pub mod window;
 #[cfg(windows)]
 pub fn is_app_elevated() -> bool {
     unsafe {
-        use std::ptr::null_mut;
         use windows_sys::Win32::{
             Foundation::{CloseHandle, HANDLE},
             Security::TOKEN_QUERY,
