@@ -312,17 +312,36 @@
 </button>
 
 <style>
-  /* Fix per Windows 10 - rimuovi bordi rettangolari */
-  :global(html) {
+  :global(html),
+  :global(body) {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
   }
-  
+
+  /* Rimuove eventuali bordi visibili su Windows 10 */
   :global(body) {
     border: none !important;
     outline: none !important;
-    box-shadow: none !important;
+  }
+
+  :global(body) {
+    font-family:
+      -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Segoe UI Variable', Roboto, Oxygen, Ubuntu,
+      Cantarell, 'Helvetica Neue', sans-serif;
+    font-size: 12px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :global(*) {
+    box-sizing: border-box;
   }
 
   .setup-container {
@@ -335,6 +354,24 @@
     overflow: hidden;
     border-radius: 10px;
     position: relative;
+    animation: fadeIn 0.2s ease;
+    /* Assicura che il contenuto copra completamente la finestra su Windows 10 */
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    border: none;
+    outline: none;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   .setup-content {
