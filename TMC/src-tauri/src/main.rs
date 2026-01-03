@@ -825,10 +825,10 @@ fn main() {
         register_app_for_notifications();
     }
 
-    // Check if running with elevated privileges (optional)
+    // Check if running with elevated privileges and manage task scheduler
     #[cfg(windows)]
     {
-        use crate::system::is_app_elevated;
+        use crate::system::{is_app_elevated, elevated_task::{create_elevated_task, run_via_elevated_task, elevated_task_exists}};
         let is_elevated = is_app_elevated();
         
         // Load config to check elevation preference
@@ -837,10 +837,21 @@ fn main() {
         if config_path.exists() {
             if let Ok(config_str) = std::fs::read_to_string(&config_path) {
                 if let Ok(config) = serde_json::from_str::<crate::config::Config>(&config_str) {
-                    if config.request_elevation_on_startup && !is_elevated {
-                        tracing::info!("User requested elevation on startup, restarting...");
-                        if let Err(e) = restart_with_elevation() {
-                            tracing::error!("Failed to restart with elevation: {}", e);
+                    if config.request_elevation_on_startup {
+                        // First time setup: create elevated task if needed
+                        if !elevated_task_exists() {
+                            tracing::info!("Creating elevated task for admin access...");
+                            if let Err(e) = create_elevated_task() {
+                                tracing::error!("Failed to create elevated task: {}", e);
+                            }
+                        }
+                        
+                        // If not elevated, run via task scheduler
+                        if !is_elevated {
+                            tracing::info!("Running via elevated task...");
+                            if let Err(e) = run_via_elevated_task() {
+                                tracing::error!("Failed to run via elevated task: {}", e);
+                            }
                         }
                     }
                 }
@@ -975,6 +986,7 @@ fn main() {
             commands::system::cmd_set_always_on_top,
             commands::system::cmd_set_priority,
             commands::system::cmd_restart_with_elevation,
+            commands::system::cmd_manage_elevated_task,
             // Commands from theme module
             commands::theme::cmd_get_system_theme,
             commands::theme::cmd_get_system_language,

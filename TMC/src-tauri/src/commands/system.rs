@@ -20,6 +20,28 @@ pub fn cmd_restart_with_elevation() -> Result<(), String> {
     }
 }
 
+/// Creates or removes the elevated scheduled task for admin access.
+#[tauri::command]
+pub fn cmd_manage_elevated_task(create: bool) -> Result<String, String> {
+    #[cfg(windows)]
+    {
+        use crate::system::elevated_task::{create_elevated_task, delete_elevated_task};
+        
+        if create {
+            create_elevated_task().map(|_| "Elevated task created successfully".to_string())
+                .map_err(|e| e.to_string())
+        } else {
+            delete_elevated_task().map(|_| "Elevated task deleted successfully".to_string())
+                .map_err(|e| e.to_string())
+        }
+    }
+    
+    #[cfg(not(windows))]
+    {
+        Err("Elevated task is only supported on Windows".to_string())
+    }
+}
+
 /// Sets the application process priority.
 ///
 /// Updates both the current process priority and persists the setting

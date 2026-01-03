@@ -12,7 +12,7 @@
       <requestedPrivileges>
         <!-- REQUIRED: Richiede privilegi amministratore all'avvio per funzionare correttamente -->
         <!-- Questo è necessario per ottimizzare la memoria dei processi di sistema -->
-        <requestedExecutionLevel level="requireAdministrator" uiAccess="false"/>
+        <requestedExecutionLevel level="asInvoker" uiAccess="false"/>
       </requestedPrivileges>
     </security>
     <Author>Tommy437</Author>

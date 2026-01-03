@@ -2,6 +2,7 @@
 pub mod priority;
 pub mod startup;
 pub mod window;
+pub mod elevated_task;
 
 /// Verifica se il processo corrente è eseguito con privilegi amministratore
 #[cfg(windows)]
