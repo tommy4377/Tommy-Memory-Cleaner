@@ -60,6 +60,7 @@
   "Close to notification area": "Close to notification area",
   "Show optimization notifications": "Show optimization notifications",
   "Run on startup": "Run on startup",
+  "Request administrator privileges on startup": "Request administrator privileges on startup",
 
   "Priority": "Priority",
   "Low": "Low",

@@ -364,6 +364,8 @@ pub struct Config {
     pub run_on_startup: bool,
     pub show_opt_notifications: bool,
     pub tray: TrayConfig,
+    #[serde(default)]
+    pub request_elevation_on_startup: bool,
 
     #[serde(default)]
     pub is_portable_install: bool,
@@ -426,6 +428,7 @@ impl Default for Config {
             run_on_startup: true,
             show_opt_notifications: true,
             tray: TrayConfig::default(),
+            request_elevation_on_startup: false,
             is_portable_install: false,
             config_version: default_config_version(),
             setup_completed: false,

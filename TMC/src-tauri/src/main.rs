@@ -81,6 +81,36 @@ fn to_wide(s: &str) -> Vec<u16> {
 }
 
 // ============= PRIVILEGE MANAGEMENT =============
+/// Restart the application with elevated privileges
+#[cfg(windows)]
+fn restart_with_elevation() -> Result<(), Box<dyn std::error::Error>> {
+    use std::env;
+    use std::os::windows::process::CommandExt;
+    use windows_sys::Win32::UI::Shell::ShellExecuteW;
+    
+    let current_exe = env::current_exe()?;
+    let exe_path = current_exe.to_string_lossy();
+    
+    tracing::info!("Restarting application with elevated privileges...");
+    
+    let result = unsafe {
+        ShellExecuteW(
+            std::ptr::null_mut(),
+            std::ptr::null(),
+            exe_path.encode_utf16().chain(std::iter::once(0)).collect::<Vec<_>>().as_ptr(),
+            std::ptr::null(),
+            std::ptr::null(),
+            1, // SW_SHOWNORMAL
+        )
+    };
+    
+    if result <= 32 {
+        Err("Failed to restart with elevation".into())
+    } else {
+        std::process::exit(0);
+    }
+}
+
 /// Initialize required Windows privileges for memory optimization
 ///
 /// This function ensures the process has the necessary privileges
@@ -115,6 +145,7 @@ fn ensure_privileges_initialized() -> Result<(), String> {
             }
             Err(e) => {
                 tracing::warn!("✗ Failed to acquire {}: {}", priv_name, e);
+                // Don't fail completely, just warn
             }
         }
     }
@@ -124,6 +155,8 @@ fn ensure_privileges_initialized() -> Result<(), String> {
         success_count,
         privileges.len()
     );
+    
+    // Mark as initialized even if not all privileges were acquired
     *guard = true;
     Ok(())
 }
@@ -786,54 +819,37 @@ fn main() {
         register_app_for_notifications();
     }
 
-    // CRITICAL CHECK: Verify program is running as administrator
+    // Check if running with elevated privileges (optional)
     #[cfg(windows)]
     {
         use crate::system::is_app_elevated;
-        if !is_app_elevated() {
-            eprintln!("CRITICAL ERROR: Tommy Memory Cleaner must be run as Administrator!");
-            eprintln!("CRITICAL ERROR: Tommy Memory Cleaner must be run as Administrator!");
-
-            // Show error message to user
-            let error_msg = format!(
-                "Tommy Memory Cleaner requires administrator privileges to work properly.\n\n\
-                Tommy Memory Cleaner requires administrator privileges to work properly.\n\n\
-                Please right-click the executable and select \"Run as administrator\".\n\
-                Please right-click the executable and select \"Run as administrator\"."
-            );
-
-            #[cfg(windows)]
-            {
-                use std::os::windows::ffi::OsStrExt;
-                use windows_sys::Win32::UI::WindowsAndMessaging::{
-                    MessageBoxW, MB_ICONERROR, MB_OK,
-                };
-
-                let title: Vec<u16> =
-                    std::ffi::OsStr::new("Tommy Memory Cleaner - Privileges Required")
-                        .encode_wide()
-                        .chain(std::iter::once(0))
-                        .collect();
-
-                let msg: Vec<u16> = std::ffi::OsStr::new(&error_msg)
-                    .encode_wide()
-                    .chain(std::iter::once(0))
-                    .collect();
-
-                unsafe {
-                    MessageBoxW(
-                        0 as _,
-                        msg.as_ptr(),
-                        title.as_ptr(),
-                        (MB_OK | MB_ICONERROR) as u32,
-                    );
+        let is_elevated = is_app_elevated();
+        
+        // Load config to check elevation preference
+        let config_path = dirs::config_dir()
+            .unwrap_or_else(|| std::env::current_dir().unwrap())
+            .join("Tommy437")
+            .join("Tommy Memory Cleaner")
+            .join("config.toml");
+        
+        if config_path.exists() {
+            if let Ok(config_str) = std::fs::read_to_string(&config_path) {
+                if let Ok(config) = toml::from_str::<crate::config::Config>(&config_str) {
+                    if config.request_elevation_on_startup && !is_elevated {
+                        tracing::info!("User requested elevation on startup, restarting...");
+                        if let Err(e) = restart_with_elevation() {
+                            tracing::error!("Failed to restart with elevation: {}", e);
+                        }
+                    }
                 }
             }
-
-            std::process::exit(1);
         }
-
-        tracing::info!("Admin privileges confirmed - application running with elevated privileges");
+        
+        if is_elevated {
+            tracing::info!("Application running with elevated privileges");
+        } else {
+            tracing::warn!("Application running without elevated privileges - some features may be limited");
+        }
     }
     
     // Initialize advanced optimization features
@@ -956,6 +972,7 @@ fn main() {
             commands::system::cmd_run_on_startup,
             commands::system::cmd_set_always_on_top,
             commands::system::cmd_set_priority,
+            commands::system::cmd_restart_with_elevation,
             // Commands from theme module
             commands::theme::cmd_get_system_theme,
             commands::theme::cmd_get_system_language,

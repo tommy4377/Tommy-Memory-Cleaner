@@ -6,6 +6,20 @@ use tauri::{AppHandle, State};
 /// This module provides Tauri commands to manage system-level settings
 /// including process priority, startup behavior, and window properties.
 
+/// Restarts the application with elevated privileges.
+#[tauri::command]
+pub fn cmd_restart_with_elevation() -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        crate::restart_with_elevation().map_err(|e| e.to_string())
+    }
+    
+    #[cfg(not(windows))]
+    {
+        Err("Elevation is only supported on Windows".to_string())
+    }
+}
+
 /// Sets the application process priority.
 ///
 /// Updates both the current process priority and persists the setting

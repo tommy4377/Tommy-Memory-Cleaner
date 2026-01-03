@@ -11,6 +11,7 @@
   let theme = 'dark'
   let alwaysOnTop = true // Default: sempre in primo piano
   let showNotifications = true
+  let requestElevation = false
   let language = 'en'
   let isLoading = false
 
@@ -144,6 +145,7 @@
           theme: theme,
           always_on_top: alwaysOnTop,
           show_opt_notifications: showNotifications,
+          request_elevation_on_startup: requestElevation,
           language: language,
         },
       })
@@ -274,6 +276,13 @@
           <label>
             <input type="checkbox" bind:checked={showNotifications} />
             <span>{$t('Show optimization notifications')}</span>
+          </label>
+        </div>
+
+        <div class="option-row">
+          <label>
+            <input type="checkbox" bind:checked={requestElevation} />
+            <span>{$t('Request administrator privileges on startup')}</span>
           </label>
         </div>
       </div>

@@ -167,6 +167,7 @@ pub fn cmd_save_config(
         update_bool!(show_opt_notifications);
         update_bool!(auto_update);
         update_bool!(close_after_opt);
+        update_bool!(request_elevation_on_startup);
         // Setup completed - important to prevent setup from opening multiple times
         if let Some(v) = obj.get("setup_completed") {
             if let Some(b) = v.as_bool() {
