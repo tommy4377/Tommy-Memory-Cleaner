@@ -476,7 +476,7 @@
     width: 18px;
     height: 18px;
     cursor: pointer;
-    accent-color: var(--primary);
+    accent-color: var(--btn-bg);
     flex-shrink: 0;
   }
 
@@ -493,7 +493,7 @@
   }
 
   .complete-btn {
-    background: var(--primary);
+    background: var(--btn-bg);
     color: var(--text-on-primary);
     border: none;
     border-radius: 8px;

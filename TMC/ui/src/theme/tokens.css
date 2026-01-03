@@ -17,9 +17,6 @@
   --input-bg: rgba(252, 245, 230, 0.95);
   --input-border: rgba(50, 38, 25, 0.28);
   --input-focus: #9a8a72;
-  
-  /* Primary color per light theme */
-  --primary: #9a8a72;
 }
 
 html[data-theme='dark'] {
@@ -40,9 +37,6 @@ html[data-theme='dark'] {
   --input-bg: rgba(58, 58, 60, 0.8);
   --input-border: rgba(255, 255, 255, 0.12);
   --input-focus: #1363b4;
-  
-  /* Assicura che --primary sia sempre #1363b4 */
-  --primary: #1363b4;
 }
 
 * {
