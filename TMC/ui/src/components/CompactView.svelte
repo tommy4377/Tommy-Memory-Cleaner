@@ -60,6 +60,9 @@
     align-items: center;
     gap: 16px;
     height: calc(100% - 36px);
+    background: var(--bg);
+    border-radius: 8px;
+    overflow: hidden;
     /* Dark theme cursor for compact area */
   }
   html[data-theme='dark'] .compact {
