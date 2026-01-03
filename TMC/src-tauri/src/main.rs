@@ -1160,7 +1160,7 @@ fn main() {
                     .resizable(false)
                     .decorations(false)
                     .transparent(true)
-                    .shadow(true)
+                    .shadow(false)
                     .skip_taskbar(false)
                     .always_on_top(true)
                     .visible(false)  // Start invisible to apply changes
