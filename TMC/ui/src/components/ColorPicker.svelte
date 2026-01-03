@@ -709,7 +709,7 @@
     width: 100%;
     height: 20px;
     border-radius: 10px;
-    cursor: url('/cursors/light/sizewe.cur), ew-resize !important;
+    cursor: url('/cursors/light/sizewe.cur'), ew-resize !important;
     /* Prevent text selection during drag */
     user-select: none;
     -webkit-user-select: none;
@@ -718,7 +718,7 @@
   }
 
   :global(html[data-theme='dark']) .hue-slider {
-    cursor: url('/cursors/dark/sizewe.cur), ew-resize !important;
+    cursor: url('/cursors/dark/sizewe.cur'), ew-resize !important;
   }
   
   .hue-gradient {
