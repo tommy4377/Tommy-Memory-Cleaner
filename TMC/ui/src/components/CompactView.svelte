@@ -55,15 +55,15 @@
 
 <style>
   .compact {
-    padding: 16px 20px;
+    width: 100%;
+    height: 100%;
     display: flex;
-    align-items: center;
-    gap: 16px;
-    height: calc(100% - 36px);
-    cursor: url('/cursors/light/arrow.cur'), auto;
+    flex-direction: column;
+    background: var(--bg);
+    border-radius: 8px;
+    overflow: hidden;
+    /* Dark theme cursor for compact area */
   }
-  
-  /* Dark theme cursor for compact area */
   html[data-theme='dark'] .compact {
     cursor: url('/cursors/dark/arrow.cur'), auto;
   }
