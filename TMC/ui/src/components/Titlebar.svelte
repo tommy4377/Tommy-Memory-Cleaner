@@ -168,6 +168,11 @@
     flex-shrink: 0;
   }
 
+  /* Fix for dark mode border artifacts */
+  :global(html[data-theme='dark']) .titlebar {
+    border-bottom-color: transparent;
+  }
+
   .draggable {
     flex: 1;
     height: 100%;

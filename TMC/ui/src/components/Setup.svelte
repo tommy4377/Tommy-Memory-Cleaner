@@ -312,6 +312,25 @@
 </button>
 
 <style>
+  :global(html),
+  :global(body) {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Rimuove eventuali bordi visibili su Windows 10 */
+  :global(body) {
+    border: none !important;
+    outline: none !important;
+  }
+
   .setup-container {
     width: 100vw;
     height: 100vh;
