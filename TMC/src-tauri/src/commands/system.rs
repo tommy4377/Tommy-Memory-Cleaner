@@ -26,7 +26,7 @@ pub fn cmd_manage_elevated_task(create: bool) -> Result<(), String> {
     if create {
         #[cfg(windows)]
         {
-            use crate::system::elevated_task::{create_elevated_task, delete_elevated_task};
+            use crate::system::elevated_task::create_elevated_task;
             create_elevated_task().map_err(|e| e.to_string())?;
         }
         #[cfg(not(windows))]
