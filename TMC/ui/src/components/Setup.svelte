@@ -361,15 +361,9 @@
     box-shadow: none;
     border: none;
     outline: none;
-    cursor: url('/cursors/light/arrow.cur'), auto;
     /* Assicura opacità completa su Windows */
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
-  }
-  
-  /* Dark theme cursor for setup */
-  html[data-theme='dark'] .setup-container {
-    cursor: url('/cursors/dark/arrow.cur'), auto;
   }
   
   /* Aggiungiamo uno stile per il contenuto principale simile alla full view */
@@ -461,6 +455,21 @@
     min-height: 28px;
   }
 
+  .option-row > label:first-child {
+    flex: 0 0 auto;
+    cursor: url('/cursors/light/hand.cur'), pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    user-select: none;
+  }
+  
+  /* Dark theme cursor for label */
+  html[data-theme='dark'] .option-row > label:first-child {
+    cursor: url('/cursors/dark/hand.cur'), pointer;
+  }
+
   .option-row label {
     display: flex;
     align-items: center;
@@ -472,11 +481,11 @@
     min-width: 0;
   }
   
-  /* Dark theme cursor for labels */
+  /* Dark theme cursor for option row label */
   html[data-theme='dark'] .option-row label {
     cursor: url('/cursors/dark/hand.cur'), pointer;
   }
-
+  
   .option-row label > span {
     flex: 1;
     min-width: 0;
