@@ -60,6 +60,10 @@
     display: flex;
     flex-direction: column;
     background: var(--bg);
+    border-radius: 8px;
+    overflow: hidden;
+    padding: 8px;
+    gap: 8px;
     /* Dark theme cursor for compact area */
   }
   html[data-theme='dark'] .compact {
