@@ -357,8 +357,8 @@
     position: relative;
     animation: fadeIn 0.2s ease;
     /* Assicura che il contenuto copra completamente la finestra su Windows 10 */
-    margin: 0;
-    padding: 0;
+    margin: -3px 0 0 0 !important;
+    padding: 3px 0 0 0 !important;
     box-shadow: none;
     border: none;
     outline: none;
