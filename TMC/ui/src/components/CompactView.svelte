@@ -60,6 +60,14 @@
     align-items: center;
     gap: 16px;
     height: calc(100% - 36px);
+    cursor: url('/cursors/light/arrow.cur'), auto;
+  }
+  
+  /* Dark theme cursor for compact area */
+  @media (prefers-color-scheme: dark) {
+    .compact {
+      cursor: url('/cursors/dark/arrow.cur'), auto;
+    }
   }
   
   .bar {
@@ -110,7 +118,7 @@
     border: none;
     padding: 8px 20px;
     border-radius: 14px;
-    cursor: pointer;
+    cursor: url('/cursors/light/hand.cur'), pointer;
     font-weight: 600;
     font-size: 13px;
     min-width: fit-content;
@@ -125,6 +133,24 @@
     overflow: hidden;
     white-space: nowrap;
     text-align: center;
+  }
+  
+  /* Dark theme cursor */
+  @media (prefers-color-scheme: dark) {
+    button {
+      cursor: url('/cursors/dark/hand.cur'), pointer;
+    }
+  }
+  
+  /* Disabled cursor */
+  button:disabled {
+    cursor: url('/cursors/light/no.cur'), not-allowed;
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    button:disabled {
+      cursor: url('/cursors/dark/no.cur'), not-allowed;
+    }
   }
   
   /* Effetto shimmer per il bottone optimize */
@@ -150,14 +176,13 @@
     transform: translateY(-1px);
     box-shadow: 0 3px 6px rgba(0,0,0,0.15);
   }
-
+  
   button:active:not(:disabled) {
     transform: translateY(0);
   }
-
+  
   button:disabled {
     opacity: 0.6;
-    cursor: not-allowed;
     background: linear-gradient(135deg, #6a6a6a, #4a4a4a);
     animation: pulse 1.5s infinite;
   }

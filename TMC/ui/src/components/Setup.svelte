@@ -361,6 +361,14 @@
     box-shadow: none;
     border: none;
     outline: none;
+    cursor: url('/cursors/light/arrow.cur'), auto;
+  }
+  
+  /* Dark theme cursor for setup */
+  @media (prefers-color-scheme: dark) {
+    .setup-container {
+      cursor: url('/cursors/dark/arrow.cur'), auto;
+    }
   }
 
   @keyframes fadeIn {
@@ -492,17 +500,30 @@
     padding: 10px 28px;
     font-size: 14px;
     font-weight: 500;
-    cursor: pointer;
+    cursor: url('/cursors/light/hand.cur'), pointer;
     transition: opacity 0.2s;
   }
-
+  
+  /* Dark theme cursor for button */
+  @media (prefers-color-scheme: dark) {
+    .complete-btn {
+      cursor: url('/cursors/dark/hand.cur'), pointer;
+    }
+  }
+  
   .complete-btn:hover:not(:disabled) {
     opacity: 0.9;
   }
 
   .complete-btn:disabled {
     opacity: 0.6;
-    cursor: not-allowed;
+    cursor: url('/cursors/light/no.cur'), not-allowed;
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    .complete-btn:disabled {
+      cursor: url('/cursors/dark/no.cur'), not-allowed;
+    }
   }
 
   .complete-btn.no-shimmer::after {
