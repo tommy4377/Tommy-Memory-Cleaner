@@ -371,6 +371,7 @@
     /* Assicura opacità completa su Windows */
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+    border-radius: 8px;
   }
   
   /* Aggiungiamo uno stile per il contenuto principale simile alla full view */

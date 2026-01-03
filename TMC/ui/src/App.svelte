@@ -370,7 +370,7 @@
     flex-direction: column;
     background: var(--bg);
     color: var(--fg);
-    border-radius: 10px;
+    border-radius: 8px;
     overflow: hidden;
     position: relative;
     animation: fadeIn 0.2s ease;
