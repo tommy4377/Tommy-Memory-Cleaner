@@ -40,7 +40,7 @@ pub fn set_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) -> Result
 
             let result = DwmSetWindowAttribute(
                 hwnd,
-                DWMWA_WINDOW_CORNER_PREFERENCE,
+                DWMWA_WINDOW_CORNER_PREFERENCE as u32,
                 &preference as *const _ as *const _,
                 std::mem::size_of::<i32>() as u32,
             );
@@ -64,8 +64,8 @@ pub fn set_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) -> Result
 #[cfg(windows)]
 fn apply_win10_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) {
     use windows_sys::Win32::Foundation::RECT;
-    use windows_sys::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
-    use windows_sys::Win32::UI::WindowsAndMessaging::{GetWindowRect, InvalidateRect};
+    use windows_sys::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn, InvalidateRect};
+    use windows_sys::Win32::UI::WindowsAndMessaging::GetWindowRect;
 
     unsafe {
         tracing::info!("Applying region-based rounded corners (Windows 10 method)");
@@ -83,7 +83,7 @@ fn apply_win10_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) {
             let radius = 32;
             let hrgn = CreateRoundRectRgn(0, 0, width, height, radius, radius);
 
-            if hrgn != 0 {
+            if hrgn != std::ptr::null_mut() {
                 // Apply the region (1 = redraw immediately)
                 let result = SetWindowRgn(hwnd, hrgn, 1);
                 if result != 0 {

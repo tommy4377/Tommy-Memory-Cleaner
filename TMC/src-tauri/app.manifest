@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <assemblyIdentity name="TommyMemoryCleaner" version="2.5.0.0" processorArchitecture="*"/>
+  <application>
+    <windowsSettings>
+      <dpiAware>true/pm</dpiAware>
+      <dpiAwareness>PerMonitorV2/PerMonitor</dpiAwareness>
+      <gdiScaling>true</gdiScaling>
+    </windowsSettings>
+  </application>
+</assembly>

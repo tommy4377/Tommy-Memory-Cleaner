@@ -25,7 +25,7 @@ fn to_wide(s: &str) -> Vec<u16> {
 pub fn ensure_privilege(name: &str) -> Result<()> {
     unsafe {
         let process: HANDLE = GetCurrentProcess();
-        let mut token: HANDLE = 0;
+        let mut token: HANDLE = std::ptr::null_mut();
         if OpenProcessToken(process, TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &mut token) == 0 {
             bail!("OpenProcessToken failed: {}", GetLastError());
         }

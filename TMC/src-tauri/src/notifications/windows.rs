@@ -418,7 +418,7 @@ pub fn register_app_for_notifications() {
         };
         // Prova prima ad aprire la chiave per verificare se esiste
         let key_path_wide: Vec<u16> = OsStr::new(key_path).encode_wide().chain(Some(0)).collect();
-        let mut hkey_test: windows_sys::Win32::Foundation::HANDLE = 0;
+        let mut hkey_test: windows_sys::Win32::Foundation::HANDLE = std::ptr::null_mut();
         let open_result = RegOpenKeyExW(
             HKEY_CURRENT_USER,
             key_path_wide.as_ptr(),
@@ -426,7 +426,7 @@ pub fn register_app_for_notifications() {
             KEY_ALL_ACCESS,
             &mut hkey_test,
         );
-        if open_result == 0 && hkey_test != 0 {
+        if open_result == 0 && hkey_test != std::ptr::null_mut() {
             RegCloseKey(hkey_test);
             // Elimina la chiave - potrebbe richiedere più tentativi
             let delete_result = RegDeleteKeyW(HKEY_CURRENT_USER, key_path_wide.as_ptr());
@@ -456,7 +456,7 @@ pub fn register_app_for_notifications() {
 
     unsafe {
         // Crea la chiave se non esiste e imposta i valori
-        let mut hkey: windows_sys::Win32::Foundation::HANDLE = 0;
+        let mut hkey: windows_sys::Win32::Foundation::HANDLE = std::ptr::null_mut();
         let result = windows_sys::Win32::System::Registry::RegCreateKeyExW(
             HKEY_CURRENT_USER,
             key_path_wide.as_ptr(),

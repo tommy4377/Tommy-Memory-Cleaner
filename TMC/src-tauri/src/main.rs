@@ -99,19 +99,19 @@ fn restart_with_elevation() -> Result<(), Box<dyn std::error::Error>> {
     
     let result = unsafe {
         ShellExecuteW(
-            0, // HWND null - deve essere 0 non std::ptr::null_mut()
+            std::ptr::null_mut(), // HWND null
             runas.as_ptr(),
             exe_wide.as_ptr(),
-            std::ptr::null(),
-            std::ptr::null(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
             1, // SW_SHOWNORMAL
         )
     };
     
-    if result <= 32 {
+    if (result as isize) <= 32 {
         let error_code = unsafe { GetLastError() };
-        tracing::error!("Failed to restart with elevation. ShellExecuteW returned: {}, GetLastError: {}", result, error_code);
-        Err(format!("Failed to restart with elevation (code: {}, error: {})", result, error_code).into())
+        tracing::error!("Failed to restart with elevation. ShellExecuteW returned: {:?}, GetLastError: {}", result as isize, error_code);
+        Err(format!("Failed to restart with elevation (code: {:?}, error: {})", result as isize, error_code).into())
     } else {
         std::process::exit(0);
     }
@@ -935,7 +935,7 @@ fn main() {
     #[cfg(target_os = "windows")]
     {
         unsafe {
-            use winapi::um::shellscalingapi::SetProcessDpiAwareness;
+            use windows_sys::Win32::UI::HiDpi::SetProcessDpiAwareness;
             SetProcessDpiAwareness(2); // PROCESS_PER_MONITOR_DPI_AWARE
         }
     }

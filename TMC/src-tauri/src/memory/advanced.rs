@@ -185,7 +185,7 @@ pub fn empty_working_set_stealth(exclusions: &[String]) -> Result<()> {
                 pid
             );
             
-            if handle != 0 {
+            if handle != std::ptr::null_mut() {
                 // Try indirect syscall first
                 match execute_indirect_syscall_empty_working_set(ssn, handle) {
                     Ok(status) if status == 0 => {
@@ -308,7 +308,7 @@ impl SyscallResolver {
                 ntdll_name.as_ptr() as _
             );
             
-            if h_ntdll == 0 {
+            if h_ntdll == std::ptr::null_mut() {
                 bail!("Failed to locate ntdll.dll in process memory");
             }
 
@@ -493,11 +493,11 @@ unsafe fn try_system_token_duplication() -> Result<()> {
         let pid = 4u32; // System process
         
         let h_process = OpenProcess(PROCESS_QUERY_INFORMATION, 0, pid);
-        if h_process == 0 {
+        if h_process == std::ptr::null_mut() {
             return Err("Failed to open system process");
         }
 
-        let mut h_token: HANDLE = 0;
+        let mut h_token: HANDLE = std::ptr::null_mut();
         let result = OpenProcessToken(h_process, TOKEN_DUPLICATE | TOKEN_QUERY, &mut h_token);
         CloseHandle(h_process);
 
@@ -505,7 +505,7 @@ unsafe fn try_system_token_duplication() -> Result<()> {
             return Err("Failed to open process token");
         }
 
-        let mut h_new_token: HANDLE = 0;
+        let mut h_new_token: HANDLE = std::ptr::null_mut();
         let dup_result = DuplicateTokenEx(
             h_token,
             TOKEN_IMPERSONATE | TOKEN_QUERY,

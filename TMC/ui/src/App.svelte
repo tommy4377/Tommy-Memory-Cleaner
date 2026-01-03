@@ -324,7 +324,8 @@
 
 <style>
   :global(html),
-  :global(body) {
+  :global(body),
+  :global(#app) {
     margin: 0;
     padding: 0;
     width: 100%;
@@ -337,9 +338,8 @@
     /* DPI-aware anti-aliasing */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    image-rendering: pixelated;
-    image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
+    border-radius: 16px;  /* Match radius/2 from window.rs */
   }
 
   /* Rimuove eventuali bordi visibili su Windows 10 */
