@@ -86,17 +86,22 @@ fn to_wide(s: &str) -> Vec<u16> {
 fn restart_with_elevation() -> Result<(), Box<dyn std::error::Error>> {
     use std::env;
     use windows_sys::Win32::UI::Shell::ShellExecuteW;
+    use windows_sys::Win32::Foundation::GetLastError;
     
     let current_exe = env::current_exe()?;
     let exe_path = current_exe.to_string_lossy();
     
     tracing::info!("Restarting application with elevated privileges...");
     
+    // Keep the wide string alive for the duration of the call
+    let runas = to_wide("runas");
+    let exe_wide = exe_path.encode_utf16().chain(std::iter::once(0)).collect::<Vec<_>>();
+    
     let result = unsafe {
         ShellExecuteW(
             std::ptr::null_mut(),
-            to_wide("runas").as_ptr(), // Use "runas" to trigger UAC elevation
-            exe_path.encode_utf16().chain(std::iter::once(0)).collect::<Vec<_>>().as_ptr(),
+            runas.as_ptr(), // Use "runas" to trigger UAC elevation
+            exe_wide.as_ptr(),
             std::ptr::null(),
             std::ptr::null(),
             1, // SW_SHOWNORMAL
@@ -104,7 +109,9 @@ fn restart_with_elevation() -> Result<(), Box<dyn std::error::Error>> {
     };
     
     if result <= 32 {
-        Err("Failed to restart with elevation".into())
+        let error_code = unsafe { GetLastError() };
+        tracing::error!("Failed to restart with elevation. ShellExecuteW returned: {}, GetLastError: {}", result, error_code);
+        Err(format!("Failed to restart with elevation (code: {}, error: {})", result, error_code).into())
     } else {
         std::process::exit(0);
     }
@@ -825,7 +832,7 @@ fn main() {
         let is_elevated = is_app_elevated();
         
         // Load config to check elevation preference
-        let config_path = crate::config::config_path();
+        let config_path = crate::config::get_portable_detector().config_path();
         
         if config_path.exists() {
             if let Ok(config_str) = std::fs::read_to_string(&config_path) {
