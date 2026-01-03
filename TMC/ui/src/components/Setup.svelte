@@ -327,7 +327,7 @@
     cursor: url('/cursors/light/arrow.cur'), auto;
   }
   
-  /* Dark theme cursor per body */
+  /* Dark theme cursor */
   html[data-theme='dark'] :global(body),
   html[data-theme='dark'] :global(html) {
     cursor: url('/cursors/dark/arrow.cur'), auto;
@@ -368,9 +368,15 @@
     box-shadow: none;
     border: none;
     outline: none;
+    cursor: url('/cursors/light/arrow.cur'), auto;
     /* Assicura opacità completa su Windows */
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+  }
+  
+  /* Dark theme cursor for setup */
+  html[data-theme='dark'] .setup-container {
+    cursor: url('/cursors/dark/arrow.cur'), auto;
   }
   
   /* Aggiungiamo uno stile per il contenuto principale simile alla full view */
@@ -462,7 +468,7 @@
     min-height: 28px;
   }
 
-  .option-row label:has(input[type='checkbox']) {
+  .option-row label {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -473,25 +479,11 @@
     min-width: 0;
   }
   
-  /* Dark theme cursor for checkbox label */
-  html[data-theme='dark'] .option-row label:has(input[type='checkbox']) {
+  /* Dark theme cursor for labels */
+  html[data-theme='dark'] .option-row label {
     cursor: url('/cursors/dark/hand.cur'), pointer;
   }
-  
-  /* Label per select non sono cliccabili */
-  .option-row label[for] {
-    cursor: url('/cursors/light/arrow.cur'), auto;
-    user-select: none;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--fg-secondary, var(--fg));
-  }
-  
-  /* Dark theme cursor per select labels */
-  html[data-theme='dark'] .option-row label[for] {
-    cursor: url('/cursors/dark/arrow.cur'), auto;
-  }
-  
+
   .option-row label > span {
     flex: 1;
     min-width: 0;
