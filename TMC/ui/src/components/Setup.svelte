@@ -374,10 +374,8 @@
   }
   
   /* Dark theme cursor for setup */
-  @media (prefers-color-scheme: dark) {
-    .setup-container {
-      cursor: url('/cursors/dark/arrow.cur'), auto;
-    }
+  html[data-theme='dark'] .setup-container {
+    cursor: url('/cursors/dark/arrow.cur'), auto;
   }
   
   /* Aggiungiamo uno stile per il contenuto principale simile alla full view */
@@ -481,10 +479,8 @@
   }
   
   /* Dark theme cursor for labels */
-  @media (prefers-color-scheme: dark) {
-    .option-row label {
-      cursor: url('/cursors/dark/hand.cur'), pointer;
-    }
+  html[data-theme='dark'] .option-row label {
+    cursor: url('/cursors/dark/hand.cur'), pointer;
   }
 
   .option-row label > span {
@@ -504,10 +500,8 @@
   }
   
   /* Dark theme cursor for checkbox */
-  @media (prefers-color-scheme: dark) {
-    .option-row input[type='checkbox'] {
-      cursor: url('/cursors/dark/hand.cur'), pointer;
-    }
+  html[data-theme='dark'] .option-row input[type='checkbox'] {
+    cursor: url('/cursors/dark/hand.cur'), pointer;
   }
 
   .option-row > label:first-child {
@@ -537,10 +531,8 @@
   }
   
   /* Dark theme cursor for button */
-  @media (prefers-color-scheme: dark) {
-    .complete-btn {
-      cursor: url('/cursors/dark/hand.cur'), pointer;
-    }
+  html[data-theme='dark'] .complete-btn {
+    cursor: url('/cursors/dark/hand.cur'), pointer;
   }
   
   .complete-btn:hover:not(:disabled) {
@@ -552,10 +544,8 @@
     cursor: url('/cursors/light/no.cur'), not-allowed;
   }
   
-  @media (prefers-color-scheme: dark) {
-    .complete-btn:disabled {
-      cursor: url('/cursors/dark/no.cur'), not-allowed;
-    }
+  html[data-theme='dark'] .complete-btn:disabled {
+    cursor: url('/cursors/dark/no.cur'), not-allowed;
   }
 
   .complete-btn.no-shimmer::after {
