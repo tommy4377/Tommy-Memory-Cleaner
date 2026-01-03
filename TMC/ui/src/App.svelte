@@ -342,7 +342,6 @@
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
-    border-radius: 10px;
   }
 
   /* Rimuove eventuali bordi visibili su Windows 10 */

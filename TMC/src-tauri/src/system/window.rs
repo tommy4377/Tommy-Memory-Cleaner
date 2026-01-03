@@ -58,8 +58,9 @@ pub fn set_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) -> Result
             let height = rect.bottom - rect.top;
             
             // Create a round rectangle region (10px radius)
+            // Note: CreateRoundRectRgn expects exclusive bounds, so add 1 to avoid 1-pixel gap
             let radius = 10;
-            let hrgn = CreateRoundRectRgn(0, 0, width, height, radius, radius);
+            let hrgn = CreateRoundRectRgn(0, 0, width + 1, height + 1, radius, radius);
             
             if hrgn != 0 {
                 // Apply the region to the window
