@@ -166,9 +166,9 @@
     user-select: none;
     height: 32px;
     flex-shrink: 0;
-    /* CRITICAL: Rimuovi qualsiasi margin/padding che crea spazio sopra */
-    margin: 0 !important;
-    padding-top: 0 !important;
+    /* CRITICAL FIX: Negative margin per coprire il bordino superiore */
+    margin: -1px 0 0 0 !important;
+    padding-top: 5px !important; /* Compensa il negative margin */
     padding-bottom: 0 !important;
     /* Assicura che tocchi il bordo superiore */
     position: relative;
