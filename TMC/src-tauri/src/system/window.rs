@@ -48,7 +48,8 @@ pub fn set_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) -> Result
             tracing::info!("Windows 10 detected - using region-based rounded corners");
             
             use windows_sys::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
-            use windows_sys::Win32::UI::WindowsAndMessaging::{GetWindowRect, RECT};
+            use windows_sys::Win32::UI::WindowsAndMessaging::GetWindowRect;
+            use windows_sys::Win32::Foundation::RECT;
             
             // Get window dimensions
             let mut rect: RECT = std::mem::zeroed();
