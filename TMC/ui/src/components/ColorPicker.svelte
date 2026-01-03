@@ -653,7 +653,7 @@
     height: 120px;
     border-radius: 8px;
     margin-bottom: 12px;
-    cursor: url('/cursors/light/bussola.cur'), crosshair !important;
+    cursor: url('/cursors/light/crosshair.cur'), crosshair !important;
     /* Prevent text selection during drag */
     user-select: none;
     -webkit-user-select: none;
@@ -662,7 +662,7 @@
   }
 
   :global(html[data-theme='dark']) .sat-light-wrapper {
-    cursor: url('/cursors/dark/bussola.cur'), crosshair !important;
+    cursor: url('/cursors/dark/crosshair.cur'), crosshair !important;
   }
   
   .sat-light-gradient {
