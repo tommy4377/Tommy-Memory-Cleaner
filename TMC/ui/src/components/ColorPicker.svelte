@@ -518,11 +518,15 @@
     width: 45px;
     height: 30px;
     border-radius: 10px;
-    cursor: pointer;
+    cursor: url('/cursors/light/hand.cur'), pointer !important;
     position: relative;
     transition: all 0.2s;
     /* Use a variable to manage border color */
     border: 2px solid var(--border-color);
+  }
+
+  :global(html[data-theme='dark']) .color-input {
+    cursor: url('/cursors/dark/hand.cur'), pointer !important;
   }
 
   /* Light mode - darker border using color-mix */
@@ -620,12 +624,16 @@
     border-radius: 8px;
     background: var(--bg);
     color: var(--fg);
-    cursor: pointer;
+    cursor: url('/cursors/light/hand.cur'), pointer !important;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
     flex-shrink: 0;
+  }
+
+  :global(html[data-theme='dark']) .eyedropper-btn {
+    cursor: url('/cursors/dark/hand.cur'), pointer !important;
   }
   
   .eyedropper-btn:hover {
@@ -645,12 +653,16 @@
     height: 120px;
     border-radius: 8px;
     margin-bottom: 12px;
-    cursor: crosshair;
+    cursor: url('/cursors/light/cross.cur), crosshair !important;
     /* Prevent text selection during drag */
     user-select: none;
     -webkit-user-select: none;
     /* Touch action for mobile */
     touch-action: none;
+  }
+
+  :global(html[data-theme='dark']) .sat-light-wrapper {
+    cursor: url('/cursors/dark/cross.cur), crosshair !important;
   }
   
   .sat-light-gradient {
@@ -697,12 +709,16 @@
     width: 100%;
     height: 20px;
     border-radius: 10px;
-    cursor: pointer;
+    cursor: url('/cursors/light/sizewe.cur), ew-resize !important;
     /* Prevent text selection during drag */
     user-select: none;
     -webkit-user-select: none;
     /* Touch action for mobile */
     touch-action: none;
+  }
+
+  :global(html[data-theme='dark']) .hue-slider {
+    cursor: url('/cursors/dark/sizewe.cur), ew-resize !important;
   }
   
   .hue-gradient {

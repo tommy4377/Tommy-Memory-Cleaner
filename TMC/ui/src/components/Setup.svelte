@@ -244,7 +244,7 @@
   on:mousedown={handleDragStart}
   tabindex="-1"
   type="button"
-  style="background: none; border: none; padding: 0; width: 100%; height: 100%;"
+  style="border: none; padding: 0; width: 100%; height: 100%;"
 >
   <Titlebar title="Tommy Memory Cleaner - Setup" onClose={handleClose} />
 
@@ -349,7 +349,7 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
-    background: var(--bg);
+    background: var(--bg) !important;
     color: var(--text);
     overflow: hidden;
     border-radius: 10px;
