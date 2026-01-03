@@ -1141,7 +1141,7 @@ fn main() {
                         // Apply rounded corners on Windows 10/11
                         #[cfg(windows)]
                         {
-                            if let Some(hwnd) = setup_window.hwnd() {
+                            if let Ok(hwnd) = setup_window.hwnd() {
                                 let _ = crate::system::window::set_rounded_corners(hwnd);
                             }
                         }

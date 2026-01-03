@@ -89,7 +89,7 @@ pub fn show_or_create_window(app: &AppHandle) {
                 // Apply rounded corners on Windows 10/11
                 #[cfg(windows)]
                 {
-                    if let Some(hwnd) = window.hwnd() {
+                    if let Ok(hwnd) = window.hwnd() {
                         let _ = crate::system::window::set_rounded_corners(hwnd);
                     }
                 }

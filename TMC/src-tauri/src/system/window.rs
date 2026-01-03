@@ -1,9 +1,7 @@
 use tauri::{AppHandle, Manager};
 
 #[cfg(windows)]
-use windows_sys::Win32::UI::Dwm::{DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND};
-#[cfg(windows)]
-use std::ptr;
+use windows_sys::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND};
 
 pub fn set_always_on_top(app: &AppHandle, on: bool) -> Result<(), String> {
     if let Some(win) = app.get_webview_window("main") {
