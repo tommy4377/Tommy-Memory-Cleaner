@@ -319,7 +319,7 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background: transparent;
+    background: var(--bg);
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
@@ -353,7 +353,6 @@
     background: var(--bg);
     color: var(--fg);
     overflow: hidden;
-    border-radius: 10px;
     position: relative;
     animation: fadeIn 0.2s ease;
     /* Assicura che il contenuto copra completamente la finestra su Windows 10 */
@@ -363,6 +362,9 @@
     border: none;
     outline: none;
     cursor: url('/cursors/light/arrow.cur'), auto;
+    /* Assicura opacità completa su Windows */
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
   
   /* Dark theme cursor for setup */

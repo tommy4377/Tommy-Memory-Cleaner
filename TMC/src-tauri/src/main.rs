@@ -1161,7 +1161,6 @@ fn main() {
                     .decorations(false)
                     .transparent(true)
                     .shadow(true)
-                    .center()
                     .skip_taskbar(false)
                     .always_on_top(true)
                     .visible(true)
