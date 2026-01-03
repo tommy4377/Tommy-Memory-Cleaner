@@ -329,7 +329,7 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background: transparent;
+    background: var(--bg);
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
@@ -371,6 +371,10 @@
     box-shadow: none;
     border: none;
     outline: none;
+    /* Fix for Windows 10 transparency issues */
+    -webkit-app-region: no-drag;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   @keyframes fadeIn {

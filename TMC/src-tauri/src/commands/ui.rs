@@ -76,7 +76,6 @@ pub fn show_or_create_window(app: &AppHandle) {
         .title("Tommy Memory Cleaner")
         .inner_size(500.0, 700.0)
         .resizable(false)
-        .shadow(true)  // Enable shadow for rounded corners
         .center()
         .skip_taskbar(false)  // Show in taskbar
         .visible(true)  // Ensure window is visible
