@@ -368,15 +368,9 @@
     box-shadow: none;
     border: none;
     outline: none;
-    cursor: url('/cursors/light/arrow.cur'), auto;
     /* Assicura opacità completa su Windows */
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
-  }
-  
-  /* Dark theme cursor for setup */
-  html[data-theme='dark'] .setup-container {
-    cursor: url('/cursors/dark/arrow.cur'), auto;
   }
   
   /* Aggiungiamo uno stile per il contenuto principale simile alla full view */
@@ -472,16 +466,10 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    cursor: url('/cursors/light/hand.cur'), pointer;
     font-size: 13px;
     font-weight: 450;
     flex: 1;
     min-width: 0;
-  }
-  
-  /* Dark theme cursor for labels */
-  html[data-theme='dark'] .option-row label {
-    cursor: url('/cursors/dark/hand.cur'), pointer;
   }
 
   .option-row label > span {
