@@ -323,7 +323,6 @@
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
-    border-radius: 12px;
     cursor: url('/cursors/light/arrow.cur'), auto;
   }
   
@@ -366,7 +365,6 @@
     /* Assicura opacità completa su Windows */
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
-    border-radius: 12px;
   }
   
   /* Aggiungiamo uno stile per il contenuto principale simile alla full view */

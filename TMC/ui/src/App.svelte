@@ -362,17 +362,15 @@
     flex-direction: column;
     background: var(--bg);
     color: var(--fg);
-    border-radius: 12px;
     overflow: hidden;
     position: relative;
     animation: fadeIn 0.2s ease;
-    /* Assicura che il contenuto copra completamente la finestra su Windows 10 */
+    /* CRITICAL: Rimuovi border-radius per evitare doppio arrotondamento */
     margin: 0;
     padding: 0;
     box-shadow: none;
     border: none;
     outline: none;
-    /* Fix for Windows 10 transparency issues */
     -webkit-app-region: no-drag;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;

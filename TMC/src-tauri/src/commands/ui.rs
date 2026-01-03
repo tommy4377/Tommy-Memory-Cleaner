@@ -103,13 +103,16 @@ pub fn show_or_create_window(app: &AppHandle) {
                 // Apply rounded corners on Windows 10/11
                 #[cfg(windows)]
                 {
-                    // PRIMA: Applica i bordi arrotondati
+                    // WAIT for window to be fully rendered
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    
+                    // PRIMA: Applica shadow
+                    let _ = crate::system::window::enable_shadow_for_win11(&window);
+                    
+                    // DOPO: Applica rounded corners
                     if let Ok(hwnd) = window.hwnd() {
                         let _ = crate::system::window::set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND);
                     }
-                    
-                    // DOPO: Applica shadow per Win11
-                    let _ = crate::system::window::enable_shadow_for_win11(&window);
                 }
                 
                 if let Ok(size) = window.inner_size() {

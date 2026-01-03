@@ -166,15 +166,6 @@
     user-select: none;
     height: 32px;
     flex-shrink: 0;
-    /* CRITICAL: Rimuovi qualsiasi margin/padding che crea spazio sopra */
-    margin: 0 !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    /* Assicura che tocchi il bordo superiore */
-    position: relative;
-    top: 0;
-    border: none;
-    box-shadow: none;
   }
 
   /* Fix for dark mode border artifacts */

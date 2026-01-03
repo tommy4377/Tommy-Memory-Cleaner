@@ -9,24 +9,19 @@ pub fn set_always_on_top(app: &AppHandle, on: bool) -> Result<(), String> {
 
 #[cfg(windows)]
 pub fn set_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) -> Result<(), String> {
-    use windows_sys::Win32::Graphics::Dwm::{
-        DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE,
-    };
+    use windows_sys::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND};
     use windows_sys::Win32::System::SystemInformation::GetVersionExW;
 
     unsafe {
         // Check Windows version
         let mut version = windows_sys::Win32::System::SystemInformation::OSVERSIONINFOEXW {
-            dwOSVersionInfoSize: std::mem::size_of::<
-                windows_sys::Win32::System::SystemInformation::OSVERSIONINFOEXW,
-            >() as u32,
+            dwOSVersionInfoSize: std::mem::size_of::<windows_sys::Win32::System::SystemInformation::OSVERSIONINFOEXW>() as u32,
             ..std::mem::zeroed()
         };
 
         let is_win11 = if GetVersionExW(&mut version as *mut _ as *mut _) != 0 {
-            version.dwMajorVersion == 10
-                && version.dwMinorVersion == 0
-                && version.dwBuildNumber >= 22000
+            // Windows 11 is version 10.0.22000 or higher
+            version.dwMajorVersion == 10 && version.dwMinorVersion == 0 && version.dwBuildNumber >= 22000
         } else {
             false
         };
@@ -34,15 +29,13 @@ pub fn set_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) -> Result
         if is_win11 {
             // Windows 11: Use native DWM rounded corners
             tracing::info!("Windows 11 detected - enabling native DWM rounded corners");
-
-            // DWMWCP_ROUND = 2 (rounded corners)
-            let preference: i32 = 2;
-
+            let preference: u32 = DWMWCP_ROUND as u32;
+            let attribute: i32 = DWMWA_WINDOW_CORNER_PREFERENCE as i32;
             let result = DwmSetWindowAttribute(
                 hwnd,
-                DWMWA_WINDOW_CORNER_PREFERENCE,
+                attribute,
                 &preference as *const _ as *const _,
-                std::mem::size_of::<i32>() as u32,
+                std::mem::size_of::<u32>() as u32,
             );
 
             if result == 0 {
@@ -52,12 +45,15 @@ pub fn set_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) -> Result
                     "Failed to set rounded corners on Windows 11: HRESULT 0x{:08X}",
                     result
                 );
+                // Fallback to Windows 10 method
+                apply_win10_rounded_corners(hwnd);
             }
         } else {
             // Windows 10: Use region-based approach
             apply_win10_rounded_corners(hwnd);
         }
     }
+
     Ok(())
 }
 
@@ -78,7 +74,7 @@ fn apply_win10_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) {
 
             tracing::info!("Window dimensions: {}x{}", width, height);
 
-            // Create rounded region with 12px radius (24x24 diameter)
+            // Create rounded region with 12px radius (24x24 diameter for better visibility)
             let radius = 24;
             let hrgn = CreateRoundRectRgn(0, 0, width, height, radius, radius);
 
@@ -93,11 +89,12 @@ fn apply_win10_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) {
                 } else {
                     tracing::warn!("SetWindowRgn returned 0 (failed)");
                 }
+                // Note: Don't delete hrgn, Windows owns it after SetWindowRgn
             } else {
-                tracing::warn!("Failed to create rounded region");
+                tracing::warn!("Failed to create rounded region (CreateRoundRectRgn returned 0)");
             }
         } else {
-            tracing::warn!("Failed to get window rect");
+            tracing::warn!("Failed to get window rect (GetWindowRect failed)");
         }
     }
 }
@@ -109,16 +106,12 @@ pub fn enable_shadow_for_win11(window: &tauri::WebviewWindow) -> Result<(), Stri
 
     unsafe {
         let mut version = windows_sys::Win32::System::SystemInformation::OSVERSIONINFOEXW {
-            dwOSVersionInfoSize: std::mem::size_of::<
-                windows_sys::Win32::System::SystemInformation::OSVERSIONINFOEXW,
-            >() as u32,
+            dwOSVersionInfoSize: std::mem::size_of::<windows_sys::Win32::System::SystemInformation::OSVERSIONINFOEXW>() as u32,
             ..std::mem::zeroed()
         };
 
         let is_win11 = if GetVersionExW(&mut version as *mut _ as *mut _) != 0 {
-            version.dwMajorVersion == 10
-                && version.dwMinorVersion == 0
-                && version.dwBuildNumber >= 22000
+            version.dwMajorVersion == 10 && version.dwMinorVersion == 0 && version.dwBuildNumber >= 22000
         } else {
             false
         };
@@ -128,6 +121,7 @@ pub fn enable_shadow_for_win11(window: &tauri::WebviewWindow) -> Result<(), Stri
             window.set_shadow(true).map_err(|e| e.to_string())?;
         }
     }
+
     Ok(())
 }
 

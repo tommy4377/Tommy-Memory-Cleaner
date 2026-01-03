@@ -59,7 +59,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    height: calc(100% - 36px);
+    height: calc(100% - 32px);
     background: var(--bg);
     border-radius: 12px;
     overflow: hidden;
