@@ -166,15 +166,18 @@
     user-select: none;
     height: 32px;
     flex-shrink: 0;
-    /* CRITICAL FIX: Negative margin per coprire il bordino superiore */
-    margin: -1px 0 0 0 !important;
-    padding-top: 5px !important; /* Compensa il negative margin */
+    /* CRITICAL FIX: Negative margin più aggressivo */
+    margin: -2px 0 0 0 !important;
+    padding-top: 2px !important;
     padding-bottom: 0 !important;
     /* Assicura che tocchi il bordo superiore */
     position: relative;
     top: 0;
     border: none;
     box-shadow: none;
+    /* Extra fix: Forza la titlebar a estendersi completamente */
+    width: 100%;
+    justify-content: center;
   }
 
   /* Fix for dark mode border artifacts */
@@ -216,20 +219,25 @@
   }
 
   .logo {
-    width: 16px;
-    height: 16px;
+    width: 14px; /* RIDOTTO: da 16px a 14px */
+    height: 14px;
     pointer-events: none;
   }
 
   .title {
     font-weight: 500;
-    font-size: 12px;
+    font-size: 11px; /* RIDOTTO: da 12px a 11px */
     pointer-events: none;
+    opacity: 0.85; /* RIDOTTO: da default a 0.85 per più discreto */
   }
 
   .controls {
     display: flex;
     gap: 5px;
+    position: absolute; /* CAMBIATO: posizionamento assoluto */
+    right: 0; /* Ancoraggio a destra */
+    top: 0;
+    height: 100%;
   }
 
   .traffic {
