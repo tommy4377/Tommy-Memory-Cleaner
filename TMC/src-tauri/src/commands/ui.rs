@@ -90,7 +90,7 @@ pub fn show_or_create_window(app: &AppHandle) {
                 #[cfg(windows)]
                 {
                     if let Ok(hwnd) = window.hwnd() {
-                        let _ = crate::system::window::set_rounded_corners(hwnd);
+                        let _ = crate::system::window::set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND);
                     }
                 }
                 

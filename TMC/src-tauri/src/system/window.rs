@@ -14,7 +14,7 @@ pub fn set_always_on_top(app: &AppHandle, on: bool) -> Result<(), String> {
 pub fn set_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) -> Result<(), String> {
     unsafe {
         // Set corner preference to round
-        let preference = DWMWCP_ROUND;
+        let preference: u32 = DWMWCP_ROUND as u32;
         let result = DwmSetWindowAttribute(
             hwnd,
             DWMWA_WINDOW_CORNER_PREFERENCE,

@@ -1142,7 +1142,7 @@ fn main() {
                         #[cfg(windows)]
                         {
                             if let Ok(hwnd) = setup_window.hwnd() {
-                                let _ = crate::system::window::set_rounded_corners(hwnd);
+                                let _ = crate::system::window::set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND);
                             }
                         }
                         
