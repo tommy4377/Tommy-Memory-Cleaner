@@ -15,17 +15,24 @@ pub fn create_elevated_task() -> Result<()> {
     delete_elevated_task()?;
     
     // Create new task with highest privileges
-    let output = Command::new("schtasks")
-        .args([
-            "/create",
-            "/tn", ELEVATED_TASK_NAME,
-            "/tr", &format!("\"{}\"", exe_path.display()),
-            "/sc", "onlogon",
-            "/rl", "highest",
-            "/f",
-            "/it",  // Run only when user is logged on
-        ])
-        .output()?;
+    let mut cmd = Command::new("schtasks");
+    cmd.args([
+        "/create",
+        "/tn", ELEVATED_TASK_NAME,
+        "/tr", &format!("\"{}\"", exe_path.display()),
+        "/sc", "onlogon",
+        "/rl", "highest",
+        "/f",
+        "/it",  // Run only when user is logged on
+    ]);
+    
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    
+    let output = cmd.output()?;
     
     if !output.status.success() {
         let error = String::from_utf8_lossy(&output.stderr);
@@ -41,12 +48,19 @@ pub fn create_elevated_task() -> Result<()> {
 pub fn run_via_elevated_task() -> Result<()> {
     info!("Running application via elevated task");
     
-    let output = Command::new("schtasks")
-        .args([
-            "/run",
-            "/tn", ELEVATED_TASK_NAME,
-        ])
-        .output()?;
+    let mut cmd = Command::new("schtasks");
+    cmd.args([
+        "/run",
+        "/tn", ELEVATED_TASK_NAME,
+    ]);
+    
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    
+    let output = cmd.output()?;
     
     if !output.status.success() {
         let error = String::from_utf8_lossy(&output.stderr);
@@ -60,13 +74,20 @@ pub fn run_via_elevated_task() -> Result<()> {
 
 /// Deletes the elevated task
 pub fn delete_elevated_task() -> Result<()> {
-    let output = Command::new("schtasks")
-        .args([
-            "/delete",
-            "/tn", ELEVATED_TASK_NAME,
-            "/f",
-        ])
-        .output()?;
+    let mut cmd = Command::new("schtasks");
+    cmd.args([
+        "/delete",
+        "/tn", ELEVATED_TASK_NAME,
+        "/f",
+    ]);
+    
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    
+    let output = cmd.output()?;
     
     // Don't treat "task not found" as an error
     if !output.status.success() {
@@ -81,12 +102,19 @@ pub fn delete_elevated_task() -> Result<()> {
 
 /// Checks if the elevated task exists
 pub fn elevated_task_exists() -> bool {
-    let output = Command::new("schtasks")
-        .args([
-            "/query",
-            "/tn", ELEVATED_TASK_NAME,
-        ])
-        .output();
+    let mut cmd = Command::new("schtasks");
+    cmd.args([
+        "/query",
+        "/tn", ELEVATED_TASK_NAME,
+    ]);
+    
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    
+    let output = cmd.output();
     
     match output {
         Ok(result) => result.status.success(),

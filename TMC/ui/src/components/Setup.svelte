@@ -324,6 +324,13 @@
     outline: none !important;
     box-shadow: none !important;
     border-radius: 10px;
+    cursor: url('/cursors/light/arrow.cur'), auto;
+  }
+  
+  /* Dark theme cursor per body */
+  html[data-theme='dark'] :global(body),
+  html[data-theme='dark'] :global(html) {
+    cursor: url('/cursors/dark/arrow.cur'), auto;
   }
 
   /* Rimuove eventuali bordi visibili su Windows 10 */
@@ -473,11 +480,16 @@
   
   /* Label per select non sono cliccabili */
   .option-row label[for] {
-    cursor: default !important;
+    cursor: url('/cursors/light/arrow.cur'), auto;
     user-select: none;
     font-size: 12px;
     font-weight: 500;
     color: var(--fg-secondary, var(--fg));
+  }
+  
+  /* Dark theme cursor per select labels */
+  html[data-theme='dark'] .option-row label[for] {
+    cursor: url('/cursors/dark/arrow.cur'), auto;
   }
   
   .option-row label > span {
