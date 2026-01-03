@@ -370,6 +370,33 @@
       cursor: url('/cursors/dark/arrow.cur'), auto;
     }
   }
+  
+  /* Aggiungiamo uno stile per il contenuto principale simile alla full view */
+  .setup-content {
+    flex: 1;
+    padding: 10px;
+    background: var(--bg);
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  /* Scrollbar styling come nella full view */
+  .setup-content::-webkit-scrollbar {
+    width: 5px;
+  }
+  
+  .setup-content::-webkit-scrollbar-track {
+    background: var(--bar-track);
+  }
+  
+  .setup-content::-webkit-scrollbar-thumb {
+    background: var(--bar-fill);
+    border-radius: 3px;
+  }
 
   @keyframes fadeIn {
     from {
@@ -380,26 +407,6 @@
       opacity: 1;
       transform: scale(1);
     }
-  }
-
-  .setup-content {
-    flex: 1;
-    padding: 12px 16px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    min-height: 0;
-    max-height: 100%;
-  }
-
-  .setup-content::-webkit-scrollbar {
-    display: none;
-  }
-
-  .setup-content {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
   }
 
   .setup-header {
@@ -429,7 +436,7 @@
   .setup-options {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     flex: 1;
     min-height: 0;
     overflow: hidden;
@@ -457,11 +464,18 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    cursor: pointer;
+    cursor: url('/cursors/light/hand.cur'), pointer;
     font-size: 13px;
     font-weight: 450;
     flex: 1;
     min-width: 0;
+  }
+  
+  /* Dark theme cursor for labels */
+  @media (prefers-color-scheme: dark) {
+    .option-row label {
+      cursor: url('/cursors/dark/hand.cur'), pointer;
+    }
   }
 
   .option-row label > span {
@@ -475,9 +489,16 @@
   .option-row input[type='checkbox'] {
     width: 18px;
     height: 18px;
-    cursor: pointer;
+    cursor: url('/cursors/light/hand.cur'), pointer;
     accent-color: var(--btn-bg);
     flex-shrink: 0;
+  }
+  
+  /* Dark theme cursor for checkbox */
+  @media (prefers-color-scheme: dark) {
+    .option-row input[type='checkbox'] {
+      cursor: url('/cursors/dark/hand.cur'), pointer;
+    }
   }
 
   .option-row > label:first-child {
@@ -486,7 +507,9 @@
   }
 
   .setup-footer {
-    padding: 8px 0;
+    padding: 8px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
     display: flex;
     justify-content: center;
     flex-shrink: 0;
