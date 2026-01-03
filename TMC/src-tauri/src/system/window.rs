@@ -15,9 +15,10 @@ pub fn set_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) -> Result
     unsafe {
         // Set corner preference to round
         let preference: u32 = DWMWCP_ROUND as u32;
+        let attribute: u32 = DWMWA_WINDOW_CORNER_PREFERENCE as u32;
         let result = DwmSetWindowAttribute(
             hwnd,
-            DWMWA_WINDOW_CORNER_PREFERENCE,
+            attribute,
             &preference as *const _ as *const _,
             std::mem::size_of::<u32>() as u32,
         );
