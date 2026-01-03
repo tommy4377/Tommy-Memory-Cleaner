@@ -935,6 +935,10 @@ fn main() {
         .plugin(tauri_plugin_positioner::init())
         .manage(state.clone())
         .invoke_handler(tauri::generate_handler![
+            // Commands from app_info module
+            commands::app_info::get_app_info,
+            commands::app_info::get_app_version,
+            commands::app_info::get_company_name,
             // Commands from config module
             commands::config::cmd_exit,
             commands::config::cmd_get_config,

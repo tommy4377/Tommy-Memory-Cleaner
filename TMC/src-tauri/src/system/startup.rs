@@ -318,7 +318,7 @@ fn set_task_scheduler_startup(exe_path: &str, enable: bool) -> Result<()> {
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
     <Date>2025-01-01T00:00:00</Date>
-    <Author>tommy437</Author>
+    <Author>Tommy437</Author>
     <Description>Tommy Memory Cleaner - Auto Start on Login</Description>
   </RegistrationInfo>
   <Triggers>

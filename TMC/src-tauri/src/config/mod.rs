@@ -2,6 +2,8 @@
 ///
 /// Handles loading, saving, and validating application configuration
 /// with support for portable installations and proper data directory handling.
+pub mod app_info;
+
 use crate::memory::types::Areas;
 use crate::security::{
     contains_injection_patterns, is_valid_hex_color, sanitize_hotkey, sanitize_process_name,

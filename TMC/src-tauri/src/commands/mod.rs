@@ -3,6 +3,7 @@
 /// This module organizes all Tauri commands that expose backend functionality
 /// to the frontend, including configuration management, memory operations,
 /// system integration, theme handling, and UI management.
+pub mod app_info;
 pub mod config;
 pub mod i18n;
 pub mod memory;
