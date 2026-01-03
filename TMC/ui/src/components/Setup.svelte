@@ -365,6 +365,14 @@
     /* Assicura opacità completa su Windows */
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+    cursor: auto !important; /* Forza il cursore predefinito */
+    
+    /* FIX BORDI SGRANATINI */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
   }
   
   /* Aggiungiamo uno stile per il contenuto principale simile alla full view */
