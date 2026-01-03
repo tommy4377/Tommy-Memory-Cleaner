@@ -366,8 +366,8 @@
     position: relative;
     animation: fadeIn 0.2s ease;
     /* CRITICAL: Rimuovi border-radius per evitare doppio arrotondamento */
-    margin: 0;
-    padding: 0;
+    margin: -3px 0 0 0 !important;
+    padding: 3px 0 0 0 !important;
     box-shadow: none;
     border: none;
     outline: none;
