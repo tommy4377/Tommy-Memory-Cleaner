@@ -102,7 +102,7 @@ fn try_open_volume(path_w: &[u16], access: u32, flags: u32) -> Option<HANDLE> {
             std::ptr::null(),
             OPEN_EXISTING,
             flags,
-            std::ptr::null(),
+            0,
         );
         if h == INVALID_HANDLE_VALUE {
             None
