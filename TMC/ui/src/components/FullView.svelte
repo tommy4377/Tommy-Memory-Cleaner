@@ -137,6 +137,11 @@
     background: var(--bg);
   }
 
+  /* Dark theme cursor for tabs */
+  html[data-theme='dark'] .tab {
+    cursor: url('/cursors/dark/hand.cur'), pointer;
+  }
+
   .content {
     flex: 1;
     padding: 10px;

@@ -64,10 +64,8 @@
   }
   
   /* Dark theme cursor for compact area */
-  @media (prefers-color-scheme: dark) {
-    .compact {
-      cursor: url('/cursors/dark/arrow.cur'), auto;
-    }
+  html[data-theme='dark'] .compact {
+    cursor: url('/cursors/dark/arrow.cur'), auto;
   }
   
   .bar {
@@ -136,10 +134,8 @@
   }
   
   /* Dark theme cursor */
-  @media (prefers-color-scheme: dark) {
-    button {
-      cursor: url('/cursors/dark/hand.cur'), pointer;
-    }
+  html[data-theme='dark'] button {
+    cursor: url('/cursors/dark/hand.cur'), pointer;
   }
   
   /* Disabled cursor */
@@ -147,10 +143,8 @@
     cursor: url('/cursors/light/no.cur'), not-allowed;
   }
   
-  @media (prefers-color-scheme: dark) {
-    button:disabled {
-      cursor: url('/cursors/dark/no.cur'), not-allowed;
-    }
+  html[data-theme='dark'] button:disabled {
+    cursor: url('/cursors/dark/no.cur'), not-allowed;
   }
   
   /* Effetto shimmer per il bottone optimize */

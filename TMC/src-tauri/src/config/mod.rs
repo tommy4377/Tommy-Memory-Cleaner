@@ -390,7 +390,7 @@ fn default_main_color_light() -> String {
 }
 
 fn default_main_color_dark() -> String {
-    "#0a84ff".to_string() // Default blue for dark theme
+    "#1363b4".to_string() // Default blue for dark theme
 }
 
 fn default_main_color() -> String {
@@ -417,7 +417,7 @@ impl Default for Config {
             font_size: 13.0,
             language: "en".to_string(),
             theme: "dark".to_string(),
-            main_color_hex: "#0a84ff".to_string(), // Deprecated, kept for compatibility
+            main_color_hex: "#1363b4".to_string(), // Deprecated, kept for compatibility
             main_color_hex_light: default_main_color_light(),
             main_color_hex_dark: default_main_color_dark(),
             profile: default_profile,
