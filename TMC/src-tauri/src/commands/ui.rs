@@ -78,19 +78,14 @@ pub fn show_or_create_window(app: &AppHandle) {
         .resizable(false)
         .center()
         .skip_taskbar(false)  // Show in taskbar
-        .visible(false)  // Start invisible to apply changes
+        .visible(true)  // Show window immediately for SetWindowRgn
         .build();
 
         match result {
             Ok(window) => {
                 tracing::info!("Window created successfully");
                 
-                // Show window first
-                if let Err(e) = window.show() {
-                    tracing::error!("Failed to show newly created window: {:?}", e);
-                }
-                
-                // Apply rounded corners on Windows 10/11 AFTER showing
+                // Apply rounded corners on Windows 10/11
                 #[cfg(windows)]
                 {
                     // Enable shadow for Windows 11

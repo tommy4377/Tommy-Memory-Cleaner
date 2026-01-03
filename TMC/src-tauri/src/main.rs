@@ -1163,7 +1163,7 @@ fn main() {
                     .shadow(false)
                     .skip_taskbar(false)
                     .always_on_top(true)
-                    .visible(false)  // Start invisible to apply changes
+                    .visible(true)  // Show window immediately for SetWindowRgn
                     .build()
                 {
                     Ok(setup_window) => {
@@ -1174,18 +1174,14 @@ fn main() {
                         // Apply rounded corners on Windows 10/11
                         #[cfg(windows)]
                         {
-                            // Apply DWM attributes first
+                            // Enable shadow for Windows 11
+                            let _ = crate::system::window::enable_shadow_for_win11(&setup_window);
+                            // Apply DWM attributes
                             if let Ok(hwnd) = setup_window.hwnd() {
                                 let _ = crate::system::window::set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND);
                             }
-                            // Then enable shadow for Windows 11
-                            let _ = crate::system::window::enable_shadow_for_win11(&setup_window);
                         }
                         
-                        // Now show the setup window with all changes applied
-                        if let Err(e) = setup_window.show() {
-                            tracing::error!("Failed to show setup window: {:?}", e);
-                        }
                         let _ = setup_window.set_focus();
                         
                         // Ri-applica always_on_top dopo un breve delay per sicurezza
