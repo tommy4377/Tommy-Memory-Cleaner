@@ -389,6 +389,7 @@ pub fn show_windows_notification(
 #[cfg(windows)]
 pub fn register_app_for_notifications() {
     use std::ffi::OsStr;
+    use std::ptr::null_mut;
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::System::Registry::{RegSetValueExW, HKEY_CURRENT_USER, REG_SZ};
 
@@ -464,9 +465,9 @@ pub fn register_app_for_notifications() {
             std::ptr::null(),
             0,
             0x20006, // KEY_WRITE
-            0,
+            std::ptr::null(),
             &mut hkey,
-            0,
+            std::ptr::null_mut(),
         );
 
         if result == 0 {
