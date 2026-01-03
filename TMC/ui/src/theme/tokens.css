@@ -26,9 +26,9 @@ html[data-theme='dark'] {
   --card: rgba(44, 44, 46, 0.95);
   --border: rgba(255, 255, 255, 0.08);
   --bar-track: rgba(255, 255, 255, 0.15);
-  --bar-fill: #0a84ff;
-  --bar-free: #0a84ff; /* Stesso colore del main */
-  --btn-bg: #0a84ff; /* Cambiato da #2170c0 per usare il colore di default */
+  --bar-fill: #2170c0;
+  --bar-free: #2170c0; /* Stesso colore del main */
+  --btn-bg: #2170c0; /* Blu scuro come richiesto */
   --btn-fg: #ffffff;
   --btn-border: transparent;
   --tab-active: rgba(58, 58, 60, 1);
@@ -36,7 +36,7 @@ html[data-theme='dark'] {
   /* Inputs e selects per dark mode */
   --input-bg: rgba(58, 58, 60, 0.8);
   --input-border: rgba(255, 255, 255, 0.12);
-  --input-focus: #0a84ff;
+  --input-focus: #2170c0;
 }
 
 * {
@@ -140,7 +140,7 @@ html[data-theme='dark'] input[type='text']:focus,
 html[data-theme='dark'] input[type='number']:focus,
 html[data-theme='dark'] select:focus,
 html[data-theme='dark'] textarea:focus {
-  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(33, 112, 192, 0.15);
 }
 
 /* Select styling per Windows - più tondeggiante e carino */
@@ -201,12 +201,12 @@ html[data-theme='dark'] select option {
 html[data-theme='dark'] select option:checked,
 html[data-theme='dark'] select option[selected],
 html[data-theme='dark'] select option:hover {
-  background: #0a84ff !important;
+  background: #2170c0 !important;
   color: white !important;
 }
 
 html[data-theme='dark'] select::-ms-value {
-  background: #0a84ff !important;
+  background: #2170c0 !important;
   color: white !important;
 }
 

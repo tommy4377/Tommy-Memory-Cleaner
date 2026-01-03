@@ -312,23 +312,17 @@
 </button>
 
 <style>
-  :global(html),
-  :global(body) {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    background: transparent;
+  /* Fix per Windows 10 - rimuovi bordi rettangolari */
+  :global(html) {
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
   }
-
-  /* Rimuove eventuali bordi visibili su Windows 10 */
+  
   :global(body) {
     border: none !important;
     outline: none !important;
+    box-shadow: none !important;
   }
 
   .setup-container {

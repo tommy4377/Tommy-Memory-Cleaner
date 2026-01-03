@@ -85,6 +85,15 @@ pub fn show_or_create_window(app: &AppHandle) {
         match result {
             Ok(window) => {
                 tracing::info!("Window created successfully");
+                
+                // Apply rounded corners on Windows 10/11
+                #[cfg(windows)]
+                {
+                    if let Some(hwnd) = window.hwnd() {
+                        let _ = crate::system::window::set_rounded_corners(hwnd);
+                    }
+                }
+                
                 if let Ok(size) = window.inner_size() {
                     tracing::info!("Actual window size: {}x{}", size.width, size.height);
                 }

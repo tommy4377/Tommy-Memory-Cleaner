@@ -1137,6 +1137,15 @@ fn main() {
                         // Assicura che sia sempre in primo piano
                         let _ = setup_window.set_always_on_top(true);
                         let _ = setup_window.set_focus();
+                        
+                        // Apply rounded corners on Windows 10/11
+                        #[cfg(windows)]
+                        {
+                            if let Some(hwnd) = setup_window.hwnd() {
+                                let _ = crate::system::window::set_rounded_corners(hwnd);
+                            }
+                        }
+                        
                         // Ri-applica always_on_top dopo un breve delay per sicurezza
                         let app_clone = app_handle.clone();
                         tauri::async_runtime::spawn(async move {
