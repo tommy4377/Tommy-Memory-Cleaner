@@ -428,7 +428,7 @@ impl Default for Config {
             run_on_startup: true,
             show_opt_notifications: true,
             tray: TrayConfig::default(),
-            request_elevation_on_startup: false,
+            request_elevation_on_startup: true,
             is_portable_install: false,
             config_version: default_config_version(),
             setup_completed: false,

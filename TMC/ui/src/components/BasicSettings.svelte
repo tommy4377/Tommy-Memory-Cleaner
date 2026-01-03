@@ -136,17 +136,6 @@
     <label>
       <input
         type="checkbox"
-        checked={cfg?.request_elevation_on_startup}
-        on:change={() => toggle('request_elevation_on_startup')}
-      />
-      {$t('Request administrator privileges on startup')}
-    </label>
-  </div>
-
-  <div class="row">
-    <label>
-      <input
-        type="checkbox"
         checked={cfg?.run_on_startup}
         on:change={() => toggle('run_on_startup')}
       />

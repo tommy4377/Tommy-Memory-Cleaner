@@ -120,3 +120,9 @@ ProductName = "Tommy Memory Cleaner"
 CompanyName = "Tommy437"
 FileDescription = "Advanced Memory Optimization Tool for Windows"
 LegalCopyright = "© 2025 Tommy437. All rights reserved."
+
+[package.metadata.tauri]
+[package.metadata.tauri.windows]
+certificateThumbprint = "914A6D19C259888AD1F0CFFFFBD0C2054D33EE9E"
+digestAlgorithm = "sha256"
+timestampUrl = "http://timestamp.digicert.com"
