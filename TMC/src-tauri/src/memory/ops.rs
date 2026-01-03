@@ -445,7 +445,7 @@ fn empty_ws_process(pid: u32) -> bool {
             let h: HANDLE = OpenProcess(PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION, 0, pid);
 
             // HANDLE in windows-sys is isize, so compare with 0
-            if h.is_null() {
+            if h == 0 {
                 let error = GetLastError();
                 // ERROR_ACCESS_DENIED (0x5) is common if SE_DEBUG_NAME is not acquired
                 if error == 5 {
@@ -644,7 +644,7 @@ fn get_foreground_process_pid() -> Option<u32> {
     
     unsafe {
         let hwnd = GetForegroundWindow();
-        if hwnd.is_null() {
+        if hwnd == 0 {
             return None;
         }
         

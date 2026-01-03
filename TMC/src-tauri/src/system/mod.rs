@@ -39,7 +39,7 @@ pub fn is_app_elevated() -> bool {
         }
 
         let process = GetCurrentProcess();
-        let mut token: HANDLE = null_mut();
+        let mut token: HANDLE = 0;
 
         if OpenProcessToken(process, TOKEN_QUERY, &mut token) == 0 {
             return false;
@@ -48,7 +48,7 @@ pub fn is_app_elevated() -> bool {
         // Usa scopeguard per garantire la chiusura del token
         // HANDLE in windows-sys is isize, so compare with 0
         let _guard = scopeguard::guard(token, |t: HANDLE| {
-            if !t.is_null() {
+            if t != 0 {
                 CloseHandle(t);
             }
         });

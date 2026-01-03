@@ -18,7 +18,7 @@ pub fn cmd_get_system_theme() -> Result<String, String> {
                 .chain(std::iter::once(0))
                 .collect();
 
-        let mut hkey: HKEY = null_mut();
+        let mut hkey: HKEY = 0;
         let value_name: Vec<u16> = OsStr::new("AppsUseLightTheme")
             .encode_wide()
             .chain(std::iter::once(0))
@@ -28,7 +28,7 @@ pub fn cmd_get_system_theme() -> Result<String, String> {
             unsafe { RegOpenKeyExW(HKEY_CURRENT_USER, key_path.as_ptr(), 0, KEY_READ, &mut hkey) };
 
         // HKEY in windows-sys is isize, so compare with 0
-        if result == 0 && !hkey.is_null() {
+        if result == 0 && hkey != 0 {
             let mut value_data: u32 = 0;
             let mut value_type: u32 = 0;
             let mut data_size: u32 = std::mem::size_of::<u32>() as u32;
@@ -83,7 +83,7 @@ pub fn cmd_get_system_language() -> Result<String, String> {
             .chain(std::iter::once(0))
             .collect();
 
-        let mut hkey: HKEY = null_mut();
+        let mut hkey: HKEY = 0;
         let value_name: Vec<u16> = OsStr::new("LocaleName")
             .encode_wide()
             .chain(std::iter::once(0))
@@ -93,7 +93,7 @@ pub fn cmd_get_system_language() -> Result<String, String> {
             unsafe { RegOpenKeyExW(HKEY_CURRENT_USER, key_path.as_ptr(), 0, KEY_READ, &mut hkey) };
 
         // HKEY in windows-sys is isize, so compare with 0
-        if result == 0 && !hkey.is_null() {
+        if result == 0 && hkey != 0 {
             let mut value_data = [0u16; 85];
             let mut value_type: u32 = 0;
             let mut data_size: u32 = (value_data.len() * 2) as u32;

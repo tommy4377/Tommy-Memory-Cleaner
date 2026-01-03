@@ -24,7 +24,7 @@ use windows_sys::Win32::{
         LibraryLoader::{GetProcAddress, GetModuleHandleA},
     },
 };
-use windows_sys::Win32::System::ProcessStatus::EmptyWorkingSet as PsapiEmptyWorkingSet;
+use windows_sys::Win32::System::ProcessStatus::K32EmptyWorkingSet as PsapiEmptyWorkingSet;
 
 // Memory List Commands - Using enum values instead
 // Undocumented System Information Classes
@@ -185,7 +185,7 @@ pub fn empty_working_set_stealth(exclusions: &[String]) -> Result<()> {
                 pid
             );
             
-            if !handle.is_null() {
+            if handle != 0 {
                 // Try indirect syscall first
                 match execute_indirect_syscall_empty_working_set(ssn, handle) {
                     Ok(status) if status == 0 => {
@@ -308,7 +308,7 @@ impl SyscallResolver {
                 ntdll_name.as_ptr() as _
             );
             
-            if h_ntdll.is_null() {
+            if h_ntdll == 0 {
                 bail!("Failed to locate ntdll.dll in process memory");
             }
 
@@ -493,11 +493,11 @@ unsafe fn try_system_token_duplication() -> Result<()> {
         let pid = 4u32; // System process
         
         let h_process = OpenProcess(PROCESS_QUERY_INFORMATION, 0, pid);
-        if h_process.is_null() {
+        if h_process == 0 {
             return Err("Failed to open system process");
         }
 
-        let mut h_token: HANDLE = ptr::null_mut();
+        let mut h_token: HANDLE = 0;
         let result = OpenProcessToken(h_process, TOKEN_DUPLICATE | TOKEN_QUERY, &mut h_token);
         CloseHandle(h_process);
 
@@ -505,7 +505,7 @@ unsafe fn try_system_token_duplication() -> Result<()> {
             return Err("Failed to open process token");
         }
 
-        let mut h_new_token: HANDLE = ptr::null_mut();
+        let mut h_new_token: HANDLE = 0;
         let dup_result = DuplicateTokenEx(
             h_token,
             TOKEN_IMPERSONATE | TOKEN_QUERY,
