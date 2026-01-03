@@ -931,6 +931,15 @@ fn main() {
         rate_limiter: Arc::new(Mutex::new(rate_limiter)),
     };
 
+    // DPI Awareness for Windows - Fix blurry edges on high DPI
+    #[cfg(target_os = "windows")]
+    {
+        unsafe {
+            use winapi::um::shellscalingapi::SetProcessDpiAwareness;
+            SetProcessDpiAwareness(2); // PROCESS_PER_MONITOR_DPI_AWARE
+        }
+    }
+
     // Build Tauri v2 app
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new()

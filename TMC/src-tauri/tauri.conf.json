@@ -33,7 +33,11 @@
         "skipTaskbar": false,
         "alwaysOnTop": false,
         "visible": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "highDpi": true,
+        "webviewAttributes": {
+          "perMonitorDpiAware": true
+        }
       }
     ],
     "security": {

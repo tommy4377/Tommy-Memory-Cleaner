@@ -65,7 +65,7 @@ pub fn set_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) -> Result
 fn apply_win10_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) {
     use windows_sys::Win32::Foundation::RECT;
     use windows_sys::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
-    use windows_sys::Win32::UI::WindowsAndMessaging::GetWindowRect;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{GetWindowRect, InvalidateRect};
 
     unsafe {
         tracing::info!("Applying region-based rounded corners (Windows 10 method)");
@@ -78,8 +78,9 @@ fn apply_win10_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) {
 
             tracing::info!("Window dimensions: {}x{}", width, height);
 
-            // Create rounded region with 12px radius (24x24 diameter)
-            let radius = 24;
+            // Create rounded region with 16-20px radius for better anti-aliasing on high DPI
+            // Using 32px radius (64x64 diameter) for less aliasing on DPI > 100%
+            let radius = 32;
             let hrgn = CreateRoundRectRgn(0, 0, width, height, radius, radius);
 
             if hrgn != 0 {
@@ -90,6 +91,10 @@ fn apply_win10_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) {
                         "✓ Successfully applied rounded region with {}px radius",
                         radius / 2
                     );
+                    
+                    // Force WebView redraw to prevent blurry edges
+                    InvalidateRect(hwnd, std::ptr::null(), 1);
+                    tracing::info!("✓ Forced window redraw after SetWindowRgn");
                 } else {
                     tracing::warn!("SetWindowRgn returned 0 (failed)");
                 }

@@ -160,25 +160,24 @@
   .titlebar {
     display: flex;
     align-items: center;
-    justify-content: flex-start; /* Allinea a sinistra */
-    padding: 0 8px; /* Padding originale per spazio sufficiente */
+    justify-content: flex-start;
+    padding: 0 8px;
     background: var(--card);
     border-bottom: 1px solid var(--border);
     user-select: none;
     height: 32px;
     flex-shrink: 0;
-    /* CRITICAL FIX: Negative margin più aggressivo */
-    margin: -3px 0 0 0 !important;
-    padding-top: 3px !important;
-    padding-bottom: 0 !important;
-    /* Assicura che tocchi il bordo superiore */
+    /* DPI-aware positioning - remove negative margins */
+    margin: 0;
+    padding: 0 8px;
     position: relative;
     top: 0;
     border: none;
     box-shadow: none;
-    /* Extra fix: Forza la titlebar a estendersi completamente */
     width: 100%;
     overflow: hidden;
+    /* Inherit border-radius from parent for seamless rounded corners */
+    border-radius: inherit;
   }
 
   /* Fix for dark mode border artifacts */

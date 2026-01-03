@@ -86,6 +86,10 @@ windows-sys = { version = "*", features = [
   "Win32_System_SystemServices",
 ] }
 
+# WinAPI for DPI awareness
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["shellscalingapi"] }
+
 # NT API
 ntapi = "0.4"
 

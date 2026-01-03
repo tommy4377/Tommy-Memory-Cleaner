@@ -334,6 +334,12 @@
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
+    /* DPI-aware anti-aliasing */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
   }
 
   /* Rimuove eventuali bordi visibili su Windows 10 */
@@ -365,9 +371,10 @@
     overflow: hidden;
     position: relative;
     animation: fadeIn 0.2s ease;
-    /* CRITICAL: Rimuovi border-radius per evitare doppio arrotondamento */
-    margin: -3px 0 0 0 !important;
-    padding: 3px 0 0 0 !important;
+    /* Match border-radius with Rust window.rs for seamless rounded corners */
+    border-radius: 12px;
+    margin: 0;
+    padding: 0;
     box-shadow: none;
     border: none;
     outline: none;

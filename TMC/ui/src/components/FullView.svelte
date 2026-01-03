@@ -107,6 +107,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    border-radius: inherit;
   }
 
   .tabs {

@@ -61,7 +61,7 @@
     gap: 16px;
     height: calc(100% - 32px);
     background: var(--bg);
-    border-radius: 12px;
+    border-radius: inherit;
     overflow: hidden;
   }
   
