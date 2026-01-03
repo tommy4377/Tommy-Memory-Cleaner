@@ -85,12 +85,17 @@ pub fn show_or_create_window(app: &AppHandle) {
             Ok(window) => {
                 tracing::info!("Window created successfully");
                 
-                // Apply rounded corners on Windows 10/11
+                // Apply rounded corners on Windows 10/11 after a short delay
                 #[cfg(windows)]
                 {
-                    if let Ok(hwnd) = window.hwnd() {
-                        let _ = crate::system::window::set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND);
-                    }
+                    // Use a timer to delay applying rounded corners until window is ready
+                    let window_clone = window.clone();
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        if let Ok(hwnd) = window_clone.hwnd() {
+                            let _ = crate::system::window::set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND);
+                        }
+                    });
                 }
                 
                 if let Ok(size) = window.inner_size() {

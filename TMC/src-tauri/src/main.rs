@@ -1173,12 +1173,17 @@ fn main() {
                         let _ = setup_window.set_always_on_top(true);
                         let _ = setup_window.set_focus();
                         
-                        // Apply rounded corners on Windows 10/11
+                        // Apply rounded corners on Windows 10/11 after a short delay
                         #[cfg(windows)]
                         {
-                            if let Ok(hwnd) = setup_window.hwnd() {
-                                let _ = crate::system::window::set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND);
-                            }
+                            // Use a timer to delay applying rounded corners until window is ready
+                            let setup_window_clone = setup_window.clone();
+                            std::thread::spawn(move || {
+                                std::thread::sleep(std::time::Duration::from_millis(100));
+                                if let Ok(hwnd) = setup_window_clone.hwnd() {
+                                    let _ = crate::system::window::set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND);
+                                }
+                            });
                         }
                         
                         // Ri-applica always_on_top dopo un breve delay per sicurezza
