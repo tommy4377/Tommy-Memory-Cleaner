@@ -243,10 +243,7 @@
     transition: all 0.2s;
   }
 
-  html[data-theme='dark'] .mod-box {
-    cursor: url('/cursors/dark/hand.cur'), pointer;
-  }
-
+  
   .mod-box.active {
     background: var(--btn-bg);
     color: white;

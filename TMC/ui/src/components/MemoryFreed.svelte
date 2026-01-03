@@ -112,8 +112,4 @@
     transform: translateY(-1px);
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
   }
-
-  .row-wrapper:hover {
-    /* Rimuovuto l'effetto hover */
-  }
 </style>

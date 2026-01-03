@@ -61,12 +61,8 @@
     gap: 16px;
     height: calc(100% - 36px);
     background: var(--bg);
-    border-radius: 8px;
+    border-radius: 12px;
     overflow: hidden;
-    /* Dark theme cursor for compact area */
-  }
-  html[data-theme='dark'] .compact {
-    cursor: url('/cursors/dark/arrow.cur'), auto;
   }
   
   .bar {
@@ -134,18 +130,9 @@
     text-align: center;
   }
   
-  /* Dark theme cursor */
-  html[data-theme='dark'] button {
-    cursor: url('/cursors/dark/hand.cur'), pointer;
-  }
-  
   /* Disabled cursor */
   button:disabled {
     cursor: url('/cursors/light/no.cur'), not-allowed;
-  }
-  
-  html[data-theme='dark'] button:disabled {
-    cursor: url('/cursors/dark/no.cur'), not-allowed;
   }
   
   /* Effetto shimmer per il bottone optimize */

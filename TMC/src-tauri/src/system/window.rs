@@ -38,42 +38,65 @@ pub fn set_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) -> Result
                 std::mem::size_of::<u32>() as u32,
             );
 
-            if result != 0 {
-                tracing::warn!("Failed to set rounded corners on Windows 11: HRESULT 0x{:08X}", result);
-            } else {
+            if result == 0 {
                 tracing::info!("✓ Successfully applied native rounded corners (Windows 11)");
+            } else {
+                tracing::warn!(
+                    "Failed to set rounded corners on Windows 11: HRESULT 0x{:08X}",
+                    result
+                );
+                // Fallback to Windows 10 method
+                apply_win10_rounded_corners(hwnd);
             }
         } else {
             // Windows 10: Use region-based approach
-            tracing::info!("Windows 10 detected - using region-based rounded corners");
-            
-            use windows_sys::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
-            use windows_sys::Win32::UI::WindowsAndMessaging::GetWindowRect;
-            use windows_sys::Win32::Foundation::RECT;
-            
-            // Get window dimensions
-            let mut rect: RECT = std::mem::zeroed();
-            if GetWindowRect(hwnd, &mut rect) != 0 {
-                let width = rect.right - rect.left;
-                let height = rect.bottom - rect.top;
-                
-                // Create rounded region (8px radius to match CSS)
-                let hrgn = CreateRoundRectRgn(0, 0, width, height, 16, 16);
-                
-                if hrgn != 0 {
-                    // Apply the region (TRUE = redraw immediately)
-                    SetWindowRgn(hwnd, hrgn, 1);
-                    tracing::info!("✓ Successfully applied rounded region (Windows 10)");
-                } else {
-                    tracing::warn!("Failed to create rounded region for Windows 10");
-                }
-            } else {
-                tracing::warn!("Failed to get window rect for Windows 10");
-            }
+            apply_win10_rounded_corners(hwnd);
         }
     }
 
     Ok(())
+}
+
+#[cfg(windows)]
+fn apply_win10_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) {
+    use windows_sys::Win32::Foundation::RECT;
+    use windows_sys::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
+    use windows_sys::Win32::UI::WindowsAndMessaging::GetWindowRect;
+
+    unsafe {
+        tracing::info!("Applying region-based rounded corners (Windows 10 method)");
+
+        // Get window dimensions
+        let mut rect: RECT = std::mem::zeroed();
+        if GetWindowRect(hwnd, &mut rect) != 0 {
+            let width = rect.right - rect.left;
+            let height = rect.bottom - rect.top;
+
+            tracing::info!("Window dimensions: {}x{}", width, height);
+
+            // Create rounded region with 12px radius (24x24 diameter for better visibility)
+            let radius = 24;
+            let hrgn = CreateRoundRectRgn(0, 0, width, height, radius, radius);
+
+            if hrgn != 0 {
+                // Apply the region (1 = redraw immediately)
+                let result = SetWindowRgn(hwnd, hrgn, 1);
+                if result != 0 {
+                    tracing::info!(
+                        "✓ Successfully applied rounded region with {}px radius",
+                        radius / 2
+                    );
+                } else {
+                    tracing::warn!("SetWindowRgn returned 0 (failed)");
+                }
+                // Note: Don't delete hrgn, Windows owns it after SetWindowRgn
+            } else {
+                tracing::warn!("Failed to create rounded region (CreateRoundRectRgn returned 0)");
+            }
+        } else {
+            tracing::warn!("Failed to get window rect (GetWindowRect failed)");
+        }
+    }
 }
 
 /// Enable window shadow for Windows 11 rounded corners

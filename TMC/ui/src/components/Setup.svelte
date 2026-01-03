@@ -160,7 +160,7 @@
           // Verifica se la finestra principale esiste e è visibile
           // Usa l'API corretta di Tauri v2
           const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow')
-          const mainWindow = WebviewWindow.getByLabel('main')
+          const mainWindow = (await WebviewWindow.getByLabel('main')) as WebviewWindow | null
 
           if (mainWindow) {
             try {
@@ -323,15 +323,10 @@
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
-    border-radius: 10px;
+    border-radius: 12px;
     cursor: url('/cursors/light/arrow.cur'), auto;
   }
   
-  /* Dark theme cursor */
-  html[data-theme='dark'] :global(body),
-  html[data-theme='dark'] :global(html) {
-    cursor: url('/cursors/dark/arrow.cur'), auto;
-  }
 
   /* Rimuove eventuali bordi visibili su Windows 10 */
   :global(body) {
@@ -371,7 +366,7 @@
     /* Assicura opacità completa su Windows */
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
-    border-radius: 8px;
+    border-radius: 12px;
   }
   
   /* Aggiungiamo uno stile per il contenuto principale simile alla full view */
@@ -520,10 +515,6 @@
     transition: opacity 0.2s;
   }
   
-  /* Dark theme cursor for button */
-  html[data-theme='dark'] .complete-btn {
-    cursor: url('/cursors/dark/hand.cur'), pointer;
-  }
   
   .complete-btn:hover:not(:disabled) {
     opacity: 0.9;
@@ -534,9 +525,6 @@
     cursor: url('/cursors/light/no.cur'), not-allowed;
   }
   
-  html[data-theme='dark'] .complete-btn:disabled {
-    cursor: url('/cursors/dark/no.cur'), not-allowed;
-  }
 
   .complete-btn.no-shimmer::after {
     display: none !important;

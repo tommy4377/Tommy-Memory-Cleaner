@@ -50,7 +50,7 @@
     isLoading = false
     
     // Set up event listener for optimization results
-    if (typeof window !== 'undefined' && window.__TAURI__) {
+    if (typeof window !== 'undefined' && (window as any).__TAURI__) {
       const { listen } = await import('@tauri-apps/api/event')
       
       unlisten = await listen('optimization-completed', (event: any) => {

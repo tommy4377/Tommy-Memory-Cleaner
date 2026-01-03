@@ -128,7 +128,7 @@
     setTimeout(() => {
       try {
         // Colori originali del main
-        const theme = cfg.theme === 'light' ? 'light' : 'dark'
+        const theme = cfg?.theme === 'light' ? 'light' : 'dark'
         const defaultMainColor = theme === 'light' ? '#9a8a72' : '#1363b4'
         
         // Aggiorna subito il locale per feedback istantaneo
@@ -168,7 +168,7 @@
     
     // Salva il colore pendente se esiste
     if (pendingColor) {
-      const theme = cfg.theme === 'light' ? 'light' : 'dark'
+      const theme = cfg?.theme === 'light' ? 'light' : 'dark'
       const updates: Partial<Config> = theme === 'light'
         ? { main_color_hex_light: pendingColor }
         : { main_color_hex_dark: pendingColor }

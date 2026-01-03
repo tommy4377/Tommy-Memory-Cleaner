@@ -60,6 +60,21 @@ pub fn show_or_create_window(app: &AppHandle) {
         if let Ok(size) = window.inner_size() {
             tracing::info!("Current window size: {}x{}", size.width, size.height);
         }
+        
+        // Reapply rounded corners when showing existing window
+        #[cfg(windows)]
+        {
+            tracing::info!("Reapplying rounded corners to existing window");
+            // PRIMA: Applica i bordi arrotondati
+            if let Ok(hwnd) = window.hwnd() {
+                let _ = crate::system::window::set_rounded_corners(
+                    hwnd.0 as windows_sys::Win32::Foundation::HWND
+                );
+            }
+            // DOPO: Applica shadow per Win11
+            let _ = crate::system::window::enable_shadow_for_win11(&window);
+        }
+        
         let _: Result<(), _> = window.set_skip_taskbar(false); // Show in taskbar
         let _ = window.show();
         let _ = window.unminimize();
@@ -88,12 +103,13 @@ pub fn show_or_create_window(app: &AppHandle) {
                 // Apply rounded corners on Windows 10/11
                 #[cfg(windows)]
                 {
-                    // Enable shadow for Windows 11
-                    let _ = crate::system::window::enable_shadow_for_win11(&window);
-                    // Apply DWM attributes
+                    // PRIMA: Applica i bordi arrotondati
                     if let Ok(hwnd) = window.hwnd() {
                         let _ = crate::system::window::set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND);
                     }
+                    
+                    // DOPO: Applica shadow per Win11
+                    let _ = crate::system::window::enable_shadow_for_win11(&window);
                 }
                 
                 if let Ok(size) = window.inner_size() {

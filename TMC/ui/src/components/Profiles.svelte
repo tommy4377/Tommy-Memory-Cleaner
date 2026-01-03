@@ -42,7 +42,7 @@
     }
   }
 
-  function handleDragStart(e: DragEvent) {
+  function handleDragStart(e: Event) {
     // Previene il drag dei pulsanti
     e.preventDefault()
   }

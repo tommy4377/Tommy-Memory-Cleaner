@@ -38,13 +38,19 @@
   }
 
   function onHoursInput(e: Event) {
-    hours = parseInt(e.currentTarget.value)
-    scheduleUpdate('hours', hours)
+    if (e.currentTarget) {
+      const target = e.currentTarget as HTMLInputElement
+      hours = parseInt(target.value)
+      scheduleUpdate('hours', hours)
+    }
   }
 
   function onFreeInput(e: Event) {
-    freePct = parseInt(e.currentTarget.value)
-    scheduleUpdate('free', freePct)
+    if (e.currentTarget) {
+      const target = e.currentTarget as HTMLInputElement
+      freePct = parseInt(target.value)
+      scheduleUpdate('free', freePct)
+    }
   }
 </script>
 

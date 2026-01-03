@@ -156,7 +156,17 @@
     // Salva tutti gli aggiornamenti pendenti
     if (Object.keys(pendingUpdates).length > 0) {
       queueConfigUpdate({
-        tray: { ...cfg.tray, ...pendingUpdates },
+        tray: {
+          show_mem_usage: cfg?.tray?.show_mem_usage ?? true,
+          text_color_hex: cfg?.tray?.text_color_hex ?? '#ffffff',
+          background_color_hex: cfg?.tray?.background_color_hex ?? '#2d8a3d',
+          transparent_bg: cfg?.tray?.transparent_bg ?? false,
+          warning_level: cfg?.tray?.warning_level ?? 80,
+          warning_color_hex: cfg?.tray?.warning_color_hex ?? '#d97706',
+          danger_level: cfg?.tray?.danger_level ?? 95,
+          danger_color_hex: cfg?.tray?.danger_color_hex ?? '#b91c1c',
+          ...pendingUpdates,
+        },
       })
       pendingUpdates = {}
     }
@@ -192,10 +202,13 @@
         
         queueConfigUpdate({
           tray: {
-            ...cfg.tray,
+            show_mem_usage: cfg?.tray?.show_mem_usage ?? true,
             text_color_hex: defaultText,
             background_color_hex: defaultBg,
+            transparent_bg: cfg?.tray?.transparent_bg ?? false,
+            warning_level: cfg?.tray?.warning_level ?? 80,
             warning_color_hex: defaultWarning,
+            danger_level: cfg?.tray?.danger_level ?? 95,
             danger_color_hex: defaultDanger,
           },
         })
@@ -349,16 +362,7 @@
     font-size: 11px;
   }
 
-  input[type='color'] {
-    width: 45px;
-    height: 30px;
-    padding: 0;
-    border: 1px solid var(--border);
-    background: var(--input-bg);
-    cursor: pointer;
-    border-radius: 10px;
-  }
-
+  
   input[type='range'] {
     flex: 1;
     height: 8px;
@@ -366,7 +370,6 @@
     appearance: none;
     background: var(--bar-track);
     border-radius: 8px;
-    outline: none;
     margin: 0;
     padding: 0;
   }
@@ -375,7 +378,6 @@
     background: var(--bar-track);
     height: 8px;
     border-radius: 8px;
-    width: 100%;
   }
 
   input[type='range']::-webkit-slider-thumb {

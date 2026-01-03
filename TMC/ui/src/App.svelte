@@ -25,6 +25,7 @@
     initApp,
     cleanupApp,
     config,
+    memory,
     isAppInitialized,
     updateConfig,
     getSafeLanguage,
@@ -361,7 +362,7 @@
     flex-direction: column;
     background: var(--bg);
     color: var(--fg);
-    border-radius: 8px;
+    border-radius: 12px;
     overflow: hidden;
     position: relative;
     animation: fadeIn 0.2s ease;

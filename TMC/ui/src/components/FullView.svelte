@@ -107,7 +107,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border-radius: 8px;
+    border-radius: 12px;
   }
 
   .tabs {
@@ -138,10 +138,7 @@
   }
 
   /* Dark theme cursor for tabs */
-  html[data-theme='dark'] .tab {
-    cursor: url('/cursors/dark/hand.cur'), pointer;
-  }
-
+  
   .content {
     flex: 1;
     padding: 10px;
