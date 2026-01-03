@@ -85,12 +85,17 @@ pub fn show_or_create_window(app: &AppHandle) {
             Ok(window) => {
                 tracing::info!("Window created successfully");
                 
-                // Apply rounded corners on Windows 10/11 BEFORE showing window
+                // Show window first
+                if let Err(e) = window.show() {
+                    tracing::error!("Failed to show newly created window: {:?}", e);
+                }
+                
+                // Apply rounded corners on Windows 10/11 AFTER showing
                 #[cfg(windows)]
                 {
-                    // Enable shadow for Windows 11 rounded corners FIRST
+                    // Enable shadow for Windows 11
                     let _ = crate::system::window::enable_shadow_for_win11(&window);
-                    // Then apply rounded corners
+                    // Apply DWM attributes
                     if let Ok(hwnd) = window.hwnd() {
                         let _ = crate::system::window::set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND);
                     }
@@ -100,11 +105,6 @@ pub fn show_or_create_window(app: &AppHandle) {
                     tracing::info!("Actual window size: {}x{}", size.width, size.height);
                 }
                 let _ = window.set_skip_taskbar(false);
-                
-                // Now show the window with all changes applied
-                if let Err(e) = window.show() {
-                    tracing::error!("Failed to show newly created window: {:?}", e);
-                }
                 let _ = window.set_focus();
             }
             Err(e) => {

@@ -1174,12 +1174,12 @@ fn main() {
                         // Apply rounded corners on Windows 10/11
                         #[cfg(windows)]
                         {
-                            // Enable shadow for Windows 11 rounded corners FIRST
-                            let _ = crate::system::window::enable_shadow_for_win11(&setup_window);
-                            // Then apply rounded corners
+                            // Apply DWM attributes first
                             if let Ok(hwnd) = setup_window.hwnd() {
                                 let _ = crate::system::window::set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND);
                             }
+                            // Then enable shadow for Windows 11
+                            let _ = crate::system::window::enable_shadow_for_win11(&setup_window);
                         }
                         
                         // Now show the setup window with all changes applied
