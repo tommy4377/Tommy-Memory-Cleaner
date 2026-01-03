@@ -11,8 +11,6 @@ pub fn set_always_on_top(app: &AppHandle, on: bool) -> Result<(), String> {
 pub fn set_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) -> Result<(), String> {
     use windows_sys::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND, DWMWA_TRANSITIONS_FORCEDISABLED};
     use windows_sys::Win32::System::SystemInformation::GetVersionExW;
-    use windows_sys::Win32::Graphics::Gdi::{SetWindowRgn, CreateRoundRectRgn, DeleteObject};
-    use windows_sys::Win32::UI::WindowsAndMessaging::GetWindowRect;
     
     unsafe {
         // Check Windows version
@@ -44,46 +42,19 @@ pub fn set_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) -> Result
             } else {
                 tracing::info!("Successfully set rounded corners for Windows 11 window");
             }
+            
+            // Disable transitions on Windows 11
+            let disable_transitions: i32 = 1;
+            let _ = DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_TRANSITIONS_FORCEDISABLED as i32,
+                &disable_transitions as *const _ as *const _,
+                std::mem::size_of::<i32>() as u32,
+            );
         } else {
-            // Windows 10: Use SetWindowRgn with CreateRoundRectRgn
-            tracing::info!("Windows 10 detected - using SetWindowRgn for rounded corners");
-            
-            // Get window dimensions
-            let mut rect = std::mem::zeroed();
-            if GetWindowRect(hwnd, &mut rect) == 0 {
-                return Err("Failed to get window rect".to_string());
-            }
-            
-            let width = rect.right - rect.left;
-            let height = rect.bottom - rect.top;
-            
-            // Create a round rectangle region (8px radius for smoother appearance)
-            // Note: CreateRoundRectRgn expects exclusive bounds, so add 1 to avoid 1-pixel gap
-            let radius = 8;
-            let hrgn = CreateRoundRectRgn(0, 0, width + 1, height + 1, radius, radius);
-            
-            if hrgn != 0 {
-                // Apply the region to the window
-                if SetWindowRgn(hwnd, hrgn, 1) != 0 {
-                    tracing::info!("Successfully applied rounded region to Windows 10 window");
-                    // Don't delete the region as it's now owned by the window
-                } else {
-                    DeleteObject(hrgn);
-                    return Err("Failed to set window region".to_string());
-                }
-            } else {
-                return Err("Failed to create round rectangle region".to_string());
-            }
+            // Windows 10: Skip SetWindowRgn - use CSS-only rounded corners
+            tracing::info!("Windows 10 detected - using CSS-only rounded corners (no SetWindowRgn)");
         }
-        
-        // Disable transitions on both Windows 10 and 11
-        let disable_transitions: i32 = 1;
-        let _ = DwmSetWindowAttribute(
-            hwnd,
-            DWMWA_TRANSITIONS_FORCEDISABLED as i32,
-            &disable_transitions as *const _ as *const _,
-            std::mem::size_of::<i32>() as u32,
-        );
         
         Ok(())
     }

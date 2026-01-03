@@ -3,7 +3,6 @@
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
   import { LogicalSize, type PhysicalSize } from '@tauri-apps/api/window'
   import { listen, type UnlistenFn } from '@tauri-apps/api/event'
-  import { invoke } from '@tauri-apps/api/core'
   import Titlebar from './components/Titlebar.svelte'
 
   // Lazy load components for better performance
@@ -202,14 +201,6 @@
       // Re-enable resizing for full view
       if (!compact) {
         await appWindow.setResizable(false)
-      }
-      
-      // Reapply rounded corners on Windows 10 after resize
-      try {
-        await invoke('cmd_reapply_rounded_corners')
-      } catch (error) {
-        // Silently fail on non-Windows or if command not available
-        console.debug('Failed to reapply rounded corners:', error)
       }
     } catch (error) {
       console.error('Failed to update window size:', error)

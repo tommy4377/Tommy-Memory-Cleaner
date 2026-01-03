@@ -27,7 +27,7 @@ pub fn cmd_manage_elevated_task(create: bool) -> Result<(), String> {
         #[cfg(windows)]
         {
             use crate::system::elevated_task::create_elevated_task;
-            create_elevated_task().map_err(|e| e.to_string())?;
+            create_elevated_task().map_err(|e| e.to_string())?
         }
         #[cfg(not(windows))]
         {
@@ -37,29 +37,12 @@ pub fn cmd_manage_elevated_task(create: bool) -> Result<(), String> {
         #[cfg(windows)]
         {
             use crate::system::elevated_task::delete_elevated_task;
-            delete_elevated_task().map_err(|e| e.to_string())?;
+            delete_elevated_task().map_err(|e| e.to_string())?
         }
         #[cfg(not(windows))]
         {
             return Err("Elevated task is only supported on Windows".to_string());
         }
-    }
-    Ok(())
-}
-
-/// Reapplies rounded corners to the current window (useful after resize).
-#[tauri::command]
-pub fn cmd_reapply_rounded_corners(window: tauri::Window) -> Result<(), String> {
-    #[cfg(windows)]
-    {
-        if let Ok(hwnd) = window.hwnd() {
-            crate::system::window::set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND)
-                .map_err(|e| e.to_string())?;
-        }
-    }
-    #[cfg(not(windows))]
-    {
-        // No-op on non-Windows platforms
     }
     Ok(())
 }
@@ -73,12 +56,12 @@ pub fn cmd_set_priority(
     state: State<'_, crate::AppState>,
     priority: Priority,
 ) -> Result<(), String> {
-    crate::system::priority::set_priority(priority.clone()).map_err(|e| e.to_string())?;
+    crate::system::priority::set_priority(priority.clone()).map_err(|e| e.to_string())?
 
     let mut cfg = state
         .cfg
         .lock()
-        .map_err(|_| "Config lock poisoned".to_string())?;
+        .map_err(|_| "Config lock poisoned".to_string())?
     cfg.run_priority = priority;
     cfg.save().map_err(|e| e.to_string())
 }
@@ -91,11 +74,11 @@ pub fn cmd_set_priority(
 #[tauri::command]
 pub fn cmd_run_on_startup(enable: bool, state: State<'_, crate::AppState>) -> Result<(), String> {
     crate::system::startup::set_run_on_startup(enable).map_err(|e| {
-        format!(
+        format(
             "Failed to set startup: {}. Try running as administrator.",
             e
         )
-    })?;
+    })?
 
     let is_enabled = crate::system::startup::is_startup_enabled();
     if enable && !is_enabled {
@@ -107,7 +90,7 @@ pub fn cmd_run_on_startup(enable: bool, state: State<'_, crate::AppState>) -> Re
     let mut cfg = state
         .cfg
         .lock()
-        .map_err(|_| "Config lock poisoned".to_string())?;
+        .map_err(|_| "Config lock poisoned".to_string())?
     cfg.run_on_startup = is_enabled;
     cfg.save().map_err(|e| e.to_string())
 }
@@ -122,12 +105,12 @@ pub fn cmd_set_always_on_top(
     on: bool,
     state: State<'_, crate::AppState>,
 ) -> Result<(), String> {
-    crate::system::window::set_always_on_top(&app, on)?;
+    crate::system::window::set_always_on_top(&app, on)?
 
     let mut cfg = state
         .cfg
         .lock()
-        .map_err(|_| "Config lock poisoned".to_string())?;
+        .map_err(|_| "Config lock poisoned".to_string())?
     cfg.always_on_top = on;
     cfg.save().map_err(|e| e.to_string())
 }
