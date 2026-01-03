@@ -1,6 +1,6 @@
 [package]
 name = "TommyMemoryCleaner"
-version = "1.0.0"
+version = "2.5.0"
 edition = "2021"
 publish = false
 authors = ["tommy437"]
@@ -117,6 +117,6 @@ strip = true
 [package.metadata.winres]
 OriginalFilename = "TommyMemoryCleaner.exe"
 ProductName = "Tommy Memory Cleaner"
-CompanyName = "tommy437"
+CompanyName = "Tommy437"
 FileDescription = "Advanced Memory Optimization Tool for Windows"
-LegalCopyright = "© 2025 tommy437. All rights reserved."
+LegalCopyright = "© 2025 Tommy437. All rights reserved."
