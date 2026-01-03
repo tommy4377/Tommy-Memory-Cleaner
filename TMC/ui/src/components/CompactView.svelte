@@ -55,15 +55,11 @@
 
 <style>
   .compact {
-    width: 100%;
-    height: 100%;
+    padding: 16px 20px;
     display: flex;
-    flex-direction: column;
-    background: var(--bg);
-    border-radius: 8px;
-    overflow: hidden;
-    padding: 8px;
-    gap: 8px;
+    align-items: center;
+    gap: 16px;
+    height: calc(100% - 36px);
     /* Dark theme cursor for compact area */
   }
   html[data-theme='dark'] .compact {
