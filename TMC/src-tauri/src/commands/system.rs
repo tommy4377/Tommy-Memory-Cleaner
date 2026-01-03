@@ -20,26 +20,48 @@ pub fn cmd_restart_with_elevation() -> Result<(), String> {
     }
 }
 
-/// Creates or removes the elevated scheduled task for admin access.
+/// Manages the elevated task for silent admin startup.
 #[tauri::command]
-pub fn cmd_manage_elevated_task(create: bool) -> Result<String, String> {
-    #[cfg(windows)]
-    {
-        use crate::system::elevated_task::{create_elevated_task, delete_elevated_task};
-        
-        if create {
-            create_elevated_task().map(|_| "Elevated task created successfully".to_string())
-                .map_err(|e| e.to_string())
-        } else {
-            delete_elevated_task().map(|_| "Elevated task deleted successfully".to_string())
-                .map_err(|e| e.to_string())
+pub fn cmd_manage_elevated_task(create: bool) -> Result<(), String> {
+    if create {
+        #[cfg(windows)]
+        {
+            use crate::system::elevated_task::{create_elevated_task, delete_elevated_task};
+            create_elevated_task().map_err(|e| e.to_string())?;
+        }
+        #[cfg(not(windows))]
+        {
+            return Err("Elevated task is only supported on Windows".to_string());
+        }
+    } else {
+        #[cfg(windows)]
+        {
+            use crate::system::elevated_task::delete_elevated_task;
+            delete_elevated_task().map_err(|e| e.to_string())?;
+        }
+        #[cfg(not(windows))]
+        {
+            return Err("Elevated task is only supported on Windows".to_string());
         }
     }
-    
+    Ok(())
+}
+
+/// Reapplies rounded corners to the current window (useful after resize).
+#[tauri::command]
+pub fn cmd_reapply_rounded_corners(window: tauri::Window) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        if let Ok(hwnd) = window.hwnd() {
+            crate::system::window::set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND)
+                .map_err(|e| e.to_string())?;
+        }
+    }
     #[cfg(not(windows))]
     {
-        Err("Elevated task is only supported on Windows".to_string())
+        // No-op on non-Windows platforms
     }
+    Ok(())
 }
 
 /// Sets the application process priority.

@@ -987,6 +987,7 @@ fn main() {
             commands::system::cmd_set_priority,
             commands::system::cmd_restart_with_elevation,
             commands::system::cmd_manage_elevated_task,
+            commands::system::cmd_reapply_rounded_corners,
             // Commands from theme module
             commands::theme::cmd_get_system_theme,
             commands::theme::cmd_get_system_language,
