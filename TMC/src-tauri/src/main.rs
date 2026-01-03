@@ -1178,6 +1178,8 @@ fn main() {
                             if let Ok(hwnd) = setup_window.hwnd() {
                                 let _ = crate::system::window::set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND);
                             }
+                            // Enable shadow for Windows 11 rounded corners
+                            let _ = crate::system::window::enable_shadow_for_win11(&setup_window);
                         }
                         
                         // Ri-applica always_on_top dopo un breve delay per sicurezza
