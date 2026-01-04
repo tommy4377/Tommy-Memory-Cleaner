@@ -108,6 +108,7 @@ fn restart_with_elevation() -> Result<(), Box<dyn std::error::Error>> {
         )
     };
     
+    // ShellExecuteW returns HINSTANCE (HANDLE) which is isize in windows-sys
     if (result as isize) <= 32 {
         let error_code = unsafe { GetLastError() };
         tracing::error!("Failed to restart with elevation. ShellExecuteW returned: {:?}, GetLastError: {}", result as isize, error_code);
@@ -1013,18 +1014,26 @@ fn main() {
             // Initial log
             tracing::info!("Application setup started");
 
-            // Ensure main window is visible on startup
-            if let Some(window) = app_handle.get_webview_window("main") {
-                tracing::info!("Main window found, showing it...");
-                let _ = window.set_skip_taskbar(false);
-                if let Err(e) = window.show() {
-                    tracing::error!("Failed to show window: {:?}", e);
+            // Check if this is first run - if so, don't show main window yet
+            let is_first_run = {
+                if let Ok(cfg) = state.cfg.try_lock() {
+                    !cfg.setup_completed
                 } else {
-                    tracing::info!("Window shown successfully");
+                    false
                 }
-                let _ = window.set_focus();
+            };
+
+            // Only show main window if setup is already completed
+            if !is_first_run {
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    tracing::info!("Setup already completed, showing main window...");
+                    let _ = window.set_skip_taskbar(false);
+                    if let Err(e) = window.show() {
+                        tracing::error!("Failed to show window: {:?}", e);
+                    }
+                }
             } else {
-                tracing::warn!("Main window not found at setup start");
+                tracing::info!("First run detected - main window will be shown after setup");
             }
 
             // Build tray icon - handle errors without crashing

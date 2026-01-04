@@ -27,12 +27,12 @@
         "maxHeight": 700,
         "resizable": false,
         "decorations": false,
-        "transparent": false,
+        "transparent": true,
         "shadow": true,
         "center": true,
         "skipTaskbar": false,
         "alwaysOnTop": false,
-        "visible": true,
+        "visible": false,
         "fullscreen": false
       }
     ],

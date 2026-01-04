@@ -372,15 +372,9 @@
     position: relative;
     animation: fadeIn 0.2s ease;
     /* Match border-radius with Rust window.rs for seamless rounded corners */
-    border-radius: 12px;
-    margin: 0;
-    padding: 0;
-    box-shadow: none;
-    border: none;
-    outline: none;
-    -webkit-app-region: no-drag;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    border-radius: 16px;
+    /* Ensure content stays within rounded bounds */
+    border: 1px solid transparent;
   }
 
   @keyframes fadeIn {
