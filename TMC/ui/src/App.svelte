@@ -32,10 +32,11 @@
     stopMemoryRefresh,
   } from './lib/store'
   import { applyThemeColors } from './lib/themeManager'
-  import { getConfig } from './lib/api'
+  import { getConfig, saveConfig } from './lib/api'
   import { setLanguage } from './i18n/index'
   import { memoryInfo } from './lib/api'
   import type { Config } from './lib/types'
+  import { invoke } from '@tauri-apps/api/core'
 
   // ========== STATE ==========
   const appWindow = WebviewWindow.getCurrent()
@@ -55,10 +56,10 @@
 
   // Window dimensions
   const WINDOW_SIZES = {
-    full: { width: 500, height: 700 },
-    compact: { width: 380, height: 90 },
+    full: { width: 490, height: 700 },
+    compact: { width: 420, height: 100 },
     min: { width: 360, height: 90 },
-    max: { width: 500, height: 700 },
+    max: { width: 490, height: 700 },
   } as const
 
   // ========== LIFECYCLE ==========
@@ -66,56 +67,78 @@
     // Log della dimensione della finestra
     console.log(`Window size: ${window.innerWidth}x${window.innerHeight}px`)
     
+    // 1. Leggi la configurazione iniziale
+    let currentConfig = await getConfig()
+    
+    // 2. Controlla se è Windows 10 solo la prima volta e salva in config
+    if (!currentConfig.platform_detected) {
+      try {
+        const platform = await invoke('cmd_get_platform') as string
+        const isWindows10 = platform === 'windows-10'
+        await saveConfig({ 
+          platform_detected: true,
+          is_windows_10: isWindows10 
+        })
+        console.log(`Platform detected: ${platform}`)
+        // Aggiorna la configurazione locale
+        currentConfig = { ...currentConfig, platform_detected: true, is_windows_10: isWindows10 }
+      } catch (error) {
+        console.error('Failed to detect platform:', error)
+      }
+    }
+    
+    // 3. Setup window CON la configurazione aggiornata
+    await setupWindow(currentConfig)
+    
+    // 4. Initialize app
+    await initApp()
+    isLoading = false
+    initError = null
+
+    // 5. Subscribe to config changes
+    configUnsub = config.subscribe((v) => {
+      cfg = v
+      if (v) handleConfigChange(v)
+    })
+
+    // Apply initial theme
+    if (cfg?.theme) {
+      applyThemeColors(cfg)
+      // Update tray icon with correct theme
+      invoke('cmd_update_tray_theme', { theme: cfg.theme })
+    }
+
+    // Apply initial language
+    if (cfg?.language) {
+      setLanguage(cfg.language as 'en' | 'it' | 'es' | 'fr' | 'pt' | 'de' | 'ar' | 'ja')
+    }
+
     // Listener per resize
     handleResize = () => {
       console.log(`Window resized to: ${window.innerWidth}x${window.innerHeight}px`)
     }
     window.addEventListener('resize', handleResize)
-    
-    try {
-      // Inizializza app solo se non già inizializzata
-      if (!isAppInitialized()) {
+
+    // Listen for setup-complete event to reload config
+    const setupCompleteUnlisten = await listen('setup-complete', async () => {
+      // Ricarica la configurazione quando il setup è completato
+      if (isAppInitialized()) {
         await initApp()
+        // La config verrà aggiornata automaticamente tramite il subscribe sopra
       }
+    })
 
-      // Setup window
-      await setupWindow()
+    // Listen for window resize events
+    resizeUnlisten = await listen<PhysicalSize>('tauri://resize', async () => {
+      // Handle resize if needed
+    })
 
-      // Subscribe to config changes
-      configUnsub = config.subscribe(async (value) => {
-        cfg = value
-        if (value) {
-          // Applica i colori centralizzati
-          applyThemeColors(value)
-          await handleConfigChange(value)
-        }
-      })
+    // Listener per monitor change - centra su nuovo monitor quando necessario
+    const monitorUnlisten = await listen('tauri://window-scale-factor-changed', async () => {
+      await handleMonitorChange()
+    })
 
-      // Listen for setup-complete event to reload config
-      const setupCompleteUnlisten = await listen('setup-complete', async () => {
-        // Ricarica la configurazione quando il setup è completato
-        if (isAppInitialized()) {
-          await initApp()
-          // La config verrà aggiornata automaticamente tramite il subscribe sopra
-        }
-      })
-
-      // Listen for window resize events
-      resizeUnlisten = await listen<PhysicalSize>('tauri://resize', async () => {
-        // Handle resize if needed
-      })
-
-      // Listener per monitor change - centra su nuovo monitor quando necessario
-      const monitorUnlisten = await listen('tauri://window-scale-factor-changed', async () => {
-        await handleMonitorChange()
-      })
-
-      isLoading = false
-    } catch (error) {
-      console.error('Failed to initialize app:', error)
-      initError = error instanceof Error ? error.message : 'Unknown error occurred'
-      isLoading = false
-    }
+    isLoading = false
   })
 
   onDestroy(() => {
@@ -144,20 +167,21 @@
   })
 
   // ========== WINDOW MANAGEMENT ==========
-  async function setupWindow() {
+  async function setupWindow(config: Config) {
     try {
       // Mostra la finestra nella taskbar
       await appWindow.setSkipTaskbar(false)
 
-      // Set initial size
-      await appWindow.setSize(new LogicalSize(WINDOW_SIZES.full.width, WINDOW_SIZES.full.height))
+      // Set initial size based on config
+      const startCompact = config?.compact_mode ?? false
+      const size = startCompact ? WINDOW_SIZES.compact : WINDOW_SIZES.full
+      await appWindow.setSize(new LogicalSize(size.width, size.height))
 
       // Center window
       await appWindow.center()
 
       // Set min/max size constraints
       await appWindow.setMinSize(new LogicalSize(WINDOW_SIZES.min.width, WINDOW_SIZES.min.height))
-
       await appWindow.setMaxSize(new LogicalSize(WINDOW_SIZES.max.width, WINDOW_SIZES.max.height))
 
       // Focus window
@@ -253,7 +277,7 @@
     try {
       await initApp()
       isLoading = false
-      await setupWindow()
+      await setupWindow(await getConfig())
       isLoading = false
     } catch (error) {
       console.error('Retry failed:', error)

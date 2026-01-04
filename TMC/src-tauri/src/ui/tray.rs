@@ -219,6 +219,14 @@ fn get_default_icon() -> Image<'static> {
         .clone()
 }
 
+/// Update tray icon with current theme
+pub fn update_tray_icon_with_theme<R: Runtime>(app: &AppHandle<R>, theme: &str) -> tauri::Result<()> {
+    // For now, just log the theme change
+    // TODO: Implement theme-specific tray icons when icons are available
+    tracing::info!("Theme changed to: {}, tray icon update requested", theme);
+    Ok(())
+}
+
 pub fn build<R: Runtime>(_app: &AppHandle<R>) -> tauri::Result<TrayIconBuilder<R>> {
     let icon = get_default_icon();
 

@@ -19,11 +19,11 @@
       {
         "label": "main",
         "title": "Tommy Memory Cleaner",
-        "width": 500,
+        "width": 490,
         "height": 700,
         "minWidth": 390,
         "minHeight": 190,
-        "maxWidth": 500,
+        "maxWidth": 490,
         "maxHeight": 700,
         "resizable": false,
         "decorations": false,

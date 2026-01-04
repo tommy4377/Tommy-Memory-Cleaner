@@ -120,22 +120,53 @@
     document.body.style.cursor = ''
   }
 
+  let isTransitioning = false
+
   async function toggleCompact() {
     // Nel setup, il pulsante compact non fa nulla
     if (onClose) return
 
     if (!cfg) return
+    
+    // Previeni spam durante la transizione
+    if (isTransitioning) return
+    
+    isTransitioning = true
     const next = !cfg.compact_mode
 
-    await updateConfig({ compact_mode: next })
+    try {
+      // Cambia le dimensioni IMMEDIATAMENTE prima di aggiornare la config
+      if (next) {
+        await appWindow.setSize(new LogicalSize(420, 100))
+      } else {
+        await appWindow.setSize(new LogicalSize(490, 700))
+      }
 
-    if (next) {
-      await appWindow.setSize(new LogicalSize(420, 100))
-    } else {
-      await appWindow.setSize(new LogicalSize(480, 680))
+      // Aggiorna la config dopo aver cambiato le dimensioni
+      await updateConfig({ compact_mode: next })
+      
+      // Riapplica i bordi arrotondati su Windows 10 dopo il resize
+      if (cfg?.is_windows_10) {
+        // Aspetta un po' che il resize sia completato
+        setTimeout(async () => {
+          try {
+            await invoke('cmd_apply_rounded_corners')
+          } catch (error) {
+            console.error('Failed to reapply rounded corners:', error)
+          }
+        }, 150)
+      }
+      
+      // NON centrare la finestra per evitare problemi
+      // await appWindow.center()
+    } catch (error) {
+      console.error('Error during toggle:', error)
+    } finally {
+      // Resetta il flag dopo un breve delay per evitare spam
+      setTimeout(() => {
+        isTransitioning = false
+      }, 100)
     }
-
-    await appWindow.center()
   }
 </script>
 

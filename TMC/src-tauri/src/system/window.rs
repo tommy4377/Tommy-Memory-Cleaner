@@ -7,6 +7,47 @@ pub fn set_always_on_top(app: &AppHandle, on: bool) -> Result<(), String> {
     Ok(())
 }
 
+/// Apply rounded corners and shadow to a window (used for both setup and main window)
+#[cfg(windows)]
+pub fn apply_window_decorations(window: &tauri::WebviewWindow) -> Result<(), String> {
+    // WAIT longer for window to be fully rendered
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    
+    // PRIMA: Applica shadow (come nel setup)
+    let _ = enable_shadow_for_win11(window);
+    
+    // DOPO: Applica rounded corners (come nel setup)
+    if let Ok(hwnd) = window.hwnd() {
+        let _ = set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND);
+        
+        // FORZA RIDISEGNO dopo un breve delay per Windows 10
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        use windows_sys::Win32::Graphics::Gdi::InvalidateRect;
+        unsafe {
+            InvalidateRect(hwnd.0 as windows_sys::Win32::Foundation::HWND, std::ptr::null(), 1);
+        }
+    }
+    
+    Ok(())
+}
+
+/// Show window with rounded corners (centralized function)
+pub fn show_window_with_rounded_corners(window: &tauri::WebviewWindow) -> Result<(), String> {
+    let _ = window.set_skip_taskbar(false);
+    let _ = window.show();
+    let _ = window.unminimize();
+    let _ = window.center();
+    let _ = window.set_focus();
+    
+    // Apply rounded corners on Windows
+    #[cfg(windows)]
+    {
+        let _ = apply_window_decorations(window);
+    }
+    
+    Ok(())
+}
+
 #[cfg(windows)]
 pub fn set_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) -> Result<(), String> {
     use windows_sys::Win32::Graphics::Dwm::{
@@ -65,22 +106,22 @@ pub fn set_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) -> Result
 fn apply_win10_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) {
     use windows_sys::Win32::Foundation::RECT;
     use windows_sys::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn, InvalidateRect};
-    use windows_sys::Win32::UI::WindowsAndMessaging::GetWindowRect;
+    use windows_sys::Win32::UI::WindowsAndMessaging::GetClientRect;
 
     unsafe {
         tracing::info!("Applying region-based rounded corners (Windows 10 method)");
 
-        // Get window dimensions
+        // Get client area dimensions (without window borders)
         let mut rect: RECT = std::mem::zeroed();
-        if GetWindowRect(hwnd, &mut rect) != 0 {
+        if GetClientRect(hwnd, &mut rect) != 0 {
             let width = rect.right - rect.left;
             let height = rect.bottom - rect.top;
 
-            tracing::info!("Window dimensions: {}x{}", width, height);
+            tracing::info!("Client area dimensions: {}x{}", width, height);
 
-            // Create rounded region with 16-20px radius for better anti-aliasing on high DPI
-            // Using 32px radius (64x64 diameter) for less aliasing on DPI > 100%
-            let radius = 32;
+            // Create rounded region with appropriate radius based on window size
+            // For smaller windows (compact), use smaller radius
+            let radius = if height <= 120 { 16 } else { 32 };
             let hrgn = CreateRoundRectRgn(0, 0, width, height, radius, radius);
 
             if hrgn != std::ptr::null_mut() {
@@ -102,7 +143,7 @@ fn apply_win10_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) {
                 tracing::warn!("Failed to create rounded region");
             }
         } else {
-            tracing::warn!("Failed to get window rect");
+            tracing::warn!("Failed to get client rect");
         }
     }
 }

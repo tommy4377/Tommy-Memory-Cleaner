@@ -6,7 +6,6 @@
   import type { MemoryInfo, Config } from '../lib/types';
   import { t } from '../i18n/index';
   import { areasForProfile } from '../lib/profiles';
-  import { invoke } from '@tauri-apps/api/core';
 
   let memInfo: MemoryInfo | null = null;
   let cfg: Config | null = null;
@@ -16,19 +15,15 @@
   let progUnsub: (() => void) | null = null;
   let isWindows10 = false;
 
-  onMount(async () => {
+  onMount(() => {
     memUnsub = memory.subscribe((v) => (memInfo = v));
-    cfgUnsub = config.subscribe((v) => (cfg = v));
+    cfgUnsub = config.subscribe((v) => {
+      cfg = v;
+      // Usa la configurazione salvata per determinare se siamo su Windows 10
+      isWindows10 = v?.is_windows_10 ?? false;
+    });
     // FIX: Usa lo store progress invece di una variabile locale per mantenere lo stato durante il cambio di vista
     progUnsub = progress.subscribe((v) => (prog = v));
-    
-    // Controlla se è Windows 10
-    try {
-      const platform = await invoke('cmd_get_platform') as string;
-      isWindows10 = platform === 'windows-10';
-    } catch (error) {
-      console.error('Failed to get platform:', error);
-    }
   });
 
   onDestroy(() => {

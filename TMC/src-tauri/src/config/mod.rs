@@ -375,6 +375,12 @@ pub struct Config {
 
     #[serde(default = "default_setup_completed")]
     pub setup_completed: bool,
+    
+    #[serde(default)]
+    pub platform_detected: bool,
+    
+    #[serde(default)]
+    pub is_windows_10: bool,
 }
 
 fn default_setup_completed() -> bool {
@@ -432,6 +438,8 @@ impl Default for Config {
             is_portable_install: false,
             config_version: default_config_version(),
             setup_completed: false,
+            platform_detected: false,
+            is_windows_10: false,
         }
     }
 }

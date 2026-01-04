@@ -14,30 +14,30 @@
   import { Reason, AreasFlag } from '../lib/types'
   import type { Config } from '../lib/types'
   import { areasForProfile } from '../lib/profiles'
-  import { config } from '../lib/store'
+  import { config, memory } from '../lib/store'
   import { optimizeAsync } from '../lib/api'
   import { invoke } from '@tauri-apps/api/core'
 
   let activeTab: 'main' | 'settings' | 'customization' = 'main'
   let hideTabs = false // Mostra i tabs
   let cfg: Config | null = null
-  let unsub: (() => void) | null = null
+  let cfgUnsub: (() => void) | null = null
+  let memUnsub: (() => void) | null = null
+  let memInfo: any = null
   let isWindows10 = false
 
   onMount(async () => {
-    unsub = config.subscribe((v) => (cfg = v))
-    
-    // Controlla se è Windows 10
-    try {
-      const platform = await invoke('cmd_get_platform') as string;
-      isWindows10 = platform === 'windows-10';
-    } catch (error) {
-      console.error('Failed to get platform:', error);
-    }
-  })
+    memUnsub = memory.subscribe((v) => (memInfo = v));
+    cfgUnsub = config.subscribe((v) => {
+      cfg = v;
+      // Usa la configurazione salvata per determinare se siamo su Windows 10
+      isWindows10 = v?.is_windows_10 ?? false;
+    });
+  });
 
   onDestroy(() => {
-    if (unsub) unsub()
+    if (cfgUnsub) cfgUnsub()
+    if (memUnsub) memUnsub()
   })
 
   async function onOptimize() {
@@ -112,6 +112,12 @@
 </div>
 
 <style>
+  /* Rimuovi bordi predefiniti del body per Windows 10 */
+  :global(body) {
+    border: none !important;
+    outline: none !important;
+  }
+  
   .container {
     height: 100%;
     display: flex;

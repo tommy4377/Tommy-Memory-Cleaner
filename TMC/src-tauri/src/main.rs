@@ -1005,6 +1005,8 @@ fn main() {
             commands::ui::cmd_show_notification,
             commands::ui::cmd_get_window_config,
             commands::ui::cmd_get_platform,
+            commands::ui::cmd_apply_rounded_corners,
+            commands::ui::cmd_update_tray_theme,
             // Commands from i18n module
             commands::i18n::cmd_set_translations,
             // Commands from hotkeys module
@@ -1174,9 +1176,9 @@ fn main() {
                 let app_clone = app_handle.clone();
                 match WebviewWindowBuilder::new(&app_clone, "setup", setup_url)
                     .title("Tommy Memory Cleaner - Setup")
-                    .inner_size(480.0, 600.0)
+                    .inner_size(490.0, 600.0)
                     .min_inner_size(380.0, 500.0)
-                    .max_inner_size(480.0, 700.0)
+                    .max_inner_size(490.0, 700.0)
                     .resizable(false)
                     .decorations(false)
                     .transparent(true)
@@ -1188,6 +1190,9 @@ fn main() {
                 {
                     Ok(setup_window) => {
                         tracing::info!("Setup window created successfully");
+                        // Center the setup window
+                        let _ = setup_window.center();
+                        
                         // Assicura che sia sempre in primo piano
                         let _ = setup_window.set_always_on_top(true);
                         

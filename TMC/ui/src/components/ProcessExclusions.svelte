@@ -409,7 +409,7 @@
   }
 
   /* For smaller screens, adjust font size */
-  @media (max-width: 480px) {
+  @media (max-width: 490px) {
     input {
       font-size: 12px;
       padding: 6px 8px;

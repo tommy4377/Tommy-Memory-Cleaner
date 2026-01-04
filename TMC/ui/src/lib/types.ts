@@ -80,4 +80,8 @@ export interface Config {
   request_elevation_on_startup: boolean
 
   tray: TrayConfig
+  
+  // Platform detection fields
+  platform_detected?: boolean
+  is_windows_10?: boolean
 }

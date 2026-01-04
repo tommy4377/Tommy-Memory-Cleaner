@@ -6,6 +6,8 @@
   import Titlebar from './Titlebar.svelte'
   import CustomSelect from './CustomSelect.svelte'
   import { t, setLanguage } from '../i18n/index'
+  import { config } from '../lib/store'
+  import type { Config } from '../lib/types'
 
   let runOnStartup = true
   let theme = 'dark'
@@ -14,6 +16,8 @@
   let language = 'en'
   let isLoading = false
   let isWindows10 = false
+  let cfg: Config | null = null
+  let cfgUnsub: (() => void) | null = null
 
   const languageOptions = [
     { value: 'en', label: 'English' },
@@ -56,13 +60,11 @@
       console.error('Failed to get system language:', error)
     }
 
-    // Controlla se è Windows 10
-    try {
-      const platform = await invoke('cmd_get_platform') as string;
-      isWindows10 = platform === 'windows-10';
-    } catch (error) {
-      console.error('Failed to get platform:', error);
-    }
+    // Usa la configurazione salvata per Windows 10
+    cfgUnsub = config.subscribe((v) => {
+      cfg = v;
+      isWindows10 = v?.is_windows_10 ?? false;
+    });
 
     // Applica il tema iniziale
     document.documentElement.setAttribute('data-theme', theme)
@@ -125,6 +127,9 @@
     if (unlistenSetupComplete) {
       unlistenSetupComplete()
     }
+    if (cfgUnsub) {
+      cfgUnsub()
+    }
   })
 
   function handleThemeChange(value: string) {
@@ -147,6 +152,15 @@
     if (isLoading) return // Previeni doppi click
     isLoading = true
     try {
+      // Detect platform before completing setup
+      let isWindows10 = false;
+      try {
+        const platform = await invoke('cmd_get_platform') as string;
+        isWindows10 = platform === 'windows-10';
+      } catch (error) {
+        console.error('Failed to get platform:', error);
+      }
+      
       await invoke('cmd_complete_setup', {
         setupData: {
           run_on_startup: runOnStartup,
@@ -154,6 +168,8 @@
           always_on_top: alwaysOnTop,
           show_opt_notifications: showNotifications,
           language: language,
+          platform_detected: true,
+          is_windows_10: isWindows10,
         },
       })
 
