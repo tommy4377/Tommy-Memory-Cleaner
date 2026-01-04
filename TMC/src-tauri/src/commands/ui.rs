@@ -235,7 +235,7 @@ pub fn show_or_create_window(app: &AppHandle) {
             tauri::WebviewUrl::App("index.html".into())
         )
         .title("Tommy Memory Cleaner")
-        .inner_size(500.0, 700.0)
+        .inner_size(490.0, 700.0)
         .resizable(false)
         .decorations(false)
         .transparent(true)

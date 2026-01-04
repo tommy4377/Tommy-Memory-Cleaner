@@ -107,35 +107,42 @@ fn apply_win10_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) {
     use windows_sys::Win32::Foundation::RECT;
     use windows_sys::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn, InvalidateRect};
     use windows_sys::Win32::UI::WindowsAndMessaging::GetClientRect;
-
+    
     unsafe {
         tracing::info!("Applying region-based rounded corners (Windows 10 method)");
-
-        // Get client area dimensions (without window borders)
-        let mut rect: RECT = std::mem::zeroed();
-        if GetClientRect(hwnd, &mut rect) != 0 {
-            let width = rect.right - rect.left;
-            let height = rect.bottom - rect.top;
-
-            tracing::info!("Client area dimensions: {}x{}", width, height);
-
-            // Create rounded region with appropriate radius based on window size
-            // For smaller windows (compact), use smaller radius
-            let radius = if height <= 120 { 16 } else { 32 };
-            let hrgn = CreateRoundRectRgn(0, 0, width, height, radius, radius);
-
+        
+        let mut client_rect: RECT = std::mem::zeroed();
+        
+        if GetClientRect(hwnd, &mut client_rect) != 0 {
+            let client_width = client_rect.right - client_rect.left;
+            let client_height = client_rect.bottom - client_rect.top;
+            
+            tracing::info!("Client dimensions: {}x{}", client_width, client_height);
+            
+            // OFFSET SPERIMENTALE: Windows 10 ha bordo invisibile di ~4px sui lati
+            let offset_x = -4;  // Sposta a SINISTRA di 4px
+            let offset_y = 0;   // Altezza già corretta
+            
+            let radius = 16;
+            
+            // Crea region con offset per compensare bordi DWM
+            let hrgn = CreateRoundRectRgn(
+                offset_x,                      // Inizia 4px a sinistra
+                offset_y,                      // Inizia dall'alto
+                client_width + offset_x.abs(), // Larghezza compensata
+                client_height,                 // Altezza normale
+                radius, 
+                radius
+            );
+            
             if hrgn != std::ptr::null_mut() {
-                // Apply the region (1 = redraw immediately)
                 let result = SetWindowRgn(hwnd, hrgn, 1);
                 if result != 0 {
                     tracing::info!(
-                        "✓ Successfully applied rounded region with {}px radius",
-                        radius / 2
+                        "✓ Successfully applied rounded region with offset_x={}, width={}, height={}",
+                        offset_x, client_width + offset_x.abs(), client_height
                     );
-                    
-                    // Force WebView redraw to prevent blurry edges
                     InvalidateRect(hwnd, std::ptr::null(), 1);
-                    tracing::info!("✓ Forced window redraw after SetWindowRgn");
                 } else {
                     tracing::warn!("SetWindowRgn returned 0 (failed)");
                 }
