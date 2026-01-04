@@ -4,6 +4,50 @@
 /// displaying notifications, and positioning UI elements.
 use tauri::{AppHandle, Manager, State};
 
+/// Returns the window configuration values including border radius.
+///
+/// This command exposes the window styling values to the frontend
+/// so they can be synchronized dynamically instead of being hardcoded.
+#[tauri::command]
+pub fn cmd_get_window_config() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "border_radius": 16, // Matches the radius in window.rs and App.svelte
+        "titlebar_height": 32
+    }))
+}
+
+/// Returns the current platform information.
+///
+/// This command allows the frontend to detect the specific OS version
+/// to apply platform-specific styling (e.g., Windows 10 rounded corners).
+#[tauri::command]
+pub fn cmd_get_platform() -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        
+        // Get Windows version
+        let output = Command::new("cmd")
+            .args(&["/C", "ver"])
+            .output()
+            .map_err(|e| format!("Failed to execute ver command: {}", e))?;
+        
+        let version_str = String::from_utf8_lossy(&output.stdout);
+        
+        // Parse Windows version
+        if version_str.contains("Windows 10") {
+            Ok("windows-10".to_string())
+        } else if version_str.contains("Windows 11") {
+            Ok("windows-11".to_string())
+        } else {
+            Ok("windows".to_string())
+        }
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    Ok("other".to_string())
+}
+
 /// Shows the main window or creates it if it doesn't exist.
 ///
 /// This command delegates to the helper function to handle both

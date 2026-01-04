@@ -16,14 +16,24 @@
   import { areasForProfile } from '../lib/profiles'
   import { config } from '../lib/store'
   import { optimizeAsync } from '../lib/api'
+  import { invoke } from '@tauri-apps/api/core'
 
   let activeTab: 'main' | 'settings' | 'customization' = 'main'
   let hideTabs = false // Mostra i tabs
   let cfg: Config | null = null
   let unsub: (() => void) | null = null
+  let isWindows10 = false
 
-  onMount(() => {
+  onMount(async () => {
     unsub = config.subscribe((v) => (cfg = v))
+    
+    // Controlla se è Windows 10
+    try {
+      const platform = await invoke('cmd_get_platform') as string;
+      isWindows10 = platform === 'windows-10';
+    } catch (error) {
+      console.error('Failed to get platform:', error);
+    }
   })
 
   onDestroy(() => {
@@ -51,7 +61,7 @@
   }
 </script>
 
-<div class="container">
+<div class="container" class:windows-10={isWindows10}>
   {#if !hideTabs}
   <div class="tabs">
     <button class="tab" class:active={activeTab === 'main'} on:click={() => (activeTab = 'main')}>
@@ -108,6 +118,11 @@
     flex-direction: column;
     overflow: hidden;
     border-radius: inherit;
+  }
+  
+  /* Applica border-radius solo su Windows 10 */
+  .container.windows-10 {
+    border-radius: var(--window-border-radius, 16px);
   }
 
   .tabs {

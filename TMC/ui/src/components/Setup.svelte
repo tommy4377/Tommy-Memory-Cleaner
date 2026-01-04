@@ -13,6 +13,7 @@
   let showNotifications = true
   let language = 'en'
   let isLoading = false
+  let isWindows10 = false
 
   const languageOptions = [
     { value: 'en', label: 'English' },
@@ -53,6 +54,14 @@
       }
     } catch (error) {
       console.error('Failed to get system language:', error)
+    }
+
+    // Controlla se è Windows 10
+    try {
+      const platform = await invoke('cmd_get_platform') as string;
+      isWindows10 = platform === 'windows-10';
+    } catch (error) {
+      console.error('Failed to get platform:', error);
     }
 
     // Applica il tema iniziale
@@ -239,15 +248,9 @@
   }
 </script>
 
-<button
-  class="setup-container"
-  on:mousedown={handleDragStart}
-  tabindex="-1"
-  type="button"
-  style="border: none; padding: 0; width: 100%; height: 100%;"
->
+<div class="setup-container" class:windows-10={isWindows10}>
   <Titlebar title="Tommy Memory Cleaner - Setup" onClose={handleClose} />
-
+  
   <div class="setup-content">
     <div class="setup-header">
       <h1>{$t('Welcome to Tommy Memory Cleaner')}</h1>
@@ -309,7 +312,7 @@
       </button>
     </div>
   </div>
-</button>
+</div>
 
 <style>
   :global(html),
@@ -325,7 +328,6 @@
     box-shadow: none !important;
     cursor: url('/cursors/light/arrow.cur'), auto;
   }
-  
 
   /* Rimuove eventuali bordi visibili su Windows 10 */
   :global(body) {
@@ -346,39 +348,32 @@
     box-sizing: border-box;
   }
 
-  .setup-container {
-    width: 100vw;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    background: var(--bg);
-    color: var(--fg);
-    overflow: hidden;
-    position: relative;
-    animation: fadeIn 0.2s ease;
-    /* Assicura che il contenuto copra completamente la finestra su Windows 10 */
-    margin: -3px 0 0 0 !important;
-    padding: 3px 0 0 0 !important;
-    box-shadow: none;
-    border: none;
-    outline: none;
-    /* Assicura opacità completa su Windows */
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    cursor: auto !important; /* Forza il cursore predefinito */
-    
-    /* FIX BORDI SGRANATINI */
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    transform: translateZ(0);
-    will-change: transform;
-    backface-visibility: hidden;
+  /* Fix per il padding-top della titlebar nel setup */
+  :global(.app) {
+    padding-top: 0 !important;
   }
   
-  /* Aggiungiamo uno stile per il contenuto principale simile alla full view */
+  .setup-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: inherit;
+    background: var(--bg);
+    color: var(--fg);
+    position: relative;
+    animation: fadeIn 0.2s ease;
+  }
+  
+  /* Applica border-radius solo su Windows 10 */
+  .setup-container.windows-10 {
+    border-radius: var(--window-border-radius, 16px);
+  }
+  
   .setup-content {
     flex: 1;
     padding: 10px;
+    padding-top: var(--titlebar-height, 32px); /* Usa la variabile CSS come gli altri */
     background: var(--bg);
     overflow-y: auto;
     overflow-x: hidden;
@@ -454,6 +449,9 @@
     flex-direction: column;
     gap: 8px;
     flex-shrink: 0;
+    /* Rimuovi trasparenza */
+    opacity: 1 !important;
+    background-color: var(--card) !important;
   }
 
   .option-row {
@@ -518,16 +516,20 @@
     font-size: 14px;
     font-weight: 500;
     cursor: url('/cursors/light/hand.cur'), pointer;
-    transition: opacity 0.2s;
+    transition: none; /* Rimuovi transizioni che potrebbero causare trasparenza */
+    /* Rimuovi trasparenza */
+    opacity: 1 !important;
+    background-color: var(--btn-bg) !important;
   }
   
   
   .complete-btn:hover:not(:disabled) {
-    opacity: 0.9;
+    opacity: 1 !important; /* Rimuovi trasparenza al hover */
+    transform: none !important;
   }
 
   .complete-btn:disabled {
-    opacity: 0.6;
+    opacity: 1 !important; /* Rimuovi trasparenza anche quando disabilitato */
     cursor: url('/cursors/light/no.cur'), not-allowed;
   }
   

@@ -339,7 +339,11 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     image-rendering: crisp-edges;
-    border-radius: 16px;  /* Match radius/2 from window.rs */
+    border-radius: var(--window-border-radius, 16px);  /* Synced with backend */
+    /* Ensure no positioning issues */
+    position: relative;
+    top: 0;
+    left: 0;
   }
 
   /* Rimuove eventuali bordi visibili su Windows 10 */
@@ -372,9 +376,14 @@
     position: relative;
     animation: fadeIn 0.2s ease;
     /* Match border-radius with Rust window.rs for seamless rounded corners */
-    border-radius: 16px;
+    border-radius: var(--window-border-radius, 16px);
     /* Ensure content stays within rounded bounds */
     border: 1px solid transparent;
+    /* Remove any margins to ensure full window coverage */
+    margin: 0;
+    padding: 0;
+    /* Add padding-top to account for fixed titlebar using CSS variable */
+    padding-top: var(--titlebar-height, 32px);
   }
 
   @keyframes fadeIn {

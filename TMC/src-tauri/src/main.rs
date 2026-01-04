@@ -1003,6 +1003,8 @@ fn main() {
             // Commands from ui module
             commands::ui::cmd_show_or_create_window,
             commands::ui::cmd_show_notification,
+            commands::ui::cmd_get_window_config,
+            commands::ui::cmd_get_platform,
             // Commands from i18n module
             commands::i18n::cmd_set_translations,
             // Commands from hotkeys module

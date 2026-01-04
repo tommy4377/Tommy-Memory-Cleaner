@@ -6,6 +6,7 @@
   import type { MemoryInfo, Config } from '../lib/types';
   import { t } from '../i18n/index';
   import { areasForProfile } from '../lib/profiles';
+  import { invoke } from '@tauri-apps/api/core';
 
   let memInfo: MemoryInfo | null = null;
   let cfg: Config | null = null;
@@ -13,12 +14,21 @@
   let memUnsub: (() => void) | null = null;
   let cfgUnsub: (() => void) | null = null;
   let progUnsub: (() => void) | null = null;
+  let isWindows10 = false;
 
-  onMount(() => {
+  onMount(async () => {
     memUnsub = memory.subscribe((v) => (memInfo = v));
     cfgUnsub = config.subscribe((v) => (cfg = v));
     // FIX: Usa lo store progress invece di una variabile locale per mantenere lo stato durante il cambio di vista
     progUnsub = progress.subscribe((v) => (prog = v));
+    
+    // Controlla se è Windows 10
+    try {
+      const platform = await invoke('cmd_get_platform') as string;
+      isWindows10 = platform === 'windows-10';
+    } catch (error) {
+      console.error('Failed to get platform:', error);
+    }
   });
 
   onDestroy(() => {
@@ -59,17 +69,22 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    height: calc(100% - 32px);
+    height: 100%;
     background: var(--bg);
     border-radius: inherit;
     overflow: hidden;
   }
   
+  /* Applica border-radius solo su Windows 10 */
+  .compact.windows-10 {
+    border-radius: var(--window-border-radius, 16px);
+  }
+  
   .bar {
     flex: 1;
-    height: 28px;
+    height: 30px;
     background: var(--bar-track);
-    border-radius: 14px;
+    border-radius: 15px;
     position: relative;
     overflow: hidden;
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
@@ -82,7 +97,7 @@
     bottom: 0;
     background: var(--bar-fill);
     transition: width 0.3s ease, background 0.3s ease;
-    border-radius: 14px;
+    border-radius: 15px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -100,7 +115,7 @@
   .percent {
     color: white;
     font-weight: 600;
-    font-size: 13px;
+    font-size: 14px;
     text-shadow: 0 1px 2px rgba(0,0,0,0.3);
     position: absolute;
     left: 50%;
@@ -111,14 +126,14 @@
     background: var(--btn-bg);
     color: white;
     border: none;
-    padding: 8px 20px;
-    border-radius: 14px;
+    padding: 8px 22px;
+    border-radius: 15px;
     cursor: url('/cursors/light/hand.cur'), pointer;
     font-weight: 600;
-    font-size: 13px;
+    font-size: 14px;
     min-width: fit-content;
     width: auto;
-    height: 28px;
+    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -128,6 +143,7 @@
     overflow: hidden;
     white-space: nowrap;
     text-align: center;
+    line-height: 1;
   }
   
   /* Disabled cursor */
@@ -146,7 +162,7 @@
     background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
     animation: shimmer 2s infinite;
     pointer-events: none;
-    border-radius: 14px;
+    border-radius: 15px;
   }
   
   @keyframes shimmer {
@@ -181,7 +197,7 @@
   }
 </style>
 
-<div class="compact">
+<div class="compact" class:windows-10={isWindows10}>
   <div class="bar">
     <div 
       class="fill" 

@@ -4,6 +4,7 @@
   import { LogicalSize } from '@tauri-apps/api/window'
   import { config, updateConfig } from '../lib/store'
   import type { Config } from '../lib/types'
+  import { invoke } from '@tauri-apps/api/core'
 
   const appWindow = WebviewWindow.getCurrent()
   const dispatch = createEventDispatcher()
@@ -13,8 +14,26 @@
 
   let cfg: Config | null = null
   let unsub: (() => void) | null = null
-
-  onMount(() => {
+  let titlebarHeight = 32
+  let borderRadius = 16
+  
+  onMount(async () => {
+    // Get window configuration from backend
+    try {
+      const windowConfig = await invoke('cmd_get_window_config') as { border_radius: number, titlebar_height: number }
+      titlebarHeight = windowConfig.titlebar_height
+      borderRadius = windowConfig.border_radius
+      
+      // Set CSS variables
+      document.documentElement.style.setProperty('--titlebar-height', `${titlebarHeight}px`)
+      document.documentElement.style.setProperty('--window-border-radius', `${borderRadius}px`)
+    } catch (error) {
+      console.error('Failed to get window config:', error)
+      // Fallback to hardcoded values
+      document.documentElement.style.setProperty('--titlebar-height', '32px')
+      document.documentElement.style.setProperty('--window-border-radius', '16px')
+    }
+    
     unsub = config.subscribe((v) => (cfg = v))
 
     // Applica cursore move alla titlebar con !important per sovrascrivere qualsiasi altro stile
@@ -161,27 +180,49 @@
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    padding: 0 8px;
-    background: var(--card);
-    border-bottom: 1px solid var(--border);
     user-select: none;
-    height: 32px;
+    height: var(--titlebar-height, 32px);
     flex-shrink: 0;
-    /* DPI-aware positioning - remove negative margins */
-    margin: 0;
-    padding: 0 8px;
-    position: relative;
+    /* Fixed positioning to fill entire window width */
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
+    /* Remove margins and padding */
+    margin: 0;
+    padding: 0;
     border: none;
     box-shadow: none;
     width: 100%;
     overflow: hidden;
-    /* Inherit border-radius from parent for seamless rounded corners */
-    border-radius: inherit;
+    /* Ensure it's on top */
+    z-index: 1000;
+    /* Create background with pseudo-element for full coverage */
+    background: transparent;
+  }
+  
+  .titlebar::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    background: var(--card);
+    /* No border needed since we're extending beyond edges */
+    border: none;
+    /* Match border-radius with window for seamless rounded corners */
+    border-radius: var(--window-border-radius, 16px) var(--window-border-radius, 16px) 0 0;
+    z-index: -1;
+    /* Use multiple shadows to cover any possible gaps */
+    box-shadow: 
+      0 0 0 10px var(--card),
+      0 0 0 20px var(--card),
+      0 0 0 30px var(--card);
   }
 
   /* Fix for dark mode border artifacts */
-  :global(html[data-theme='dark']) .titlebar {
+  :global(html[data-theme='dark']) .titlebar::before {
     border-bottom-color: transparent;
   }
 
@@ -193,6 +234,8 @@
     gap: 5px;
     cursor: url('/cursors/light/sizeall.cur'), move !important;
     -webkit-app-region: no-drag;
+    /* Add padding to account for rounded corners */
+    padding: 0 8px 0 16px;
   }
 
   :global(html[data-theme='dark']) .draggable {
@@ -219,16 +262,16 @@
   }
 
   .logo {
-    width: 14px; /* RIDOTTO: da 16px a 14px */
-    height: 14px;
+    width: 16px; /* Aumentato da 14px a 18px */
+    height: 16px;
     pointer-events: none;
   }
 
   .title {
     font-weight: 500;
-    font-size: 11px; /* RIDOTTO: da 12px a 11px */
+    font-size: 12px; /* Aumentato da 11px a 13px */
     pointer-events: none;
-    opacity: 0.85; /* RIDOTTO: da default a 0.85 per più discreto */
+    opacity: 0.9; /* Leggermente aumentato da 0.85 per migliore visibilità */
   }
 
   .controls {
