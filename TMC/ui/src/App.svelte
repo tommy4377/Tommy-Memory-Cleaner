@@ -70,21 +70,26 @@
     // 1. Leggi la configurazione iniziale
     let currentConfig = await getConfig()
     
-    // 2. Controlla se è Windows 10 solo la prima volta e salva in config
-    if (!currentConfig.platform_detected) {
-      try {
-        const platform = await invoke('cmd_get_platform') as string
-        const isWindows10 = platform === 'windows-10'
+    // 2. ALWAYS detect platform on every startup for correct border styling
+    // This ensures existing configs get updated if the Windows version changes
+    // or if the previous detection was incorrect
+    try {
+      const platform = await invoke('cmd_get_platform') as string
+      const isWindows10 = platform === 'windows-10'
+      
+      // Only save if changed to avoid unnecessary writes
+      if (currentConfig.is_windows_10 !== isWindows10 || !currentConfig.platform_detected) {
         await saveConfig({ 
           platform_detected: true,
           is_windows_10: isWindows10 
         })
-        console.log(`Platform detected: ${platform}`)
-        // Aggiorna la configurazione locale
         currentConfig = { ...currentConfig, platform_detected: true, is_windows_10: isWindows10 }
-      } catch (error) {
-        console.error('Failed to detect platform:', error)
+        console.log(`Platform updated: ${platform}`)
+      } else {
+        console.log(`Platform unchanged: ${platform}`)
       }
+    } catch (error) {
+      console.error('Failed to detect platform:', error)
     }
     
     // 3. Setup window CON la configurazione aggiornata
@@ -214,14 +219,19 @@
     try {
       const size = compact ? WINDOW_SIZES.compact : WINDOW_SIZES.full
 
+      // Get current position BEFORE resizing
+      const currentPos = await appWindow.innerPosition()
+
       // Disable resizing temporarily for smooth transition
       await appWindow.setResizable(false)
 
-      // Update size
+      // Update size - use current position, don't recenter
       await appWindow.setSize(new LogicalSize(size.width, size.height))
 
-      // Re-center window
-      await appWindow.center()
+      // Keep window at same top-left position (don't center on every toggle)
+      // This prevents the window from jumping around the screen
+      // Only adjust if going to compact mode (shrink at top)
+      // or expanding (keep same top position)
 
       // Re-enable resizing for full view
       if (!compact) {

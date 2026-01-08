@@ -1041,6 +1041,7 @@ fn main() {
             }
 
             // Build tray icon - handle errors without crashing
+            // NOTE: During first run (setup), we build the tray but delay activation
             let mut tray_builder = match ui::tray::build(app_handle) {
                 Ok(builder) => {
                     tracing::info!("Tray icon builder created successfully");
@@ -1054,7 +1055,23 @@ fn main() {
             };
 
             // FIX: Rimosso il tipo esplicito errato. Lasciamo che Rust deduca i tipi.
-            tray_builder = tray_builder.on_tray_icon_event(|tray, event| {
+            // Check is_first_run to prevent tray actions during setup
+            let is_first_run_for_tray = is_first_run;
+            tray_builder = tray_builder.on_tray_icon_event(move |tray, event| {
+                // During first run (setup), ignore tray clicks
+                if is_first_run_for_tray {
+                    // Check if setup is now completed by looking for main window
+                    let app = tray.app_handle();
+                    if let Some(state) = app.try_state::<AppState>() {
+                        if let Ok(cfg) = state.cfg.try_lock() {
+                            if !cfg.setup_completed {
+                                tracing::debug!("Ignoring tray click during setup");
+                                return;
+                            }
+                        }
+                    }
+                }
+                
                 // Collega positioner
                 tauri_plugin_positioner::on_tray_event(tray.app_handle(), &event);
 
@@ -1244,6 +1261,15 @@ fn main() {
                     if let Err(e) = window.set_focus() {
                         tracing::warn!("Failed to focus window: {:?}", e);
                     }
+                    
+                    // CRITICAL FIX: Apply rounded corners on Windows 10/11 at startup
+                    // This ensures borders are applied even when setup is already completed
+                    #[cfg(windows)]
+                    {
+                        tracing::info!("Applying window decorations at startup (setup already completed)");
+                        let _ = crate::system::window::apply_window_decorations(&window);
+                    }
+                    
                     // FIX: Abilita devtools per debug (tasto destro -> Inspect)
                     #[cfg(debug_assertions)]
                     {
@@ -1294,20 +1320,24 @@ fn main() {
                 let _ = crate::system::priority::set_priority(c.run_priority.clone());
             }
 
-            // Avvia i thread background
-            // Avvia i thread background
-            let engine_for_tray = state.engine.clone();
-            crate::ui::tray::start_tray_updater(
-                app_handle.clone(),
-                engine_for_tray
-            );
+            // Start background threads ONLY if setup is already completed
+            // During first run, these will be started after setup completes via event
+            if !is_first_run {
+                let engine_for_tray = state.engine.clone();
+                crate::ui::tray::start_tray_updater(
+                    app_handle.clone(),
+                    engine_for_tray
+                );
 
-            let engine_for_auto = state.engine.clone();
-            start_auto_optimizer(
-                app_handle.clone(),
-                engine_for_auto,
-                cfg.clone()
-            );
+                let engine_for_auto = state.engine.clone();
+                start_auto_optimizer(
+                    app_handle.clone(),
+                    engine_for_auto,
+                    cfg.clone()
+                );
+            } else {
+                tracing::info!("First run: background processes delayed until setup completion");
+            }
 
             Ok(())
         })

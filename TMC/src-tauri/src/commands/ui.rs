@@ -20,92 +20,17 @@ pub fn cmd_get_window_config() -> Result<serde_json::Value, String> {
 ///
 /// This command allows the frontend to detect the specific OS version
 /// to apply platform-specific styling (e.g., Windows 10 rounded corners).
+/// Uses centralized RtlGetVersion-based detection for accuracy.
 #[tauri::command]
 pub fn cmd_get_platform() -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
-        use windows_sys::Win32::System::SystemInformation::{GetVersionExW, OSVERSIONINFOEXW};
-        use std::mem;
-        
-        let mut version_info: OSVERSIONINFOEXW = unsafe { mem::zeroed() };
-        version_info.dwOSVersionInfoSize = mem::size_of::<OSVERSIONINFOEXW>() as u32;
-        
-        let result = unsafe { GetVersionExW(&mut version_info as *mut OSVERSIONINFOEXW as *mut _) };
-        
-        if result != 0 {
-            // Windows 10: version 10.0, build < 22000
-            // Windows 11: version 10.0, build >= 22000
-            if version_info.dwMajorVersion == 10 && version_info.dwMinorVersion == 0 {
-                if version_info.dwBuildNumber >= 22000 {
-                    Ok("windows-11".to_string())
-                } else {
-                    Ok("windows-10".to_string())
-                }
-            } else {
-                Ok("windows".to_string())
-            }
+        if crate::os::is_windows_11() {
+            Ok("windows-11".to_string())
+        } else if crate::os::is_windows_10() {
+            Ok("windows-10".to_string())
         } else {
-            // Fallback: use registry
-            use windows_sys::Win32::System::Registry::{RegOpenKeyExW, RegQueryValueExW, HKEY_LOCAL_MACHINE, KEY_READ};
-            use windows_sys::Win32::Foundation::ERROR_SUCCESS;
-            use std::ptr;
-            
-            let mut hkey = ptr::null_mut();
-            let mut product_name = [0u16; 256];
-            let mut name_size = product_name.len() as u32;
-            
-            let subkey = [
-                'S' as u16, 'O' as u16, 'F' as u16, 'T' as u16, 'W' as u16, 'A' as u16, 'R' as u16,
-                'E' as u16, '\\' as u16, 'M' as u16, 'i' as u16, 'c' as u16, 'r' as u16, 'o' as u16,
-                's' as u16, 'o' as u16, 'f' as u16, 't' as u16, '\\' as u16, 'W' as u16, 'i' as u16,
-                'n' as u16, 'd' as u16, 'o' as u16, 'w' as u16, 's' as u16, ' ' as u16, 'N' as u16,
-                'T' as u16, '\\' as u16, 'C' as u16, 'u' as u16, 'r' as u16, 'r' as u16, 'e' as u16,
-                'n' as u16, 't' as u16, 'V' as u16, 'e' as u16, 'r' as u16, 's' as u16, 'i' as u16,
-                'o' as u16, 'n' as u16, 0u16
-            ];
-            
-            let value_name = [
-                'P' as u16, 'r' as u16, 'o' as u16, 'd' as u16, 'u' as u16, 'c' as u16, 't' as u16,
-                'N' as u16, 'a' as u16, 'm' as u16, 'e' as u16, 0u16
-            ];
-            
-            let result = unsafe { 
-                RegOpenKeyExW(
-                    HKEY_LOCAL_MACHINE,
-                    subkey.as_ptr(),
-                    0,
-                    KEY_READ,
-                    &mut hkey
-                )
-            };
-            
-            if result == ERROR_SUCCESS {
-                let result = unsafe {
-                    RegQueryValueExW(
-                        hkey,
-                        value_name.as_ptr(),
-                        ptr::null_mut(),
-                        ptr::null_mut(),
-                        product_name.as_mut_ptr() as *mut _,
-                        &mut name_size
-                    )
-                };
-                
-                if result == ERROR_SUCCESS {
-                    let name = String::from_utf16_lossy(&product_name[..name_size as usize / 2]);
-                    if name.contains("Windows 10") {
-                        Ok("windows-10".to_string())
-                    } else if name.contains("Windows 11") {
-                        Ok("windows-11".to_string())
-                    } else {
-                        Ok("windows".to_string())
-                    }
-                } else {
-                    Err("Failed to query registry value".to_string())
-                }
-            } else {
-                Err("Failed to open registry key".to_string())
-            }
+            Ok("windows".to_string())
         }
     }
     

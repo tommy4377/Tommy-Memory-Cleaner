@@ -28,7 +28,7 @@
         "resizable": false,
         "decorations": false,
         "transparent": true,
-        "shadow": true,
+        "shadow": false,
         "center": true,
         "skipTaskbar": false,
         "alwaysOnTop": false,
@@ -53,9 +53,9 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-        "resources": [
-          "../ui/dist/tray.html"
-        ],
+    "resources": [
+      "../ui/dist/tray.html"
+    ],
     "externalBin": [],
     "copyright": "© 2025 Tommy437",
     "category": "Utility",

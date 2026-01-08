@@ -227,10 +227,56 @@ pub fn update_tray_icon_with_theme<R: Runtime>(app: &AppHandle<R>, theme: &str) 
     Ok(())
 }
 
-pub fn build<R: Runtime>(_app: &AppHandle<R>) -> tauri::Result<TrayIconBuilder<R>> {
-    let icon = get_default_icon();
+pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<TrayIconBuilder<R>> {
+    // Try to read theme from config file directly for correct initial color
+    let initial_icon = {
+        // Read config file directly to avoid lock issues at startup
+        let config_path = crate::config::get_portable_detector().config_path();
+        
+        if config_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&config_path) {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                    let theme = json.get("theme").and_then(|v| v.as_str()).unwrap_or("dark");
+                    let tray_cfg = json.get("tray");
+                    
+                    let show_mem = tray_cfg
+                        .and_then(|t| t.get("show_mem_usage"))
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(true);
+                    
+                    if show_mem {
+                        // Get tray colors from config
+                        let bg_hex = tray_cfg
+                            .and_then(|t| t.get("background_color_hex"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or(if theme == "light" { "#9a8a72" } else { "#1e1e1e" });
+                        let text_hex = tray_cfg
+                            .and_then(|t| t.get("text_color_hex"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("#ffffff");
+                        let transparent = tray_cfg
+                            .and_then(|t| t.get("transparent_bg"))
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
+                        
+                        tracing::info!("Tray init: theme={}, bg={}", theme, bg_hex);
+                        // Create initial icon with 0% (will be updated by tray_updater)
+                        create_tray_icon(0, bg_hex, text_hex, transparent)
+                    } else {
+                        get_default_icon()
+                    }
+                } else {
+                    get_default_icon()
+                }
+            } else {
+                get_default_icon()
+            }
+        } else {
+            get_default_icon()
+        }
+    };
 
-    Ok(TrayIconBuilder::new().icon(icon).tooltip("Memory Cleaner"))
+    Ok(TrayIconBuilder::new().icon(initial_icon).tooltip("Memory Cleaner"))
 }
 
 // CORREZIONE 1: Ritorna Option<String> invece di Option<TrayIconId>

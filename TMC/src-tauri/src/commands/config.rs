@@ -576,6 +576,25 @@ pub fn cmd_complete_setup(
     // Emit config-changed event since setup modifies configuration
     let _ = app.emit("config-changed", ());
 
+    // Start background processes that were delayed during first run
+    // These are normally started in main.rs setup() but were skipped during first run
+    tracing::info!("Starting background processes after setup completion");
+    if let Some(state) = app.try_state::<crate::AppState>() {
+        let engine_for_tray = state.engine.clone();
+        crate::ui::tray::start_tray_updater(
+            app.clone(),
+            engine_for_tray
+        );
+
+        let engine_for_auto = state.engine.clone();
+        let cfg_for_auto = state.cfg.clone();
+        crate::auto_optimizer::start_auto_optimizer(
+            app.clone(),
+            engine_for_auto,
+            cfg_for_auto
+        );
+    }
+
     // DO NOT close setup here - let frontend close it after verifying
     // that main window is ready. This avoids race conditions and crashes.
 

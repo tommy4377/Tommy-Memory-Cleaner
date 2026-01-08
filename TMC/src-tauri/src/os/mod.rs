@@ -7,6 +7,34 @@ pub struct OsVersion {
     pub build: u32,
 }
 
+/// Returns true if running on Windows 11 (build >= 22000)
+pub fn is_windows_11() -> bool {
+    let ver = get_windows_version();
+    let is_win11 = ver.major == 10 && ver.minor == 0 && ver.build >= 22000;
+    tracing::debug!(
+        "is_windows_11: {} (Windows {}.{}.{})",
+        is_win11,
+        ver.major,
+        ver.minor,
+        ver.build
+    );
+    is_win11
+}
+
+/// Returns true if running on Windows 10 (major 10, build < 22000)
+pub fn is_windows_10() -> bool {
+    let ver = get_windows_version();
+    let is_win10 = ver.major == 10 && ver.minor == 0 && ver.build < 22000;
+    tracing::debug!(
+        "is_windows_10: {} (Windows {}.{}.{})",
+        is_win10,
+        ver.major,
+        ver.minor,
+        ver.build
+    );
+    is_win10
+}
+
 fn get_windows_version() -> OsVersion {
     // FIX: GetVersionExW è deprecato e può restituire informazioni errate su Windows 8+
     // Usa RtlGetVersion che è più affidabile

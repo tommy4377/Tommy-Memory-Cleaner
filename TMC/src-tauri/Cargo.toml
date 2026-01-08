@@ -90,9 +90,7 @@ windows-sys = { version = "0.61", features = [
 ntapi = "0.4"
 
 # Tauri v2
-tauri = { version = "2", features = [ 
-  "devtools",
-  "tray-icon"] }
+tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-positioner = { version = "2", features = ["tray-icon"] }
@@ -107,6 +105,7 @@ winres = "0.1"
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+devtools = ["tauri/devtools"]  # Only enable for dev builds
 
 [profile.release]
 panic = "abort"
