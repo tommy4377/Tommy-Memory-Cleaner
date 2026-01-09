@@ -189,7 +189,6 @@
     border-radius: 8px;
     font-size: 11px;
     line-height: 1.6;
-    transition: background 0.2s ease;
   }
 
   :global([data-theme="dark"]) .info {

@@ -147,12 +147,39 @@
     }
     window.addEventListener('resize', handleResize)
 
+    // FIX: Function to apply the scrollbar workaround
+    async function applyScrollbarFix() {
+       // Only apply if NOT in compact mode
+       // We check cfg (store) or fetch fresh config to be sure
+       const currentCfg = cfg || await getConfig();
+       
+       if (!currentCfg?.compact_mode) {
+         console.log('Triggering Scrollbar Fix Sequence...');
+         
+         // 1. Force Compact Mode
+         isCompact = true
+         await appWindow.setSize(new LogicalSize(WINDOW_SIZES.compact.width, WINDOW_SIZES.compact.height));
+         
+         // 2. Wait and Revert
+         setTimeout(async () => {
+           isCompact = false
+           await appWindow.setSize(new LogicalSize(WINDOW_SIZES.full.width, WINDOW_SIZES.full.height));
+           await appWindow.center();
+           console.log('Scrollbar Fix Sequence Completed');
+         }, 150);
+       }
+    }
+
     // Listen for setup-complete event to reload config
     const setupCompleteUnlisten = await listen('setup-complete', async () => {
       // Ricarica la configurazione quando il setup è completato
       if (isAppInitialized()) {
         await initApp()
         // La config verrà aggiornata automaticamente tramite il subscribe sopra
+        
+        // Trigger scrollbar fix immediately after setup
+        // Uses a small delay to ensure window visibility
+        setTimeout(() => applyScrollbarFix(), 500);
       }
     })
 

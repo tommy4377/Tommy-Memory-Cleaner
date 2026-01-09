@@ -1170,9 +1170,9 @@ fn main() {
                 let app_clone = app_handle.clone();
                 match WebviewWindowBuilder::new(&app_clone, "setup", setup_url)
                     .title("Tommy Memory Cleaner - Setup")
-                    .inner_size(500.0, 690.0)
+                    .inner_size(500.0, 600.0)
                     .min_inner_size(380.0, 500.0)
-                    .max_inner_size(500.0, 690.0)
+                    .max_inner_size(500.0, 600.0)
                     .resizable(false)
                     .decorations(false)
                     .transparent(true)
