@@ -220,14 +220,14 @@ fn get_default_icon() -> Image<'static> {
 }
 
 /// Update tray icon with current theme
-pub fn update_tray_icon_with_theme<R: Runtime>(app: &AppHandle<R>, theme: &str) -> tauri::Result<()> {
+pub fn update_tray_icon_with_theme<R: Runtime>(_app: &AppHandle<R>, theme: &str) -> tauri::Result<()> {
     // For now, just log the theme change
     // TODO: Implement theme-specific tray icons when icons are available
     tracing::info!("Theme changed to: {}, tray icon update requested", theme);
     Ok(())
 }
 
-pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<TrayIconBuilder<R>> {
+pub fn build<R: Runtime>(_app: &AppHandle<R>) -> tauri::Result<TrayIconBuilder<R>> {
     // Try to read theme from config file directly for correct initial color
     let initial_icon = {
         // Read config file directly to avoid lock issues at startup
@@ -239,12 +239,15 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<TrayIconBuilder<R>
                     let theme = json.get("theme").and_then(|v| v.as_str()).unwrap_or("dark");
                     let tray_cfg = json.get("tray");
                     
+                    let setup_completed = json.get("setup_completed").and_then(|v| v.as_bool()).unwrap_or(false);
+
                     let show_mem = tray_cfg
                         .and_then(|t| t.get("show_mem_usage"))
                         .and_then(|v| v.as_bool())
                         .unwrap_or(true);
                     
-                    if show_mem {
+                    // Show memory usage only if enabled AND setup is completed
+                    if show_mem && setup_completed {
                         // Get tray colors from config
                         let bg_hex = tray_cfg
                             .and_then(|t| t.get("background_color_hex"))
@@ -298,9 +301,22 @@ fn set_tray_icon(app: &AppHandle, icon: Image<'static>, tooltip: &str) {
     }
 }
 
-pub fn update_tray_icon(app: &AppHandle, mem_percent: u8) {
+pub fn update_tray_icon(app: &AppHandle, mut mem_percent: u8) {
     // CORREZIONE 2: Risolve errore lifetime 'state does not live long enough'
     let state = app.state::<crate::AppState>();
+
+    // FIX Win10 0% on startup: If 0 is passed, try to get real value immediately
+    if mem_percent == 0 {
+        if let Ok(mem) = state.engine.memory() {
+            mem_percent = mem.physical.used.percentage.min(100) as u8;
+            tracing::info!("Tray icon 0% detected, fetched real value: {}%", mem_percent);
+        } else {
+            // Failed to get memory, just fallback to default for now
+            tracing::warn!("Failed to fetch memory for tray update, using default icon");
+             set_tray_icon(app, get_default_icon(), "Memory Cleaner");
+             return;
+        }
+    }
 
     let tray_cfg = match state.cfg.try_lock() {
         Ok(cfg) => cfg.tray.clone(),

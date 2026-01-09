@@ -116,6 +116,7 @@
   :global(body) {
     border: none !important;
     outline: none !important;
+    overflow: hidden !important;
   }
   
   .container {
@@ -164,7 +165,7 @@
     flex: 1;
     padding: 10px;
     background: var(--bg);
-    overflow-y: auto;
+    overflow-y: overlay; /* Use overlay or auto, but handle sizing better */
     overflow-x: hidden;
     min-height: 0;
   }

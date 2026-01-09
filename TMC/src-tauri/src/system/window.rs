@@ -31,22 +31,7 @@ pub fn apply_window_decorations(window: &tauri::WebviewWindow) -> Result<(), Str
     Ok(())
 }
 
-/// Show window with rounded corners (centralized function)
-pub fn show_window_with_rounded_corners(window: &tauri::WebviewWindow) -> Result<(), String> {
-    let _ = window.set_skip_taskbar(false);
-    let _ = window.show();
-    let _ = window.unminimize();
-    let _ = window.center();
-    let _ = window.set_focus();
-    
-    // Apply rounded corners on Windows
-    #[cfg(windows)]
-    {
-        let _ = apply_window_decorations(window);
-    }
-    
-    Ok(())
-}
+
 
 #[cfg(windows)]
 pub fn set_rounded_corners(hwnd: windows_sys::Win32::Foundation::HWND) -> Result<(), String> {

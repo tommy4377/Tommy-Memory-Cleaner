@@ -250,8 +250,9 @@
   }
 
   async function handleClose() {
-    const window = WebviewWindow.getCurrent()
-    await window?.close()
+    // During setup, closing the window should exit the application completely
+    // otherwise the tray icon remains active
+    await invoke('cmd_exit')
   }
 
   function handleDragStart(e: MouseEvent) {

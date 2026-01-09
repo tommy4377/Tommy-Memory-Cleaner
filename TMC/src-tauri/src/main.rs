@@ -177,53 +177,7 @@ fn ensure_privileges_initialized() -> Result<(), String> {
 // ============= TRAY MENU (Tauri v2) =============
 // Tray menu is managed directly in the builder, see ui::tray::build()
 
-/// Refresh the tray icon based on current memory usage
-///
-/// This function updates the system tray icon to reflect current memory
-/// usage when enabled in settings. Uses non-blocking locks to prevent deadlocks.
-fn refresh_tray_icon(app: &AppHandle) {
-    let state = app.state::<AppState>();
 
-    // Use try_lock to avoid deadlocks and acquire all necessary info
-    let (_show_mem_usage, mem_percent) = {
-        // Try to acquire lock without blocking
-        match state.cfg.try_lock() {
-            Ok(c) => {
-                let show_mem = c.tray.show_mem_usage;
-                // Release lock BEFORE calling engine.memory() to avoid deadlock
-                drop(c);
-
-                if !show_mem {
-                    tracing::debug!(
-                        "refresh_tray_icon: show_mem_usage is false, will load default icon"
-                    );
-                    (false, 0)
-                } else {
-                    // Now that lock is released, we can safely call memory()
-                    let mem_percent = state
-                        .engine
-                        .memory()
-                        .map(|mem| {
-                            // Clamp percentage between 0-100 (should already be in range, but for safety)
-                            mem.physical.used.percentage.min(100)
-                        })
-                        .unwrap_or_else(|e| {
-                            tracing::warn!("Failed to get memory info: {}, using 0", e);
-                            0
-                        });
-                    (true, mem_percent)
-                }
-            }
-            Err(_) => {
-                tracing::debug!("Config lock busy, skipping tray icon update");
-                (false, 0)
-            }
-        }
-    };
-
-    // If show_mem_usage is false, update_tray_icon will use default icon
-    crate::ui::tray::update_tray_icon(app, mem_percent);
-}
 
 // ============= AREA PARSING =============
 /// Parse areas string from configuration into Areas bitflags
@@ -343,7 +297,7 @@ async fn perform_optimization(
         tracing::info!("First optimization setup complete, proceeding with optimization");
     }
 
-    let (areas, show_notif, profile, _language) = {
+    let (areas, _show_notif, profile, _language) = {
         match cfg.lock() {
             Ok(c) => {
                 // If areas_override is specified, use it, otherwise use areas from profile
@@ -399,8 +353,31 @@ async fn perform_optimization(
         let _ = app.emit(EV_DONE, ());
     }
 
-    // FIX: Only show notification if optimization was actually successful
-    if show_notif {
+    // FIX: Verify notification setting (reload from disk to be sure)
+    let show_notif = {
+        // Force reload config to pick up changes from Setup
+        match crate::config::Config::load() {
+            Ok(loaded) => loaded.show_opt_notifications,
+            Err(_) => {
+                // Fallback to memory if load fails
+                if let Ok(guard) = cfg.lock() {
+                    guard.show_opt_notifications
+                } else {
+                    true
+                }
+            }
+        }
+    };
+
+    // Debug log to verify logic
+    tracing::info!("Notification check: show_settings={}, reason={:?}", show_notif, reason);
+
+    // Check if notifications are globally disabled for this reason
+    if !show_notif && reason != Reason::Manual {
+        tracing::debug!("Notifications disabled in config, suppressing");
+        // Only suppress if NOT manual (user clicked Optimize Now)
+        return; 
+    } else if show_notif || reason == Reason::Manual {
         if let (Ok(res), Some(aft)) = (result, after) {
             let freed_mb = res.freed_physical_bytes.abs() as f64 / 1024.0 / 1024.0;
             let free_gb = aft.physical.free.bytes as f64 / 1024.0 / 1024.0 / 1024.0;
@@ -1193,16 +1170,16 @@ fn main() {
                 let app_clone = app_handle.clone();
                 match WebviewWindowBuilder::new(&app_clone, "setup", setup_url)
                     .title("Tommy Memory Cleaner - Setup")
-                    .inner_size(490.0, 600.0)
+                    .inner_size(500.0, 690.0)
                     .min_inner_size(380.0, 500.0)
-                    .max_inner_size(490.0, 700.0)
+                    .max_inner_size(500.0, 690.0)
                     .resizable(false)
                     .decorations(false)
                     .transparent(true)
                     .shadow(false)
                     .skip_taskbar(false)
                     .always_on_top(true)
-                    .visible(true)  // Show window immediately for SetWindowRgn
+                    .visible(false)  // Show window only after customizations
                     .build()
                 {
                     Ok(setup_window) => {
@@ -1223,6 +1200,11 @@ fn main() {
                                 let _ = crate::system::window::set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND);
                             }
                         }
+                        
+                        // Show window after customizations are applied
+                        // This prevents the "XP bar" flash on Windows 10
+                        tracing::info!("Showing setup window after applying styles");
+                        let _ = setup_window.show();
                         
                         let _ = setup_window.set_focus();
                         

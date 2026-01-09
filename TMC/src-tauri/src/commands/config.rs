@@ -280,7 +280,8 @@ pub fn cmd_save_config(
     // Note: update_menu no longer exists, menu is managed via HTML
 
     if need_icon_update {
-        crate::refresh_tray_icon(&app);
+        // Force tray update
+        crate::ui::tray::refresh_tray_icon(&app);
     }
 
     if need_hotkey_update {
@@ -466,13 +467,13 @@ pub fn cmd_complete_setup(
             tauri::WebviewUrl::App("index.html".into()),
         )
         .title("Tommy Memory Cleaner")
-        .inner_size(490.0, 700.0)
+        .inner_size(500.0, 700.0)
         .resizable(false)
         .decorations(false)
         .transparent(true)
         .shadow(false)  // Disabilita shadow per Windows 10
         .skip_taskbar(false)
-        .visible(true)
+        .visible(false) // FIX: Create hidden to avoid flash
         .build()
         {
             Ok(window) => {
@@ -488,13 +489,46 @@ pub fn cmd_complete_setup(
 
     // Show the main window and apply settings
     let main_window_shown = if let Some(main_window) = main_window {
-        tracing::info!("Showing main window after setup...");
+        tracing::info!("Preparing main window after setup...");
 
-        // Apply always_on_top (both true and false) - fallback if main window doesn't respond
+        // Apply always_on_top (both true and false)
         let _ = crate::system::window::set_always_on_top(&app, always_on_top);
 
-        // Ensure the window is visible and not hidden
-        // Correct order according to best practices: skip_taskbar -> unminimize -> show -> center -> focus
+        // Apply theme and settings via eval BEFORE showing the window
+        // This prevents the "dark flash" issue
+        // The frontend will listen for this event and apply the theme and correct color
+        let _ = main_window.eval(&format!(
+            r#"
+            (function() {{
+                // Apply the theme
+                document.documentElement.setAttribute('data-theme', '{}');
+                localStorage.setItem('tmc_theme', '{}');
+                
+                // Apply the correct main color for the theme
+                const root = document.documentElement;
+                root.style.setProperty('--btn-bg', '{}');
+                root.style.setProperty('--bar-fill', '{}');
+                root.style.setProperty('--input-focus', '{}');
+                
+                // Apply the language if available
+                if (typeof window.setLanguage === 'function') {{
+                    window.setLanguage('{}');
+                }}
+                
+                // Notify frontend to reload config
+                if (typeof window.dispatchEvent !== 'undefined') {{
+                    window.dispatchEvent(new CustomEvent('config-updated'));
+                }}
+            }})();
+            "#,
+            theme, theme, main_color, main_color, main_color, language
+        ));
+
+        // Small delay to ensure WebView handles the eval before showing
+        std::thread::sleep(std::time::Duration::from_millis(50));
+
+        // Now show the window
+        // Correct order: skip_taskbar -> unminimize -> show -> center -> focus
         let _ = main_window.set_skip_taskbar(false);
 
         // Unminimize before show (if minimized)
@@ -519,45 +553,9 @@ pub fn cmd_complete_setup(
             {
                 let _ = crate::system::window::apply_window_decorations(&main_window);
                 // Re-center window after applying rounded corners
-                let _ = main_window.center();
+                //let _ = main_window.center(); // Don't re-center again, might cause jump
             }
 
-            // Apply always_on_top directly to the main window as well
-            if let Err(e) = main_window.set_always_on_top(always_on_top) {
-                tracing::warn!("Failed to set always_on_top on main window: {:?}", e);
-            }
-
-            // Emit event to apply theme and color in the main window
-            // The frontend will listen for this event and apply the theme and correct color
-            let _ = main_window.eval(&format!(
-                r#"
-                (function() {{
-                    // Apply the theme
-                    document.documentElement.setAttribute('data-theme', '{}');
-                    localStorage.setItem('tmc_theme', '{}');
-                    
-                    // Apply the correct main color for the theme
-                    const root = document.documentElement;
-                    root.style.setProperty('--btn-bg', '{}');
-                    root.style.setProperty('--bar-fill', '{}');
-                    root.style.setProperty('--input-focus', '{}');
-                    
-                    // Apply the language if available
-                    if (typeof window.setLanguage === 'function') {{
-                        window.setLanguage('{}');
-                    }}
-                    
-                    // Notify frontend to reload config
-                    if (typeof window.dispatchEvent !== 'undefined') {{
-                        window.dispatchEvent(new CustomEvent('config-updated'));
-                    }}
-                }})();
-                "#,
-                theme, theme, main_color, main_color, main_color, language
-            ));
-
-            // Small delay to ensure main window is fully loaded
-            std::thread::sleep(std::time::Duration::from_millis(200));
             true
         }
     } else {

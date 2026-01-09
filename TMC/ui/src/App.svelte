@@ -56,10 +56,10 @@
 
   // Window dimensions
   const WINDOW_SIZES = {
-    full: { width: 490, height: 700 },
+    full: { width: 500, height: 700 },
     compact: { width: 420, height: 100 },
     min: { width: 360, height: 90 },
-    max: { width: 490, height: 700 },
+    max: { width: 500, height: 700 },
   } as const
 
   // ========== LIFECYCLE ==========
@@ -92,11 +92,34 @@
       console.error('Failed to detect platform:', error)
     }
     
+    // Apply theme immediately to avoid flash
+    if (currentConfig) {
+      applyThemeColors(currentConfig)
+    }
+
     // 3. Setup window CON la configurazione aggiornata
     await setupWindow(currentConfig)
     
     // 4. Initialize app
     await initApp()
+    
+    // Force correct size on startup to prevent scrollbars
+    // This fixes the issue where scrollbar appears after setup
+    try {
+      const window = WebviewWindow.getCurrent()
+      // Only set if not already in compact mode (though usually it starts full)
+      if (!currentConfig?.compact_mode) {
+        // FIX: Wait for window animations/init to settle
+        setTimeout(async () => {
+          try {
+            await window.setSize(new LogicalSize(500, 700))
+          } catch (e) { console.warn('Resize failed:', e) }
+        }, 250)
+      }
+    } catch (e) {
+      console.warn('Failed to force window size:', e)
+    }
+
     isLoading = false
     initError = null
 
@@ -236,6 +259,14 @@
       // Re-enable resizing for full view
       if (!compact) {
         await appWindow.setResizable(false)
+      }
+
+      // FIX: Re-apply rounded corners on Windows 10 to ensure border is correct
+      // This helps with "glitchy" transitions
+      try {
+        await invoke('cmd_apply_rounded_corners')
+      } catch (e) {
+        console.error('Failed to re-apply rounded corners:', e)
       }
     } catch (error) {
       console.error('Failed to update window size:', error)

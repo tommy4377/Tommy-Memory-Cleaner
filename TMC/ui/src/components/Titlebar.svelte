@@ -139,7 +139,7 @@
       if (next) {
         await appWindow.setSize(new LogicalSize(420, 100))
       } else {
-        await appWindow.setSize(new LogicalSize(490, 700))
+        await appWindow.setSize(new LogicalSize(500, 700))
       }
 
       // Aggiorna la config dopo aver cambiato le dimensioni
@@ -309,7 +309,7 @@
     display: flex;
     gap: 5px;
     position: absolute; /* CAMBIATO: posizionamento assoluto */
-    right: 8px; /* Stessa distanza dal bordo destro come icona/titolo da sinistra */
+    right: 16px; /* Perfect symmetry with left side (16px) */
     top: 0;
     height: 100%;
     align-items: center; /* Centra verticalmente i bottoni */
