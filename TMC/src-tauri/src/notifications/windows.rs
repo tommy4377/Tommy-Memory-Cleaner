@@ -1,6 +1,4 @@
 #[cfg(windows)]
-use std::os::windows::process::CommandExt;
-#[cfg(windows)]
 use tauri::AppHandle;
 
 // Helper per convertire ICO in PNG ad alta risoluzione
@@ -110,64 +108,71 @@ fn ensure_notification_icon_available() -> Option<std::path::PathBuf> {
 /// Show Windows notification with proper icon and theme
 ///
 /// Attempt chain (ordered by efficiency):
-/// 1. Tauri Plugin Notification (native Rust, zero overhead)
-/// 2. winrt-notification crate (native Rust WinRT toast)
-/// 3. PowerShell Balloon (last resort, spawns powershell.exe)
+/// 1. Tauri Plugin Notification (native Rust, zero overhead) - PRIMARY
+/// 2. winrt-notification crate (native Rust WinRT toast) - FALLBACK
+/// 3. PowerShell Balloon (DISABLED - high CPU overhead, see Bug 30)
 #[cfg(windows)]
 pub fn show_windows_notification(
     app: &AppHandle,
     title: &str,
     body: &str,
-    theme: &str,
+    _theme: &str,
 ) -> Result<(), String> {
     tracing::info!(
-        "Attempting to show notification - Title: '{}', Body: '{}', Theme: {}",
+        "Attempting to show notification - Title: '{}', Body: '{}'",
         title,
-        body,
-        theme
+        body
     );
 
-    // ── Attempt 1: Tauri plugin notification (native Rust, zero overhead) ──
-    tracing::debug!("Attempt 1: Tauri plugin notification...");
+    // ── Attempt 1: Tauri plugin notification (native Rust, zero overhead) - PRIMARY ──
+    tracing::debug!("Attempt 1: Tauri plugin notification (PRIMARY)...");
     {
-        let icon_path = ensure_notification_icon_available()
-            .and_then(|p| p.to_str().map(|s| s.to_string()))
-            .or_else(|| {
-                std::env::current_exe().ok().and_then(|exe_path| {
-                    tracing::debug!("Using embedded icon from exe: {}", exe_path.display());
-                    exe_path.to_str().map(|s| s.to_string())
-                })
-            })
-            .unwrap_or_else(|| {
-                tracing::warn!("Cannot get icon path, notification may fail");
-                String::new()
-            });
-
-        if !icon_path.is_empty() {
-            use tauri_plugin_notification::NotificationExt;
-            match app
-                .notification()
-                .builder()
-                .title(title)
-                .body(body)
-                .icon(icon_path)
-                .show()
-            {
-                Ok(_) => {
-                    tracing::info!("Notification sent via Tauri plugin (native, zero overhead)");
-                    return Ok(());
-                }
-                Err(e) => {
-                    tracing::warn!("Tauri plugin notification failed: {}, trying fallback", e);
+        use tauri_plugin_notification::NotificationExt;
+        
+        // Try with icon if available
+        if let Some(icon_path) = ensure_notification_icon_available() {
+            if let Some(icon_str) = icon_path.to_str() {
+                tracing::debug!("Using icon path: {}", icon_str);
+                match app
+                    .notification()
+                    .builder()
+                    .title(title)
+                    .body(body)
+                    .icon(icon_str)
+                    .show()
+                {
+                    Ok(_) => {
+                        tracing::info!("✓ Notification sent via Tauri plugin (native, zero overhead)");
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        tracing::warn!("Tauri plugin with icon failed: {}, retrying without icon", e);
+                    }
                 }
             }
-        } else {
-            tracing::warn!("Icon path empty, skipping Tauri plugin notification");
+        }
+        
+        // Fallback: try without icon
+        tracing::debug!("Retrying Tauri plugin without icon...");
+        match app
+            .notification()
+            .builder()
+            .title(title)
+            .body(body)
+            .show()
+        {
+            Ok(_) => {
+                tracing::info!("✓ Notification sent via Tauri plugin (no icon)");
+                return Ok(());
+            }
+            Err(e) => {
+                tracing::warn!("Tauri plugin notification failed entirely: {}, trying fallback", e);
+            }
         }
     }
 
-    // ── Attempt 2: winrt-notification crate (native Rust WinRT toast) ──
-    tracing::debug!("Attempt 2: winrt-notification crate...");
+    // ── Attempt 2: winrt-notification crate (native Rust WinRT toast) - FALLBACK ──
+    tracing::debug!("Attempt 2: winrt-notification crate (FALLBACK)...");
     {
         use winrt_notification::{IconCrop, Toast};
 
@@ -183,75 +188,24 @@ pub fn show_windows_notification(
 
         match toast.show() {
             Ok(_) => {
-                tracing::info!("Notification sent via winrt-notification (native WinRT)");
+                tracing::info!("✓ Notification sent via winrt-notification (native WinRT)");
                 return Ok(());
             }
             Err(e) => {
                 tracing::warn!(
-                    "winrt-notification failed: {}, trying fallback",
+                    "winrt-notification failed: {}, fallbacks exhausted",
                     e
                 );
             }
         }
     }
 
-    // ── Attempt 3: PowerShell Balloon (last resort) ──
-    tracing::debug!("Attempt 3: PowerShell balloon notification (last resort)...");
-    {
-        let title_clone = title.to_string();
-        let body_clone = body.to_string();
-        let ps_script = format!(
-            r#"
-try {{
-    Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
-    $notification = New-Object System.Windows.Forms.NotifyIcon
-    $notification.Icon = [System.Drawing.SystemIcons]::Information
-    $notification.BalloonTipTitle = '{}'
-    $notification.BalloonTipText = '{}'
-    $notification.Visible = $true
-    $notification.ShowBalloonTip(5000)
-    Start-Sleep -Seconds 6
-    $notification.Dispose()
-    Write-Output "Notification shown successfully"
-}} catch {{
-    Write-Error "Failed to show notification: $_"
-    exit 1
-}}
-"#,
-            title_clone
-                .replace("'", "''")
-                .replace("\n", " ")
-                .replace("\r", " "),
-            body_clone
-                .replace("'", "''")
-                .replace("\n", " ")
-                .replace("\r", " ")
-        );
-
-        match std::process::Command::new("powershell")
-            .arg("-NoProfile")
-            .arg("-NonInteractive")
-            .arg("-Command")
-            .arg(&ps_script)
-            .creation_flags(0x08000000) // CREATE_NO_WINDOW
-            .output()
-        {
-            Ok(output) => {
-                if output.status.success() {
-                    tracing::info!("Notification sent via PowerShell balloon (last resort)");
-                    return Ok(());
-                } else {
-                    let error = String::from_utf8_lossy(&output.stderr);
-                    tracing::error!("PowerShell balloon notification failed: {}", error);
-                }
-            }
-            Err(e) => {
-                tracing::error!("Failed to execute PowerShell balloon notification: {}", e);
-            }
-        }
-    }
-
-    Err("All notification methods failed".to_string())
+    // PowerShell balloon notifications are DISABLED due to high CPU overhead (Bug 30)
+    // and unprofessional appearance. If Windows lacks native Toast support (very rare),
+    // user should see a notification failure in the logs rather than a PowerShell process spawn.
+    
+    tracing::error!("✗ All native notification methods failed. Consider running as Administrator or checking system notifications are enabled.");
+    Err("Native Windows notifications unavailable. Ensure administrator privileges and system notifications are enabled.".to_string())
 }
 
 #[cfg(not(windows))]

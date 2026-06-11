@@ -172,6 +172,7 @@
 
 <div
   class="titlebar"
+  data-tauri-drag-region
   on:mousedown={handleDragStart}
   on:mouseup={handleDragEnd}
   on:mouseleave={handleDragEnd}
@@ -180,6 +181,7 @@
 >
   <div
     class="draggable"
+    data-tauri-drag-region
     on:mousedown={handleDragStart}
     on:mouseup={handleDragEnd}
     on:mouseleave={handleDragEnd}

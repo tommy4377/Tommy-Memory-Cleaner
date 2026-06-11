@@ -434,3 +434,44 @@ pub fn get_taskbar_rect() -> Option<(i32, i32, i32, i32)> {
 fn get_taskbar_rect() -> Option<(i32, i32, i32, i32)> {
     None
 }
+
+/// Check if the application is running with administrator privileges.
+/// 
+/// Returns a JSON object with elevation status and available privileges:
+/// - `is_elevated`: boolean - whether the app is running as admin
+/// - `privileges`: object - status of required privileges for memory optimization
+#[tauri::command]
+pub fn cmd_check_elevation() -> Result<serde_json::Value, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let is_elevated = crate::system::is_app_elevated();
+        
+        // Check if key privileges are available
+        let has_debug_priv = crate::memory::privileges::ensure_privilege("SeDebugPrivilege").is_ok();
+        let has_quota_priv = crate::memory::privileges::ensure_privilege("SeIncreaseQuotaPrivilege").is_ok();
+        let has_profile_priv = crate::memory::privileges::ensure_privilege("SeProfileSingleProcessPrivilege").is_ok();
+        
+        tracing::info!(
+            "Elevation check: is_elevated={}, SeDebugPrivilege={}, SeIncreaseQuotaPrivilege={}, SeProfileSingleProcessPrivilege={}",
+            is_elevated,
+            has_debug_priv,
+            has_quota_priv,
+            has_profile_priv
+        );
+        
+        Ok(serde_json::json!({
+            "is_elevated": is_elevated,
+            "privileges": {
+                "SeDebugPrivilege": has_debug_priv,
+                "SeIncreaseQuotaPrivilege": has_quota_priv,
+                "SeProfileSingleProcessPrivilege": has_profile_priv
+            }
+        }))
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    Ok(serde_json::json!({
+        "is_elevated": true,
+        "privileges": {}
+    }))
+}

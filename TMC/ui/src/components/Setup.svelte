@@ -18,6 +18,8 @@
   let isWindows10 = false
   let cfg: Config | null = null
   let cfgUnsub: (() => void) | null = null
+  let isElevated = true
+  let elevationWarning = ''
 
   const languageOptions = [
     { value: 'en', label: 'English' },
@@ -38,7 +40,27 @@
 
   let unlistenSetupComplete: (() => void) | null = null
 
+  async function checkElevation() {
+    try {
+      const result = await invoke<any>('cmd_check_elevation')
+      isElevated = result.is_elevated
+      
+      if (!isElevated) {
+        elevationWarning = '⚠️ Administrator privileges required for full memory optimization capabilities'
+      } else {
+        elevationWarning = ''
+      }
+    } catch (error) {
+      console.error('Failed to check elevation:', error)
+      // Assume not elevated on error
+      isElevated = false
+      elevationWarning = '⚠️ Could not verify administrator privileges'
+    }
+  }
+
   onMount(async () => {
+    // Check elevation status first
+    await checkElevation()
     // Rileva tema e lingua dal sistema
     try {
       const systemTheme = await invoke<string>('cmd_get_system_theme')
@@ -274,6 +296,20 @@
       <img src="/icon.png" alt="Tommy Memory Cleaner" class="app-icon" />
     </div>
 
+    {#if elevationWarning}
+      <div class="elevation-warning">
+        <div class="warning-content">
+          <p>{elevationWarning}</p>
+          <small>{$t('Some advanced features require administrator privileges')}</small>
+          {#if !isElevated}
+            <button class="elevate-btn" on:click={() => invoke('cmd_restart_with_elevation')}>
+              {$t('Run as Administrator')}
+            </button>
+          {/if}
+        </div>
+      </div>
+    {/if}
+
     <div class="setup-options">
       <div class="option-group">
         <div class="option-row">
@@ -447,6 +483,73 @@
     height: 56px;
     object-fit: contain;
     flex-shrink: 0;
+  }
+
+  .elevation-warning {
+    background: linear-gradient(135deg, rgba(220, 120, 50, 0.1) 0%, rgba(220, 100, 30, 0.05) 100%);
+    border: 1px solid rgba(220, 120, 50, 0.3);
+    border-radius: 12px;
+    padding: 12px;
+    margin: 0 4px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .elevation-warning::before {
+    content: '⚠️';
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .warning-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+  }
+
+  .warning-content p {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--fg);
+  }
+
+  .warning-content small {
+    margin: 0;
+    font-size: 11px;
+    opacity: 0.8;
+    color: var(--fg);
+  }
+
+  .elevation-warning .elevate-btn {
+    background: linear-gradient(135deg, #dc7832 0%, #d86420 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: url('/cursors/light/hand.cur'), pointer;
+    transition: all 0.2s;
+    margin-top: 4px;
+    width: fit-content;
+  }
+
+  .elevation-warning .elevate-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(220, 120, 50, 0.3);
+  }
+
+  .elevation-warning .elevate-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(220, 120, 50, 0.2);
+  }
+
+  html[data-theme='dark'] .elevation-warning .elevate-btn {
+    cursor: url('/cursors/dark/hand.cur'), pointer;
   }
 
   .setup-options {

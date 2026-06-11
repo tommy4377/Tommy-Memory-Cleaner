@@ -1133,6 +1133,7 @@ fn main() {
             commands::ui::cmd_get_platform,
             commands::ui::cmd_apply_rounded_corners,
             commands::ui::cmd_update_tray_theme,
+            commands::ui::cmd_check_elevation,
             // Commands from i18n module
             commands::i18n::cmd_set_translations,
             // Commands from hotkeys module
