@@ -126,9 +126,10 @@ impl Engine {
                                 attempt,
                                 e
                             );
+                            // TODO: Use tokio::time::sleep when optimize() is made async
                             std::thread::sleep(std::time::Duration::from_millis(
-                                100 * attempt as u64,
-                            ));
+                                50 * attempt as u64,
+                        ));
                         } else {
                             let error_msg = format!(
                                 "Failed to acquire privilege {} after 3 attempts: {}",
@@ -189,9 +190,9 @@ impl Engine {
 
         let areas = validated_areas;
 
-        // FIX: Aggiungi un delay iniziale più lungo per stabilizzare il sistema
-        // Questo è particolarmente importante al primo avvio
-        std::thread::sleep(std::time::Duration::from_millis(300));
+        // Brief stabilization delay before optimization
+        // TODO: Use tokio::time::sleep when optimize() is made async
+        std::thread::sleep(std::time::Duration::from_millis(50));
 
         // Ottieni memoria PRIMA dell'ottimizzazione
         let before = self.memory()?;
@@ -259,7 +260,9 @@ impl Engine {
 
             // FIX: Aumenta il delay tra operazioni per il primo run
             if idx > 1 {
-                std::thread::sleep(std::time::Duration::from_millis(100));
+                // Brief delay between operations to avoid overwhelming the system
+                // TODO: Use tokio::time::sleep when optimize() is made async
+                std::thread::sleep(std::time::Duration::from_millis(30));
             }
 
             let t0 = Instant::now();
@@ -351,8 +354,9 @@ impl Engine {
             cb(total, total, "Completed".to_string());
         }
 
-        // FIX: Aumenta il delay di stabilizzazione dopo l'ottimizzazione
-        std::thread::sleep(std::time::Duration::from_millis(800));
+        // Brief stabilization delay after optimization for memory measurement
+        // TODO: Use tokio::time::sleep when optimize() is made async
+        std::thread::sleep(std::time::Duration::from_millis(100));
 
         // Ottieni memoria DOPO con retry e validazione
         let mut after = self.memory()?;
@@ -382,7 +386,8 @@ impl Engine {
                 freed,
                 retry_count
             );
-            std::thread::sleep(std::time::Duration::from_millis(500 * retry_count as u64));
+            // TODO: Use tokio::time::sleep when optimize() is made async
+            std::thread::sleep(std::time::Duration::from_millis(100 * retry_count as u64));
             after = self.memory()?;
         }
 

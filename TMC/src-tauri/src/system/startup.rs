@@ -11,12 +11,24 @@ use crate::config::get_portable_detector;
 const SYSTEM_COMMAND_TIMEOUT: Duration = Duration::from_secs(10);
 
 // FIX #19: Helper per eseguire comandi con timeout
+// FIX #13: Usa spawn() + wait_with_output() per poter killare il processo zombie su timeout
 fn run_command_with_timeout(mut cmd: std::process::Command) -> Result<std::process::Output> {
     use std::sync::mpsc;
 
+    // Spawn with piped stdout/stderr so we can get Output later
+    let child = cmd
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .context("Failed to spawn command")?;
+
+    // Record PID before moving child into thread
+    let pid = child.id();
+
     let (tx, rx) = mpsc::channel();
+
     let handle = std::thread::spawn(move || {
-        let result = cmd.output();
+        let result = child.wait_with_output();
         let _ = tx.send(result);
     });
 
@@ -29,11 +41,41 @@ fn run_command_with_timeout(mut cmd: std::process::Command) -> Result<std::proce
         }
         Err(mpsc::RecvTimeoutError::Timeout) => {
             tracing::warn!("Command timed out after {:?}", SYSTEM_COMMAND_TIMEOUT);
-            // Nota: Non possiamo fare join qui perché il thread è ancora in esecuzione
-            // Il thread continuerà in background ma terminerà naturalmente quando completa
+            // Kill the entire process tree on Windows to prevent zombie processes
+            #[cfg(windows)]
+            {
+                let _ = std::process::Command::new("taskkill")
+                    .args(["/F", "/T", "/PID", &pid.to_string()])
+                    .creation_flags(0x08000000)
+                    .output();
+            }
+            #[cfg(not(windows))]
+            {
+                let _ = std::process::Command::new("kill")
+                    .args(["-TERM", &pid.to_string()])
+                    .output();
+            }
+            // Join the thread (wait_with_output will return after kill)
+            if let Err(e) = handle.join() {
+                tracing::warn!("Thread panicked after kill (timeout): {:?}", e);
+            }
             bail!("Command timed out after {:?}", SYSTEM_COMMAND_TIMEOUT)
         }
         Err(mpsc::RecvTimeoutError::Disconnected) => {
+            // Try to kill on disconnect too
+            #[cfg(windows)]
+            {
+                let _ = std::process::Command::new("taskkill")
+                    .args(["/F", "/T", "/PID", &pid.to_string()])
+                    .creation_flags(0x08000000)
+                    .output();
+            }
+            #[cfg(not(windows))]
+            {
+                let _ = std::process::Command::new("kill")
+                    .args(["-TERM", &pid.to_string()])
+                    .output();
+            }
             if let Err(e) = handle.join() {
                 tracing::warn!(
                     "Thread panicked during command execution (disconnected): {:?}",
@@ -55,6 +97,16 @@ fn task_name() -> &'static str {
 
 fn app_name() -> &'static str {
     "Tommy Memory Cleaner"
+}
+
+/// Properly escape a string for safe inclusion in XML content.
+/// Handles all five XML predefined entities: & < > " '
+fn escape_xml(s: &str) -> String {
+    s.replace('&', "&amp;")
+     .replace('<', "&lt;")
+     .replace('>', "&gt;")
+     .replace('"', "&quot;")
+     .replace('\'', "&apos;")
 }
 
 pub fn set_run_on_startup(enable: bool) -> Result<()> {
@@ -183,9 +235,18 @@ fn set_installed_startup(enable: bool) -> Result<()> {
         // Fallback a Task Scheduler
         set_task_scheduler_startup(&exe_str, true)
     } else {
-        // Rimuovi da entrambi
-        let _ = set_registry_startup(&exe_str, false);
-        let _ = set_task_scheduler_startup(&exe_str, false);
+        let reg_result = set_registry_startup(&exe_str, false);
+        let task_result = set_task_scheduler_startup(&exe_str, false);
+        let elevated_result = crate::system::elevated_task::delete_elevated_task();
+        
+        // If registry removal succeeded but task scheduler failed, log warning
+        if task_result.is_err() || elevated_result.is_err() {
+            tracing::warn!(
+                "Some startup mechanisms could not be disabled (may require admin): task={:?}, elevated={:?}",
+                task_result.err(), elevated_result.err()
+            );
+        }
+        reg_result?;
         Ok(())
     }
 }
@@ -215,7 +276,7 @@ fn set_registry_startup(exe_path: &str, enable: bool) -> Result<()> {
                 }}
                 New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" `
                     -Name "{}" `
-                    -Value $exePath `
+                    -Value "`"$exePath`"" `
                     -PropertyType String `
                     -Force `
                     -ErrorAction Stop | Out-Null
@@ -313,6 +374,11 @@ fn set_task_scheduler_startup(exe_path: &str, enable: bool) -> Result<()> {
     if enable {
         // FIX: Usa XML per configurazione più robusta del Task Scheduler
         // Questo evita problemi con delay e privilegi
+        let exe_dir = std::path::Path::new(exe_path)
+            .parent()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| std::env::temp_dir().to_string_lossy().to_string());
+
         let xml_content = format!(
             r#"<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
@@ -355,10 +421,12 @@ fn set_task_scheduler_startup(exe_path: &str, enable: bool) -> Result<()> {
   <Actions Context="Author">
     <Exec>
       <Command>"{}"</Command>
+      <WorkingDirectory>{}</WorkingDirectory>
     </Exec>
   </Actions>
 </Task>"#,
-            exe_path.replace('\\', "\\\\").replace('"', "&quot;")
+            escape_xml(&exe_path.replace('\\', "\\\\")),
+            escape_xml(&exe_dir)
         );
 
         // Salva XML temporaneo
@@ -447,16 +515,21 @@ fn set_task_scheduler_startup(exe_path: &str, enable: bool) -> Result<()> {
             }
         }
     } else {
+        // FIX #13: Wrap with timeout to prevent zombie process on schtasks /Delete
         #[cfg(windows)]
-        let _ = std::process::Command::new("schtasks")
-            .args(["/Delete", "/F", "/TN", task_name()])
-            .creation_flags(0x08000000)
-            .output();
+        {
+            let mut cmd = std::process::Command::new("schtasks");
+            cmd.args(["/Delete", "/F", "/TN", task_name()])
+                .creation_flags(0x08000000);
+            let _ = run_command_with_timeout(cmd);
+        }
 
         #[cfg(not(windows))]
-        let _ = std::process::Command::new("schtasks")
-            .args(["/Delete", "/F", "/TN", task_name()])
-            .output();
+        {
+            let mut cmd = std::process::Command::new("schtasks");
+            cmd.args(["/Delete", "/F", "/TN", task_name()]);
+            let _ = run_command_with_timeout(cmd);
+        }
     }
 
     Ok(())

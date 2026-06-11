@@ -124,7 +124,8 @@ pub fn nt_call_u32(class: u32, command: u32) -> Result<()> {
                     // STATUS_UNSUCCESSFUL (0xC0000001)
                     if attempt < MAX_RETRIES {
                         tracing::debug!("NtSetSystemInformation blocked (possible antivirus), retrying (attempt {})...", attempt);
-                        std::thread::sleep(std::time::Duration::from_millis(100 * attempt as u64));
+                        // TODO: Use tokio::time::sleep when called from async context
+                        std::thread::sleep(std::time::Duration::from_millis(50 * attempt as u64));
                         continue;
                     }
                 }
@@ -135,7 +136,8 @@ pub fn nt_call_u32(class: u32, command: u32) -> Result<()> {
                             "NtSetSystemInformation access denied, retrying (attempt {})...",
                             attempt
                         );
-                        std::thread::sleep(std::time::Duration::from_millis(100 * attempt as u64));
+                        // TODO: Use tokio::time::sleep when called from async context
+                        std::thread::sleep(std::time::Duration::from_millis(50 * attempt as u64));
                         continue;
                     }
                 }
@@ -307,8 +309,20 @@ pub fn optimize_system_file_cache() -> Result<()> {
         unsafe {
             // Get total memory to determine optimal cache limits
             let st = gmse()?;
-            let total_gb = st.ullTotalPhys / (1024 * 1024 * 1024);
-            let available_gb = st.ullAvailPhys / (1024 * 1024 * 1024);
+
+            // Guard: if total physical memory reports as 0 (VM dynamic RAM allocation
+            // or API error), use conservative defaults to avoid incorrect cache sizing.
+            let total_gb = if st.ullTotalPhys > 0 {
+                st.ullTotalPhys / (1024 * 1024 * 1024)
+            } else {
+                tracing::warn!("GlobalMemoryStatusEx reported 0 total physical memory, using conservative cache defaults");
+                0
+            };
+            let available_gb = if st.ullAvailPhys > 0 {
+                st.ullAvailPhys / (1024 * 1024 * 1024)
+            } else {
+                0
+            };
             
             // Dynamic limits based on BOTH total and available RAM
             let (min_size, max_size) = if total_gb <= 8 {
@@ -354,7 +368,7 @@ pub fn optimize_system_file_cache() -> Result<()> {
 pub fn process_list() -> Vec<(u32, String)> {
     const CACHE_DURATION: Duration = Duration::from_secs(5);
 
-    // Double-checked locking pattern to avoid race conditions
+    // Phase 1: Check cache with a read lock (allows concurrent readers)
     {
         let cache = PROCESS_CACHE.read();
         if cache.last_update.elapsed() < CACHE_DURATION {
@@ -362,20 +376,22 @@ pub fn process_list() -> Vec<(u32, String)> {
         }
     } // Read lock released here
 
-    // Update cache - acquire write lock only if needed
-    // Check again after acquiring write lock
-    let mut cache = PROCESS_CACHE.write();
-    if cache.last_update.elapsed() < CACHE_DURATION {
-        // Another thread updated while we waited for write lock
-        return cache.list.clone();
-    }
-    
-    // Now update the cache
-    let processes = fetch_process_list();
-    cache.list = processes.clone();
-    cache.last_update = Instant::now();
+    // Phase 2: Fetch OUTSIDE any lock (expensive CreateToolhelp32Snapshot call)
+    // This prevents blocking all concurrent readers during the slow system call.
+    let new_list = fetch_process_list();
 
-    processes
+    // Phase 3: Write-lock briefly to update cache
+    {
+        let mut cache = PROCESS_CACHE.write();
+        // Double-check: another thread may have updated the cache while we were fetching
+        if cache.last_update.elapsed() >= CACHE_DURATION {
+            cache.list = new_list;
+            cache.last_update = Instant::now();
+        }
+    } // Write lock released here
+
+    // Phase 4: Return the freshly cached data
+    PROCESS_CACHE.read().list.clone()
 }
 
 /// Helper function to fetch process list from system
@@ -442,10 +458,10 @@ fn empty_ws_process(pid: u32) -> bool {
     for attempt in 1..=MAX_RETRIES {
         unsafe {
             // Use PROCESS_ALL_ACCESS if available, otherwise minimum required permissions
-            let h: HANDLE = OpenProcess(PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION, 0, pid);
+            let raw_h: HANDLE = OpenProcess(PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION, 0, pid);
 
             // HANDLE in windows-sys is isize, so compare with 0
-            if h == std::ptr::null_mut() {
+            if raw_h == std::ptr::null_mut() {
                 let error = GetLastError();
                 // ERROR_ACCESS_DENIED (0x5) is common if SE_DEBUG_NAME is not acquired
                 if error == 5 {
@@ -462,7 +478,8 @@ fn empty_ws_process(pid: u32) -> bool {
                         attempt,
                         error
                     );
-                    std::thread::sleep(std::time::Duration::from_millis(50));
+                    // TODO: Use tokio::time::sleep when called from async context
+                    std::thread::sleep(std::time::Duration::from_millis(30));
                     continue;
                 } else {
                     tracing::debug!("Failed to open process {} after {} attempts: 0x{:x} (ACCESS_DENIED=0x5 means SE_DEBUG_NAME missing)", pid, MAX_RETRIES, error);
@@ -470,8 +487,9 @@ fn empty_ws_process(pid: u32) -> bool {
                 }
             }
 
-            let result = K32EmptyWorkingSet(h) != 0;
-            CloseHandle(h);
+            let h = scopeguard::guard(raw_h, |h| { CloseHandle(h); });
+            let result = K32EmptyWorkingSet(*h) != 0;
+            // h guard automatically calls CloseHandle on drop
 
             // If successful, return immediately
             if result {
@@ -484,7 +502,8 @@ fn empty_ws_process(pid: u32) -> bool {
             }
 
             // Retry if it fails
-            std::thread::sleep(std::time::Duration::from_millis(50));
+            // TODO: Use tokio::time::sleep when called from async context
+            std::thread::sleep(std::time::Duration::from_millis(30));
         }
     }
 

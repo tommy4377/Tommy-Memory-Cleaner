@@ -5,6 +5,31 @@ use tauri::{image::Image, tray::TrayIconBuilder, AppHandle, Manager, Runtime};
 
 use crate::TRAY_ICON_ID;
 
+use std::sync::Mutex;
+
+/// Cache for the last generated icon state, keyed by (percentage, bg_hex, text_hex, transparent).
+/// Avoids regenerating identical icons when the tray updater fires but nothing has changed visually.
+/// On cache hit, we skip `set_tray_icon` entirely to prevent unnecessary GDI object creation
+/// (the tray-icon crate creates a new HICON internally on every `set_icon()` call).
+struct CachedIcon {
+    percentage: u8,
+    bg_hex: String,
+    text_hex: String,
+    transparent: bool,
+}
+
+static ICON_CACHE: Mutex<Option<CachedIcon>> = Mutex::new(None);
+
+/// Clears the icon cache, forcing the next `update_tray_icon` call to regenerate
+/// and apply a new tray icon via `set_tray_icon`. This is essential when the tray
+/// state transitions (e.g., toggling `show_mem_usage` off/on) to prevent stale
+/// cache hits that would skip the icon update and leave the default icon displayed.
+fn invalidate_icon_cache() {
+    if let Ok(mut cache) = ICON_CACHE.lock() {
+        *cache = None;
+    }
+}
+
 const ICON_SIZE: u32 = 32;
 
 // Font embedded nel binario
@@ -328,6 +353,7 @@ pub fn update_tray_icon(app: &AppHandle, mut mem_percent: u8) {
     };
 
     if !tray_cfg.show_mem_usage {
+        invalidate_icon_cache();
         set_tray_icon(app, get_default_icon(), "Memory Cleaner");
         return;
     }
@@ -340,12 +366,48 @@ pub fn update_tray_icon(app: &AppHandle, mut mem_percent: u8) {
         &tray_cfg.background_color_hex
     };
 
+    // Bug 11 Fix (revised): Check icon cache before regenerating.
+    // If the visual state (percentage + colors + transparency) hasn't changed,
+    // skip `set_tray_icon` entirely. The tray-icon crate creates a new HICON
+    // internally on every `set_icon()` call, so avoiding redundant calls is
+    // the real GDI leak prevention — the crate's RAII handles cleanup of the
+    // HICONs it does create.
+    {
+        if let Ok(cache) = ICON_CACHE.lock() {
+            if let Some(ref cached) = *cache {
+                if cached.percentage == mem_percent
+                    && cached.bg_hex == *bg
+                    && cached.text_hex == tray_cfg.text_color_hex
+                    && cached.transparent == tray_cfg.transparent_bg
+                {
+                    // Cache hit — visual state unchanged, skip icon update entirely.
+                    // The tray-icon crate's RAII (RaiiIcon::drop → DestroyIcon) handles
+                    // cleanup of the HICON that's already set on the tray.
+                    #[cfg(debug_assertions)]
+                    tracing::debug!("Tray icon cache hit at {}%, skipping set_tray_icon", mem_percent);
+                    return;
+                }
+            }
+        }
+    }
+
     let icon = create_tray_icon(
         mem_percent,
         bg,
         &tray_cfg.text_color_hex,
         tray_cfg.transparent_bg,
     );
+
+    // Store the newly created icon in the cache for future reuse.
+    // This avoids redundant icon generation and prevents unnecessary set_icon() calls.
+    if let Ok(mut cache) = ICON_CACHE.lock() {
+        *cache = Some(CachedIcon {
+            percentage: mem_percent,
+            bg_hex: bg.clone(),
+            text_hex: tray_cfg.text_color_hex.clone(),
+            transparent: tray_cfg.transparent_bg,
+        });
+    }
 
     // Try to get translated tooltip
     let tooltip = {
@@ -366,6 +428,10 @@ pub fn update_tray_icon(app: &AppHandle, mut mem_percent: u8) {
 /// Forza refresh dell'icona (chiamato quando cambia la config)
 #[allow(dead_code)]
 pub fn refresh_tray_icon(app: &AppHandle) {
+    // Invalidate cache so the next icon operation always regenerates and applies
+    // the correct icon, preventing stale cache hits after config changes.
+    invalidate_icon_cache();
+
     let (show_mem, mem_percent) = {
         let state = app.state::<crate::AppState>();
         // Percentuale 0 come placeholder, verrà aggiornata dal loop se necessario
@@ -388,6 +454,7 @@ pub fn refresh_tray_icon(app: &AppHandle) {
 pub fn start_tray_updater(app: AppHandle, engine: Engine) {
     tauri::async_runtime::spawn(async move {
         let mut last_percent: f32 = -1.0; // Inizializza a valore impossibile
+        let mut default_icon_set: bool = false; // Track if default icon is already on tray
 
         loop {
             // FIX #12: Clona la configurazione del tray PRIMA di chiamare memory() per evitare race conditions
@@ -411,13 +478,26 @@ pub fn start_tray_updater(app: AppHandle, engine: Engine) {
             };
 
             // Se la configurazione non mostra l'uso della memoria, usa l'icona di default
+            // Bug 11 Fix: Only call set_tray_icon when transitioning to default icon state,
+            // not every 2 seconds. Repeated set_icon() calls create new HICONs internally.
             if let Some(ref tray_cfg) = tray_cfg_opt {
                 if !tray_cfg.show_mem_usage {
-                    set_tray_icon(&app, get_default_icon(), "Memory Cleaner");
+                    if !default_icon_set {
+                        set_tray_icon(&app, get_default_icon(), "Memory Cleaner");
+                        default_icon_set = true;
+                        last_percent = -1.0; // Reset so next transition to mem mode triggers update
+                    }
                     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                     continue;
                 }
             }
+
+            // Invalidate cache only on the actual transition from disabled to enabled mode,
+            // so the icon is regenerated instead of being skipped by a stale cache hit.
+            if default_icon_set {
+                invalidate_icon_cache();
+            }
+            default_icon_set = false;
 
             // Ora ottieni la memoria e aggiorna l'icona solo se cambia significativamente
             if let Ok(mem) = engine.memory() {

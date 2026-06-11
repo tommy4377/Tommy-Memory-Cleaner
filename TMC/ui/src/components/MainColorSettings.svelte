@@ -60,7 +60,7 @@
     const theme = cfg.theme === 'light' ? 'light' : 'dark'
     const newColor = theme === 'light'
       ? cfg.main_color_hex_light || cfg.main_color_hex || '#9a8a72'
-      : cfg.main_color_hex_dark || cfg.main_color_hex || '#1363b4'
+      : cfg.main_color_hex_dark || (cfg.main_color_hex && cfg.main_color_hex !== '#9a8a72' ? cfg.main_color_hex : undefined) || '#0a84ff'
     
     if (newColor !== localColor) {
       localColor = newColor

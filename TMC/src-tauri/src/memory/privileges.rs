@@ -29,6 +29,7 @@ pub fn ensure_privilege(name: &str) -> Result<()> {
         if OpenProcessToken(process, TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &mut token) == 0 {
             bail!("OpenProcessToken failed: {}", GetLastError());
         }
+        let token = scopeguard::guard(token, |h| { CloseHandle(h); });
         let mut luid: LUID = LUID {
             LowPart: 0,
             HighPart: 0,
@@ -36,7 +37,6 @@ pub fn ensure_privilege(name: &str) -> Result<()> {
         let name_w = to_wide(name);
         if LookupPrivilegeValueW(null_mut(), name_w.as_ptr(), &mut luid) == 0 {
             let err = GetLastError();
-            CloseHandle(token);
             bail!("LookupPrivilegeValueW({name}) failed: {}", err);
         }
         let mut tp = TOKEN_PRIVILEGES {
@@ -46,9 +46,8 @@ pub fn ensure_privilege(name: &str) -> Result<()> {
                 Attributes: SE_PRIVILEGE_ENABLED,
             }],
         };
-        let ok = AdjustTokenPrivileges(token, 0, &mut tp, 0, null_mut(), null_mut());
+        let ok = AdjustTokenPrivileges(*token, 0, &mut tp, 0, null_mut(), null_mut());
         let last = GetLastError();
-        CloseHandle(token);
         if ok == 0 || last != 0 {
             bail!("AdjustTokenPrivileges({name}) failed: {}", last);
         }

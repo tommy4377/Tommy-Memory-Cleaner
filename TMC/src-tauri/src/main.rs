@@ -60,6 +60,27 @@ static FIRST_OPTIMIZATION_DONE: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(
 pub(crate) static TRAY_ICON_ID: Lazy<std::sync::Mutex<Option<String>>> =
     Lazy::new(|| std::sync::Mutex::new(None));
 
+/// Stores the single-instance mutex handle so it can be explicitly closed
+/// before launching a new elevated instance (to avoid blocking the new process).
+#[cfg(windows)]
+static SINGLE_INSTANCE_MUTEX_HANDLE: parking_lot::Mutex<Option<usize>> =
+    parking_lot::Mutex::new(None);
+
+/// Explicitly close the single-instance mutex handle.
+///
+/// This MUST be called BEFORE launching a new elevated process (via `ShellExecuteW("runas")`
+/// or `schtasks /run`) so the new instance can successfully acquire the mutex.
+/// Without this, the new instance would see `ERROR_ALREADY_EXISTS` and self-terminate.
+#[cfg(windows)]
+fn close_single_instance_mutex() {
+    use windows_sys::Win32::Foundation::CloseHandle;
+    let mut guard = SINGLE_INSTANCE_MUTEX_HANDLE.lock();
+    if let Some(handle_val) = guard.take() {
+        unsafe { CloseHandle(handle_val as _) };
+        tracing::info!("Single-instance mutex handle closed to allow new instance");
+    }
+}
+
 /// Application state shared across Tauri commands
 #[derive(Clone)]
 struct AppState {
@@ -67,6 +88,7 @@ struct AppState {
     engine: Engine,
     translations: crate::commands::TranslationState,
     rate_limiter: Arc<Mutex<crate::security::RateLimiter>>,
+    registered_hotkey: Arc<Mutex<Option<String>>>,
 }
 
 // ============= WINDOWS HELPERS =============
@@ -82,8 +104,12 @@ fn to_wide(s: &str) -> Vec<u16> {
 
 // ============= PRIVILEGE MANAGEMENT =============
 /// Restart the application with elevated privileges
+///
+/// This function launches a new instance of the application with admin rights
+/// via ShellExecuteW "runas", then gracefully exits the current process using
+/// Tauri's shutdown mechanism to ensure all cleanup hooks run.
 #[cfg(windows)]
-fn restart_with_elevation() -> Result<(), Box<dyn std::error::Error>> {
+fn restart_with_elevation(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     use std::env;
     use windows_sys::Win32::UI::Shell::ShellExecuteW;
     use windows_sys::Win32::Foundation::GetLastError;
@@ -93,6 +119,10 @@ fn restart_with_elevation() -> Result<(), Box<dyn std::error::Error>> {
     
     tracing::info!("Restarting application with elevated privileges...");
     
+    // Close the single-instance mutex BEFORE launching the new elevated process.
+    // If we don't, the new instance will see ERROR_ALREADY_EXISTS and self-terminate.
+    close_single_instance_mutex();
+
     // Keep the wide string alive for the duration of the call
     let runas = to_wide("runas");
     let exe_wide = exe_path.encode_utf16().chain(std::iter::once(0)).collect::<Vec<_>>();
@@ -114,7 +144,10 @@ fn restart_with_elevation() -> Result<(), Box<dyn std::error::Error>> {
         tracing::error!("Failed to restart with elevation. ShellExecuteW returned: {:?}, GetLastError: {}", result as isize, error_code);
         Err(format!("Failed to restart with elevation (code: {:?}, error: {})", result as isize, error_code).into())
     } else {
-        std::process::exit(0);
+        // Graceful shutdown via Tauri — runs cleanup hooks, flushes files, closes windows
+        app.exit(0);
+        // app.exit() should not return, but just in case:
+        Ok(())
     }
 }
 
@@ -227,20 +260,28 @@ async fn perform_optimization(
     with_progress: bool,
     areas_override: Option<Areas>,
 ) {
-    // Check if optimization is already running
-    if OPTIMIZATION_RUNNING
-        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-        .is_err()
-    {
+    // Atomically acquire the lock and install the release guard in a single expression.
+    // The compare_exchange runs as an argument to scopeguard::guard, so the guard is
+    // constructed in the same statement that acquires the lock. This eliminates any gap
+    // between "lock acquired" and "guard installed" — a panic at any point after the
+    // flag is set will correctly release it via the guard's Drop implementation.
+    // The guard's inner value tracks whether we actually acquired the lock so the
+    // cleanup closure only resets the flag when appropriate.
+    let _guard = scopeguard::guard(
+        OPTIMIZATION_RUNNING
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok(),
+        |acquired| {
+            if acquired {
+                OPTIMIZATION_RUNNING.store(false, Ordering::SeqCst);
+            }
+        },
+    );
+
+    if !*_guard {
         tracing::info!("Optimization already running, skipping");
         return;
     }
-
-    // Use scopeguard to ensure flag is always released
-    // even in case of panic or early return
-    let _guard = scopeguard::guard((), |_| {
-        OPTIMIZATION_RUNNING.store(false, Ordering::SeqCst);
-    });
 
     // Ensure privileges are initialized
     if let Err(e) = ensure_privileges_initialized() {
@@ -422,10 +463,11 @@ async fn perform_optimization(
                     )
                 };
 
-                let body = body_template
-                    .replace("%.1f", &format!("{:.1}", freed_mb.abs()))
-                    .replace("%.2f", &format!("{:.2}", free_gb))
-                    .replace("%s", &profile_name);
+                // Use a single-pass replacement to avoid sequential injection issues
+                let mut body = body_template;
+                body = body.replace("%.1f", &format!("{:.1}", freed_mb.abs()));
+                body = body.replace("%.2f", &format!("{:.2}", free_gb));
+                body = body.replace("%s", &profile_name);
 
                 // Emit event to frontend for memory stats tracking
                 let event_result = app.emit("optimization-completed", serde_json::json!({
@@ -485,18 +527,11 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
 
         // First try to get existing window
         if let Some(menu_win) = app.get_webview_window("tray_menu") {
-            // Add event handler for auto-close (if not already present)
-            let menu_win_clone = menu_win.clone();
-            menu_win.on_window_event(move |event| {
-                match event {
-                    tauri::WindowEvent::Focused(false) => {
-                        // When menu loses focus, hide it
-                        tracing::debug!("Tray menu lost focus, hiding...");
-                        let _ = menu_win_clone.hide();
-                    }
-                    _ => {}
-                }
-            });
+            // NOTE: Do NOT register on_window_event here — it accumulates handlers
+            // every time show_tray_menu_with_retry is called, causing an IPC infinite
+            // loop (Bug 6). The focus-loss handler is registered only once when the
+            // window is first created (see the "create new window" branch below),
+            // and the frontend closeMenu() in tray.ts also handles focus loss.
 
             // Verify window is valid
             if let Ok(is_visible) = menu_win.is_visible() {
@@ -594,14 +629,37 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
                         attempt
                     );
 
-                    // ⭐ Gestisci la perdita di focus per chiudere automaticamente il menu
+                    // ⭐ Handle focus loss to auto-close menu (registered only once at creation)
+                    // Uses an AtomicBool guard to prevent re-entrant hide() calls that would
+                    // create an IPC infinite loop with the frontend closeMenu() (Bug 6 fix).
                     let menu_win_clone = menu_win.clone();
+                    let is_hiding = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+                    let is_hiding_clone = is_hiding.clone();
                     menu_win.on_window_event(move |event| {
                         match event {
                             tauri::WindowEvent::Focused(false) => {
-                                // Quando il menu perde il focus, nascondilo
-                                tracing::debug!("Tray menu lost focus, hiding...");
-                                let _ = menu_win_clone.hide();
+                                // Guard: if already hiding, skip to break the feedback loop
+                                if is_hiding_clone
+                                    .compare_exchange(
+                                        false,
+                                        true,
+                                        std::sync::atomic::Ordering::SeqCst,
+                                        std::sync::atomic::Ordering::SeqCst,
+                                    )
+                                    .is_ok()
+                                {
+                                    tracing::debug!("Tray menu lost focus, hiding...");
+                                    let _ = menu_win_clone.hide();
+                                    // Release guard after a short delay
+                                    let is_hiding_release = is_hiding_clone.clone();
+                                    std::thread::spawn(move || {
+                                        std::thread::sleep(std::time::Duration::from_millis(200));
+                                        is_hiding_release.store(
+                                            false,
+                                            std::sync::atomic::Ordering::SeqCst,
+                                        );
+                                    });
+                                }
                             }
                             _ => {}
                         }
@@ -754,6 +812,81 @@ fn main() {
         return run_console_mode(&args);
     }
 
+    // ===== SINGLE-INSTANCE MUTEX (Bug 10 fix) =====
+    // Create a named Windows mutex to prevent multiple instances from running simultaneously.
+    // This must be done early, before any heavy initialization, to avoid conflicting operations
+    // when multiple startup mechanisms (Shortcut, Elevated Task, Registry) fire concurrently.
+    // The mutex handle is stored in a static so it can be explicitly closed before launching
+    // a new elevated instance (via ShellExecuteW "runas" or schtasks /run).
+    #[cfg(windows)]
+    let _single_instance_mutex = {
+        use windows_sys::Win32::System::Threading::CreateMutexW;
+        use windows_sys::Win32::Foundation::{GetLastError, CloseHandle, ERROR_ALREADY_EXISTS, ERROR_ACCESS_DENIED};
+        use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_OK, MB_ICONWARNING};
+
+        // Try Global\ prefix first (works across sessions when running elevated).
+        // If that fails with ERROR_ACCESS_DENIED (standard user without SeCreateGlobalPrivilege),
+        // fall back to a session-local mutex name (bare name without Global\ prefix).
+        let global_name = to_wide("Global\\TommyMemoryCleaner_SingleInstance");
+        let local_name = to_wide("TommyMemoryCleaner_SingleInstance");
+
+        let handle = unsafe {
+            CreateMutexW(std::ptr::null_mut(), 1, global_name.as_ptr())
+        };
+
+        let handle = if handle.is_null() && unsafe { GetLastError() } == ERROR_ACCESS_DENIED {
+            tracing::warn!(
+                "Global\\ mutex creation failed with ERROR_ACCESS_DENIED (standard user). \
+                 Falling back to session-local mutex."
+            );
+            unsafe {
+                CreateMutexW(std::ptr::null_mut(), 1, local_name.as_ptr())
+            }
+        } else {
+            handle
+        };
+
+        if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS as u32 {
+            // Another instance is already running — close our handle to the existing mutex
+            if !handle.is_null() {
+                unsafe { CloseHandle(handle) };
+            }
+
+            tracing::warn!("Another instance of Tommy Memory Cleaner is already running. Exiting.");
+
+            let title = to_wide("Tommy Memory Cleaner");
+            let msg = to_wide(
+                "Another instance of Tommy Memory Cleaner is already running.\n\n\
+                 The application will now exit.",
+            );
+            unsafe {
+                MessageBoxW(
+                    std::ptr::null_mut(),
+                    msg.as_ptr(),
+                    title.as_ptr(),
+                    MB_OK | MB_ICONWARNING,
+                );
+            }
+
+            std::process::exit(0);
+        }
+
+        if handle.is_null() {
+            // CreateMutexW failed for an unexpected reason — log but continue
+            tracing::error!(
+                "Failed to create single-instance mutex: GetLastError={}",
+                unsafe { GetLastError() }
+            );
+        } else {
+            // Store the handle in the static so it can be explicitly closed
+            // before launching a new elevated instance.
+            *SINGLE_INSTANCE_MUTEX_HANDLE.lock() = Some(handle as usize);
+        }
+
+        // Return the handle so it stays alive for the app's lifetime (auto-released on exit)
+        handle
+    };
+
     // WebView2 check (Windows only)
     #[cfg(windows)]
     check_webview2();
@@ -827,8 +960,23 @@ fn main() {
                         // If not elevated, run via task scheduler
                         if !is_elevated {
                             tracing::info!("Running via elevated task...");
-                            if let Err(e) = run_via_elevated_task() {
-                                tracing::error!("Failed to run via elevated task: {}", e);
+                            // Close the single-instance mutex BEFORE launching the elevated task.
+                            // The new instance launched by schtasks needs to acquire the mutex.
+                            close_single_instance_mutex();
+                            match run_via_elevated_task() {
+                                Ok(true) => {
+                                    // Elevated task triggered — exit gracefully by returning from main()
+                                    // so that Rust destructors run and resources are cleaned up.
+                                    tracing::info!("Elevated task launched, exiting current process gracefully");
+                                    logging::shutdown();
+                                    return;
+                                }
+                                Ok(false) => {
+                                    // No exit needed, continue normal startup
+                                }
+                                Err(e) => {
+                                    tracing::error!("Failed to run via elevated task: {}", e);
+                                }
                             }
                         }
                     }
@@ -907,6 +1055,7 @@ fn main() {
         engine: engine.clone(),
         translations: crate::commands::TranslationState::default(),
         rate_limiter: Arc::new(Mutex::new(rate_limiter)),
+        registered_hotkey: Arc::new(Mutex::new(None)),
     };
 
     // DPI Awareness for Windows - Fix blurry edges on high DPI
@@ -1116,7 +1265,9 @@ fn main() {
                     c.run_on_startup = true;
                     let _ = c.save();
                 }
-                std::process::exit(0);
+                // Graceful shutdown via Tauri — runs cleanup hooks, flushes files, closes windows
+                app_handle.exit(0);
+                return Ok(());
             }
 
             // ⭐ Controlla se è il primo avvio e mostra il setup

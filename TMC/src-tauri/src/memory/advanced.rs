@@ -41,6 +41,19 @@ const MAX_NEIGHBOR_SEARCH: usize = 500;
 // SSN Cache for performance optimization
 static NTSETSYSTEMINFO_SSN: OnceLock<u32> = OnceLock::new();
 
+// PE Optional Header Magic values
+const PE32_MAGIC: u16 = 0x10B;
+const PE32PLUS_MAGIC: u16 = 0x20B;
+
+// PE signature: "PE\0\0"
+const PE_SIGNATURE: u32 = 0x00004550;
+
+// DOS signature: "MZ"
+const DOS_SIGNATURE: u16 = 0x5A4D;
+
+// Maximum reasonable e_lfanew offset (4 KB — headers never exceed this)
+const MAX_E_LFANEW: usize = 4096;
+
 // Windows PE structures for module size calculation
 #[repr(C)]
 struct IMAGE_DOS_HEADER {
@@ -116,6 +129,49 @@ struct IMAGE_NT_HEADERS64 {
     optional_header: IMAGE_OPTIONAL_HEADER64,
 }
 
+/// 32-bit PE Optional Header (PE32 format, magic = 0x10B)
+#[repr(C)]
+struct IMAGE_OPTIONAL_HEADER32 {
+    magic: u16,
+    major_linker_version: u8,
+    minor_linker_version: u8,
+    size_of_code: u32,
+    size_of_initialized_data: u32,
+    size_of_uninitialized_data: u32,
+    address_of_entry_point: u32,
+    base_of_code: u32,
+    base_of_data: u32,       // Present in PE32 but NOT in PE32+
+    image_base: u32,         // u32 in PE32 (vs u64 in PE32+)
+    section_alignment: u32,
+    file_alignment: u32,
+    major_operating_system_version: u16,
+    minor_operating_system_version: u16,
+    major_image_version: u16,
+    minor_image_version: u16,
+    major_subsystem_version: u16,
+    minor_subsystem_version: u16,
+    win32_version_value: u32,
+    size_of_image: u32,
+    size_of_headers: u32,
+    checksum: u32,
+    subsystem: u16,
+    dll_characteristics: u16,
+    size_of_stack_reserve: u32,   // u32 in PE32 (vs u64 in PE32+)
+    size_of_stack_commit: u32,    // u32 in PE32 (vs u64 in PE32+)
+    size_of_heap_reserve: u32,    // u32 in PE32 (vs u64 in PE32+)
+    size_of_heap_commit: u32,     // u32 in PE32 (vs u64 in PE32+)
+    loader_flags: u32,
+    number_of_rva_and_sizes: u32,
+}
+
+/// 32-bit PE NT Headers
+#[repr(C)]
+struct IMAGE_NT_HEADERS32 {
+    signature: u32,
+    file_header: IMAGE_FILE_HEADER,
+    optional_header: IMAGE_OPTIONAL_HEADER32,
+}
+
 /// Memory list command enumeration for SystemMemoryListInformation
 /// According to hfiref0x/KDU and Geoff Chappell documentation
 #[repr(u32)]
@@ -179,22 +235,23 @@ pub fn empty_working_set_stealth(exclusions: &[String]) -> Result<()> {
         
         unsafe {
             // Use PROCESS_ALL_ACCESS if available, otherwise minimum required permissions
-            let handle = windows_sys::Win32::System::Threading::OpenProcess(
+            let raw_handle = windows_sys::Win32::System::Threading::OpenProcess(
                 windows_sys::Win32::System::Threading::PROCESS_SET_QUOTA | windows_sys::Win32::System::Threading::PROCESS_QUERY_INFORMATION,
                 0,
                 pid
             );
             
-            if handle != std::ptr::null_mut() {
+            if raw_handle != std::ptr::null_mut() {
+                let handle = scopeguard::guard(raw_handle, |h| { CloseHandle(h); });
                 // Try indirect syscall first
-                match execute_indirect_syscall_empty_working_set(ssn, handle) {
+                match execute_indirect_syscall_empty_working_set(ssn, *handle) {
                     Ok(status) if status == 0 => {
                         tracing::debug!("✓ Stealth EmptyWorkingSet successful for PID {} (indirect syscall)", pid);
                     }
                     Ok(status) => {
                         tracing::debug!("Indirect syscall failed for PID {} (0x{:08X}), trying direct", pid, status as u32);
                         // Fallback to direct syscall
-                        let direct_status = execute_direct_syscall_empty_working_set(ssn, handle);
+                        let direct_status = execute_direct_syscall_empty_working_set(ssn, *handle);
                         if direct_status != 0 {
                             tracing::debug!("Direct syscall also failed for PID {} (0x{:08X})", pid, direct_status as u32);
                         }
@@ -202,12 +259,12 @@ pub fn empty_working_set_stealth(exclusions: &[String]) -> Result<()> {
                     Err(e) => {
                         tracing::debug!("Indirect syscall error for PID {}: {}, falling back", pid, e);
                         // Fallback to standard API
-                        if PsapiEmptyWorkingSet(handle) == 0 {
+                        if PsapiEmptyWorkingSet(*handle) == 0 {
                             tracing::debug!("Standard EmptyWorkingSet failed for PID {}", pid);
                         }
                     }
                 }
-                windows_sys::Win32::Foundation::CloseHandle(handle);
+                // handle guard automatically calls CloseHandle on drop
             }
         }
     }
@@ -219,16 +276,12 @@ pub fn empty_working_set_stealth(exclusions: &[String]) -> Result<()> {
 unsafe fn execute_indirect_syscall_empty_working_set(ssn: u32, process_handle: windows_sys::Win32::Foundation::HANDLE) -> Result<i32> {
     // Get NtEmptyWorkingSet function (may be hooked)
     let func_name_cstr = CString::new("NtEmptyWorkingSet")?;
-    let func_ptr = GetProcAddress(
+    let func_addr = GetProcAddress(
         GetModuleHandleA(CString::new("ntdll.dll")?.as_ptr() as _),
         func_name_cstr.as_ptr() as _
-    );
-    
-    if func_ptr.is_none() {
-        return Err(anyhow::anyhow!("NtEmptyWorkingSet not found"));
-    }
-    
-    let func_addr = func_ptr.unwrap() as *const u8;
+    )
+    .ok_or_else(|| anyhow::anyhow!("NtEmptyWorkingSet not found"))?
+    as *const u8;
     
     // Find syscall instruction in the function with bounds checking
     let mut syscall_addr = None;
@@ -301,6 +354,7 @@ struct SyscallResolver {
 
 impl SyscallResolver {
     /// Initialize by finding ntdll in memory with proper error handling
+    /// Supports both PE32 (32-bit) and PE32+ (64-bit) formats with full bounds checking.
     fn new() -> Result<Self> {
         unsafe {
             let ntdll_name = CString::new("ntdll.dll")?;
@@ -312,10 +366,79 @@ impl SyscallResolver {
                 bail!("Failed to locate ntdll.dll in process memory");
             }
 
-            // Get module size for bounds checking
-            let dos_header = h_ntdll as *const IMAGE_DOS_HEADER;
-            let nt_header = (h_ntdll as usize + (*dos_header).e_lfanew as usize) as *const IMAGE_NT_HEADERS64;
-            let size = (*nt_header).optional_header.size_of_image as usize;
+            let base_addr = h_ntdll as usize;
+
+            // --- Step 1: Validate DOS header ---
+            let dos_header = base_addr as *const IMAGE_DOS_HEADER;
+
+            // Bounds check: ensure we can safely read the DOS header
+            // The DOS header is always at the base and is at least 64 bytes
+            if mem::size_of::<IMAGE_DOS_HEADER>() > MAX_E_LFANEW {
+                bail!("DOS header size exceeds reasonable bounds — corrupted module");
+            }
+
+            let dos_magic = ptr::read_unaligned(ptr::addr_of!((*dos_header).e_magic));
+            if dos_magic != DOS_SIGNATURE {
+                bail!("Invalid DOS signature (expected 0x{:04X}, got 0x{:04X})", DOS_SIGNATURE, dos_magic);
+            }
+
+            let e_lfanew = ptr::read_unaligned(ptr::addr_of!((*dos_header).e_lfanew)) as usize;
+
+            // Validate e_lfanew is within reasonable bounds
+            if e_lfanew == 0 || e_lfanew > MAX_E_LFANEW {
+                bail!("e_lfanew offset {} is out of valid range (0..{})", e_lfanew, MAX_E_LFANEW);
+            }
+
+            // --- Step 2: Validate PE signature ---
+            let nt_base = base_addr + e_lfanew;
+
+            // A PE header is always within the first page(s) of the module.
+            // e_lfanew is bounded to MAX_E_LFANEW, so nt_base is within a safe region.
+
+            let pe_signature = ptr::read_unaligned(nt_base as *const u32);
+            if pe_signature != PE_SIGNATURE {
+                bail!("Invalid PE signature at offset 0x{:X} (expected 0x{:08X}, got 0x{:08X})",
+                    e_lfanew, PE_SIGNATURE, pe_signature);
+            }
+
+            // --- Step 3: Read optional header magic to detect PE32 vs PE32+ ---
+            // The optional header starts after signature (4 bytes) + file_header (20 bytes)
+            let optional_header_addr = nt_base + 4 + mem::size_of::<IMAGE_FILE_HEADER>();
+            let magic = ptr::read_unaligned(optional_header_addr as *const u16);
+
+            // --- Step 4: Read size_of_image based on PE format ---
+            let size = match magic {
+                PE32PLUS_MAGIC => {
+                    // PE32+ (64-bit) format
+                    let nt_header = nt_base as *const IMAGE_NT_HEADERS64;
+                    let size_of_image = ptr::read_unaligned(
+                        ptr::addr_of!((*nt_header).optional_header.size_of_image)
+                    );
+                    tracing::debug!("Detected PE32+ (64-bit) ntdll, size_of_image = 0x{:X}", size_of_image);
+                    size_of_image as usize
+                }
+                PE32_MAGIC => {
+                    // PE32 (32-bit) format
+                    let nt_header = nt_base as *const IMAGE_NT_HEADERS32;
+                    let size_of_image = ptr::read_unaligned(
+                        ptr::addr_of!((*nt_header).optional_header.size_of_image)
+                    );
+                    tracing::warn!("Detected PE32 (32-bit) ntdll — using 32-bit PE layout, size_of_image = 0x{:X}", size_of_image);
+                    size_of_image as usize
+                }
+                other => {
+                    bail!("Unknown PE optional header magic: 0x{:04X} (expected 0x{:04X} or 0x{:04X})",
+                        other, PE32_MAGIC, PE32PLUS_MAGIC);
+                }
+            };
+
+            // Sanity check: size_of_image should be at least one page and not absurdly large
+            if size < 4096 {
+                bail!("size_of_image ({}) is smaller than one memory page — corrupted PE header", size);
+            }
+            if size > 256 * 1024 * 1024 {
+                bail!("size_of_image (0x{:X}) exceeds 256 MB — likely corrupted PE header", size);
+            }
 
             Ok(Self {
                 ntdll_base: h_ntdll as *const u8,
@@ -340,16 +463,13 @@ impl SyscallResolver {
     /// This handles hooks placed at different positions in the syscall stub
     unsafe fn get_ssn(&self, func_name: &str) -> Option<u32> {
         let func_name_cstr = CString::new(func_name).ok()?;
-        let func_ptr = GetProcAddress(
-            self.ntdll_base as _,
-            func_name_cstr.as_ptr() as _
-        );
-        
-        if func_ptr.is_none() {
-            tracing::warn!("Function {} not found in ntdll", func_name);
-            return None;
-        }
-        let func_addr = func_ptr.unwrap() as *const u8;
+        let func_addr = match GetProcAddress(self.ntdll_base as _, func_name_cstr.as_ptr() as _) {
+            Some(p) => p as *const u8,
+            None => {
+                tracing::warn!("Function {} not found in ntdll", func_name);
+                return None;
+            }
+        };
 
         // Check bounds
         if (func_addr as usize) < (self.ntdll_base as usize) ||
@@ -496,18 +616,24 @@ unsafe fn try_system_token_duplication() -> Result<()> {
         if h_process == std::ptr::null_mut() {
             return Err("Failed to open system process");
         }
+        // RAII guard: ensures h_process is closed on any exit path (early return or panic)
+        let h_process = scopeguard::guard(h_process, |h| { CloseHandle(h); });
 
         let mut h_token: HANDLE = std::ptr::null_mut();
-        let result = OpenProcessToken(h_process, TOKEN_DUPLICATE | TOKEN_QUERY, &mut h_token);
-        CloseHandle(h_process);
+        let result = OpenProcessToken(*h_process, TOKEN_DUPLICATE | TOKEN_QUERY, &mut h_token);
+        // h_process is no longer needed; drop guard which calls CloseHandle
+        drop(h_process);
 
         if result == 0 {
             return Err("Failed to open process token");
         }
 
+        // RAII guard: ensures h_token is closed on any exit path (early return or panic)
+        let h_token = scopeguard::guard(h_token, |h| { CloseHandle(h); });
+
         let mut h_new_token: HANDLE = std::ptr::null_mut();
         let dup_result = DuplicateTokenEx(
-            h_token,
+            *h_token,
             TOKEN_IMPERSONATE | TOKEN_QUERY,
             ptr::null_mut(),
             SecurityImpersonation,
@@ -515,16 +641,19 @@ unsafe fn try_system_token_duplication() -> Result<()> {
             &mut h_new_token
         );
 
-        CloseHandle(h_token);
+        // h_token is no longer needed; drop guard which calls CloseHandle
+        drop(h_token);
 
         if dup_result == 0 {
             return Err("Failed to duplicate token");
         }
 
-        // Try to set the token on current thread
-        // Note: This requires SetThreadToken function
+        // RAII guard: ensures h_new_token is closed on any exit path (early return or panic)
+        let h_new_token = scopeguard::guard(h_new_token, |h| { CloseHandle(h); });
+
         tracing::debug!("Token duplicated successfully");
-        CloseHandle(h_new_token);
+        // h_new_token guard closes the handle when it goes out of scope
+        drop(h_new_token);
         
         Ok(())
     }) {
@@ -577,16 +706,12 @@ unsafe fn execute_indirect_syscall(
 ) -> Result<i32> {
     // Get NtSetSystemInformation function (may be hooked)
     let func_name_cstr = CString::new("NtSetSystemInformation")?;
-    let func_ptr = GetProcAddress(
+    let func_addr = GetProcAddress(
         GetModuleHandleA(CString::new("ntdll.dll")?.as_ptr() as _),
         func_name_cstr.as_ptr() as _
-    );
-    
-    if func_ptr.is_none() {
-        return Err(anyhow::anyhow!("NtSetSystemInformation not found"));
-    }
-    
-    let func_addr = func_ptr.unwrap() as *const u8;
+    )
+    .ok_or_else(|| anyhow::anyhow!("NtSetSystemInformation not found"))?
+    as *const u8;
     
     // Find the syscall instruction in the function stub
     // This typically follows the pattern: mov r10, rcx; mov eax, ssn; syscall

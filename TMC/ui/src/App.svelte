@@ -1,13 +1,14 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
+  import type { Component } from 'svelte'
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
   import { LogicalSize, type PhysicalSize } from '@tauri-apps/api/window'
   import { listen, type UnlistenFn } from '@tauri-apps/api/event'
   import Titlebar from './components/Titlebar.svelte'
 
   // Lazy load components for better performance
-  let CompactView: any = null
-  let FullView: any = null
+  let CompactView: Component | null = null
+  let FullView: Component | null = null
 
   // Load components when needed
   async function loadComponents() {
@@ -337,7 +338,6 @@
 
   // ========== ERROR RECOVERY ==========
   async function retryInit() {
-    onMount(async () => {
     // Log della dimensione della finestra
     console.log(`Window size: ${window.innerWidth}x${window.innerHeight}px`)
     
@@ -352,7 +352,6 @@
       initError = error instanceof Error ? error.message : 'Retry failed'
       isLoading = false
     }
-  })
   }
 
   // ========== KEYBOARD SHORTCUTS ==========

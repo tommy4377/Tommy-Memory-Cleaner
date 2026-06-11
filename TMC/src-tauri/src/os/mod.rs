@@ -35,7 +35,7 @@ pub fn is_windows_10() -> bool {
     is_win10
 }
 
-fn get_windows_version() -> OsVersion {
+pub fn get_windows_version() -> OsVersion {
     // FIX: GetVersionExW è deprecato e può restituire informazioni errate su Windows 8+
     // Usa RtlGetVersion che è più affidabile
     unsafe {
@@ -108,11 +108,20 @@ fn get_windows_version() -> OsVersion {
                     minor: 0,
                     build: 19041,
                 }
-            } else {
+            } else if os_info.dwMajorVersion >= 6 && os_info.dwMajorVersion <= 12 {
+                // Validate version is in reasonable range (Windows Vista 6.0 through future)
                 OsVersion {
                     major: os_info.dwMajorVersion,
                     minor: os_info.dwMinorVersion,
                     build: os_info.dwBuildNumber,
+                }
+            } else {
+                // Unreasonable version returned, default to Windows 10
+                tracing::warn!("GetVersionExW returned unreasonable version {}, defaulting to Windows 10", os_info.dwMajorVersion);
+                OsVersion {
+                    major: 10,
+                    minor: 0,
+                    build: 19041,
                 }
             }
         } else {

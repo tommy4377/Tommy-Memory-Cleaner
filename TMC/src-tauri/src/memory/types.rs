@@ -179,18 +179,20 @@ impl MemoryStats {
     pub fn new(free_bytes: u64, total_bytes: u64) -> Self {
         let used_bytes = total_bytes.saturating_sub(free_bytes);
 
-        let total_f = total_bytes as f64;
-        let used_pct = if total_bytes > 0 {
-            ((used_bytes as f64 / total_f) * 100.0).round() as u8
+        // Guard against zero division: if total_bytes is 0 (e.g., VM with dynamic RAM
+        // allocation or API failure), return safe zero defaults to prevent panic.
+        let (used_pct, free_pct) = if total_bytes > 0 {
+            let total_f = total_bytes as f64;
+            let pct = ((used_bytes as f64 / total_f) * 100.0).round() as u8;
+            (pct, 100u8.saturating_sub(pct))
         } else {
-            0
+            (0, 0)
         };
-        let free_pct = 100u8.saturating_sub(used_pct);
 
         Self {
             free: MemorySize::new(free_bytes, free_pct),
             used: MemorySize::new(used_bytes, used_pct),
-            total: MemorySize::new(total_bytes, 100),
+            total: MemorySize::new(total_bytes, if total_bytes > 0 { 100 } else { 0 }),
         }
     }
 }
@@ -206,6 +208,16 @@ pub struct MemoryInfo {
 // ========== HELPER FUNCTIONS (STILL USED) ==========
 #[inline]
 pub fn mk_stats(free: u64, total: u64, used_percent_opt: Option<u8>) -> MemoryStats {
+    // Guard: if total is zero (VM dynamic RAM allocation or API error), return safe defaults
+    // to prevent any downstream division issues or incorrect percentage calculations.
+    if total == 0 {
+        return MemoryStats {
+            free: MemorySize::new(0, 0),
+            used: MemorySize::new(0, 0),
+            total: MemorySize::new(0, 0),
+        };
+    }
+
     if let Some(used_pct) = used_percent_opt {
         // If used percent is provided, use it
         let free_pct = 100u8.saturating_sub(used_pct);
@@ -217,7 +229,7 @@ pub fn mk_stats(free: u64, total: u64, used_percent_opt: Option<u8>) -> MemorySt
             total: MemorySize::new(total, 100),
         }
     } else {
-        // Calculate from bytes
+        // Calculate from bytes (MemoryStats::new has its own zero guard)
         MemoryStats::new(free, total)
     }
 }
@@ -247,5 +259,28 @@ mod tests {
         let stats = MemoryStats::new(512 * 1024 * 1024, 1024 * 1024 * 1024); // 512MB free of 1GB
         assert_eq!(stats.used.percentage, 50);
         assert_eq!(stats.free.percentage, 50);
+    }
+
+    #[test]
+    fn test_memory_stats_zero_total() {
+        // Regression test: zero total_bytes must not panic (Bug 5 - zero division)
+        let stats = MemoryStats::new(0, 0);
+        assert_eq!(stats.used.percentage, 0);
+        assert_eq!(stats.free.percentage, 0);
+        assert_eq!(stats.total.percentage, 0);
+        assert_eq!(stats.used.bytes, 0);
+        assert_eq!(stats.free.bytes, 0);
+        assert_eq!(stats.total.bytes, 0);
+    }
+
+    #[test]
+    fn test_mk_stats_zero_total() {
+        // Regression test: mk_stats with zero total must not panic (Bug 5)
+        let stats = mk_stats(0, 0, None);
+        assert_eq!(stats.used.percentage, 0);
+        assert_eq!(stats.free.percentage, 0);
+
+        let stats_with_pct = mk_stats(0, 0, Some(50));
+        assert_eq!(stats_with_pct.total.bytes, 0);
     }
 }

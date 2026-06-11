@@ -12,6 +12,10 @@ pub struct MemoryStats {
 #[tauri::command]
 pub async fn get_memory_stats(app: tauri::AppHandle) -> Result<MemoryStats, String> {
     let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    
+    // Ensure directory exists (same as in save_memory_stats)
+    std::fs::create_dir_all(&app_data_dir).map_err(|e| e.to_string())?;
+    
     let stats_file = app_data_dir.join("memory_stats.json");
     
     if stats_file.exists() {
@@ -46,7 +50,12 @@ pub async fn save_memory_stats(
     };
     
     let content = serde_json::to_string_pretty(&stats).map_err(|e| e.to_string())?;
-    std::fs::write(&stats_file, content).map_err(|e| e.to_string())?;
+
+    // Atomic write: write to a temp file first, then rename over the target.
+    // This prevents JSON corruption if the process crashes mid-write.
+    let temp_file = stats_file.with_extension("json.tmp");
+    std::fs::write(&temp_file, &content).map_err(|e| e.to_string())?;
+    std::fs::rename(&temp_file, &stats_file).map_err(|e| e.to_string())?;
     
     Ok(())
 }

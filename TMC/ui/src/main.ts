@@ -9,12 +9,6 @@ const app = new App({
   target: document.getElementById('app')!,
 })
 
-// Disable context menu
-document.addEventListener('contextmenu', (e) => {
-  e.preventDefault()
-  return false
-})
-
 // Disable dev tools shortcuts only in production
 if (import.meta.env.PROD) {
   document.addEventListener('keydown', (e) => {

@@ -55,12 +55,14 @@ pub fn safe_memory_operation<F, R>(operation: F) -> Result<R, anyhow::Error>
 where
     F: FnOnce() -> Result<R, anyhow::Error>,
 {
-    // Add random delay to avoid pattern detection
+    // Add minimal random delay to avoid pattern detection
+    // Reduced from 10..100ms to 5..30ms to minimize UI blocking
+    // TODO: Consider using tokio::task::yield_now() when called from async context
     use rand::Rng;
     use std::time::Duration;
 
     let mut rng = rand::thread_rng();
-    let delay = Duration::from_millis(rng.gen_range(10..100));
+    let delay = Duration::from_millis(rng.gen_range(5..30));
     std::thread::sleep(delay);
 
     operation()

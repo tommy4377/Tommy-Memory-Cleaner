@@ -7,15 +7,19 @@ use tauri::{AppHandle, State};
 /// including process priority, startup behavior, and window properties.
 
 /// Restarts the application with elevated privileges.
+///
+/// Uses Tauri's graceful shutdown to exit the current process after
+/// launching the elevated instance.
 #[tauri::command]
-pub fn cmd_restart_with_elevation() -> Result<(), String> {
+pub fn cmd_restart_with_elevation(app: AppHandle) -> Result<(), String> {
     #[cfg(windows)]
     {
-        crate::restart_with_elevation().map_err(|e| e.to_string())
+        crate::restart_with_elevation(&app).map_err(|e| e.to_string())
     }
     
     #[cfg(not(windows))]
     {
+        let _ = app;
         Err("Elevation is only supported on Windows".to_string())
     }
 }

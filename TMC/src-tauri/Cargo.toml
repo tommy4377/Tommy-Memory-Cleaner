@@ -1,6 +1,6 @@
 [package]
 name = "TommyMemoryCleaner"
-version = "3.0.0"
+version = "4.0.0"
 edition = "2021"
 publish = false
 authors = ["tommy437"]
@@ -80,6 +80,7 @@ windows-sys = { version = "0.61", features = [
   "Win32_Graphics_Dwm",
   "Win32_Graphics_Gdi",
   "Win32_System_Ioctl",
+  "Win32_System_IO",
   "Win32_System_Registry",
   "Win32_System_EventLog",
   "Win32_System_LibraryLoader",

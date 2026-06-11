@@ -47,8 +47,10 @@ pub fn is_valid_hex_color(color: &str) -> bool {
 }
 
 /// Check for potential injection patterns
+/// Only checks for actual injection syntax, not legitimate process/file names
 pub fn contains_injection_patterns(input: &str) -> bool {
     let lower = input.to_lowercase();
+    // Only include patterns that are actual injection indicators, not common legitimate strings
     let patterns = [
         "<script",
         "</script",
@@ -76,13 +78,10 @@ pub fn contains_injection_patterns(input: &str) -> bool {
         "*/",
         "xp_",
         "sp_",
-        "exec",
-        "system",
-        "shell",
-        "cmd",
-        "powershell",
-        "bash",
-        "sh",
+        // Removed: "exec", "system", "shell", "cmd", "bash", "sh"
+        // These are too broad and match legitimate process names like:
+        // cmd.exe, shell.exe, system.exe, bash shell, sh script, etc.
+        // Only include truly dangerous indicators above
     ];
 
     patterns.iter().any(|pattern| lower.contains(pattern))

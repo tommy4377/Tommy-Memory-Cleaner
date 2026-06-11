@@ -18,7 +18,7 @@ export function applyThemeColors(config: Config) {
   const cacheKey = theme === 'light' ? 'light' : 'dark'
   const colorToApply = theme === 'light' 
     ? config.main_color_hex_light || config.main_color_hex || '#9a8a72'
-    : config.main_color_hex_dark || config.main_color_hex || '#2f58c1'
+    : config.main_color_hex_dark || (config.main_color_hex && config.main_color_hex !== '#9a8a72' ? config.main_color_hex : undefined) || '#0a84ff'
   
   if (lastAppliedTheme === theme && lastAppliedColors[cacheKey] === colorToApply) {
     return // Già applicato, salta
@@ -84,22 +84,43 @@ async function processUpdateQueue() {
   isProcessingQueue = true
   
   try {
-    // Processa solo l'ultimo aggiornamento nella coda
-    const latestUpdate = updateQueue[updateQueue.length - 1]
-    updateQueue = []
-    
-    // Aspetta un po' prima di processare per evitare il rate limit
+    // Wait first to coalesce rapid updates into a single debounce window.
+    // This ensures all updates arriving in quick succession are accumulated
+    // in the queue before we merge them.
     await new Promise(resolve => setTimeout(resolve, 1000))
     
-    // Usa updateConfig senza await per non bloccare
-    const { updateConfig } = await import('./store')
-    updateConfig(latestUpdate).catch(console.error)
+    // After the debounce wait, drain the queue and MERGE all pending updates.
+    // Previously only the last entry was taken, which silently dropped
+    // non-overlapping partial updates (e.g., [{theme:'light'}, {language:'it'}]
+    // would lose the theme change). Now we merge all entries so no data is lost.
+    if (updateQueue.length > 0) {
+      const mergedUpdate: Partial<Config> = Object.assign({}, ...updateQueue)
+      updateQueue = []
+      
+      const { updateConfig } = await import('./store')
+      try {
+        await updateConfig(mergedUpdate)
+      } catch (error) {
+        console.error('Queue: config update failed, reloading from backend:', error)
+        // The save failed — reload the authoritative config from the backend
+        // to ensure the UI store is resynchronized with persisted state.
+        try {
+          const { getConfig } = await import('./api')
+          const { config } = await import('./store')
+          const freshConfig = await getConfig()
+          config.set(freshConfig)
+        } catch (reloadError) {
+          console.error('Queue: failed to reload config from backend:', reloadError)
+        }
+      }
+    }
   } finally {
     isProcessingQueue = false
     
-    // Se ci sono altri aggiornamenti in coda, processali
+    // If new updates arrived during the save operation, schedule another
+    // processing round to ensure no final value is silently dropped.
     if (updateQueue.length > 0) {
-      setTimeout(processUpdateQueue, 1000)
+      setTimeout(processUpdateQueue, 0)
     }
   }
 }

@@ -165,7 +165,7 @@
     flex: 1;
     padding: 10px;
     background: var(--bg);
-    overflow-y: overlay; /* Use overlay or auto, but handle sizing better */
+    overflow-y: auto; /* Use auto instead of deprecated overlay */
     overflow-x: hidden;
     min-height: 0;
   }

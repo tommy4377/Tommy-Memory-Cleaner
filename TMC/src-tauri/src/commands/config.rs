@@ -10,10 +10,12 @@ use tauri::{AppHandle, Emitter, Manager, State};
 /// Exits the application gracefully.
 ///
 /// This command terminates the application process after logging the exit event.
+/// Uses Tauri's graceful shutdown mechanism to ensure all cleanup hooks run,
+/// files are flushed, and windows are closed properly.
 #[tauri::command]
-pub fn cmd_exit(_app: AppHandle) {
+pub fn cmd_exit(app: AppHandle) {
     tracing::info!("Exiting application...");
-    std::process::exit(0);
+    app.exit(0);
 }
 
 /// Retrieves the current application configuration.
@@ -192,10 +194,11 @@ pub fn cmd_save_config(
                 // Execute operation and log any errors
                 if let Err(e) = crate::system::startup::set_run_on_startup(b) {
                     tracing::error!("Error enabling automatic startup (settings): {:?}", e);
+                    // Re-read actual state instead of forcing the user's choice
+                    current_cfg.run_on_startup = crate::system::startup::is_startup_enabled();
+                } else {
+                    current_cfg.run_on_startup = b;
                 }
-                // Force the boolean value chosen by user in config,
-                // instead of re-reading from system which might be slow to update
-                current_cfg.run_on_startup = b;
             }
         }
         update_bool!(compact_mode);
@@ -266,7 +269,8 @@ pub fn cmd_save_config(
             Err(e) => {
                 tracing::warn!("Failed to save config: {:?}, retrying...", e);
                 // Retry once after a short delay
-                std::thread::sleep(std::time::Duration::from_millis(100));
+                // TODO: Use tokio::time::sleep when command is made async
+                std::thread::sleep(std::time::Duration::from_millis(50));
                 guard.save().map_err(|e2| {
                     tracing::error!("Failed to save config on retry: {:?}", e2);
                     format!("Failed to save config: {}", e2)
@@ -342,13 +346,13 @@ pub fn cmd_complete_setup(
         
         if let Some(v) = obj.get("run_on_startup") {
             if let Some(b) = v.as_bool() {
-                // Execute operation and log any errors
                 if let Err(e) = crate::system::startup::set_run_on_startup(b) {
                     tracing::error!("Failed to set startup during setup: {:?}", e);
+                    // Re-read actual state instead of forcing the user's choice
+                    cfg.run_on_startup = crate::system::startup::is_startup_enabled();
+                } else {
+                    cfg.run_on_startup = b;
                 }
-                // Force the boolean value chosen by user in config,
-                // instead of re-reading from system which might be slow to update
-                cfg.run_on_startup = b;
             }
         }
 
@@ -399,7 +403,8 @@ pub fn cmd_complete_setup(
         Err(e) => {
             tracing::error!("Failed to save config after setup: {:?}", e);
             // Retry once after a short delay
-            std::thread::sleep(std::time::Duration::from_millis(200));
+            // TODO: Use tokio::time::sleep when command is made async
+            std::thread::sleep(std::time::Duration::from_millis(50));
             match cfg.save() {
                 Ok(_) => {
                     tracing::info!("Config saved successfully on retry");
@@ -524,8 +529,9 @@ pub fn cmd_complete_setup(
             theme, theme, main_color, main_color, main_color, language
         ));
 
-        // Small delay to ensure WebView handles the eval before showing
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        // Brief delay to ensure WebView handles the eval before showing
+        // TODO: Replace with event-driven callback when Tauri supports eval-completed events
+        std::thread::sleep(std::time::Duration::from_millis(20));
 
         // Now show the window
         // Correct order: skip_taskbar -> unminimize -> show -> center -> focus

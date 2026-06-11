@@ -173,9 +173,15 @@ setTimeout(() => {
   isInitializing = false
 }, 500)
 
+// Guard flag to prevent re-entrant closeMenu calls (breaks IPC infinite loop)
+let isClosing = false
+
 /** Close the tray menu */
 function closeMenu() {
-  if (isInitializing) return
+  if (isInitializing || isClosing) return
+
+  // Set guard immediately to prevent re-entrant calls from focus/visibility events
+  isClosing = true
 
   document.body.classList.remove('menu-open')
 
@@ -186,6 +192,11 @@ function closeMenu() {
     setTimeout(() => {
       win.hide().catch(() => {})
     }, 100)
+  }).finally(() => {
+    // Release guard after hide completes and a small settling delay
+    setTimeout(() => {
+      isClosing = false
+    }, 150)
   })
 }
 

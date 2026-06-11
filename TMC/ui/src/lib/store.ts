@@ -3,7 +3,7 @@ import type { Config, MemoryInfo, Profile } from './types'
 import { listen, UnlistenFn } from '@tauri-apps/api/event'
 import { setLanguage } from '../i18n/index'
 import { cacheTranslationsInBackend } from '../lib/translations'
-import { areasForProfile } from '../lib/profiles'
+import { areasForProfile, stringToAreas } from '../lib/profiles'
 import type { Language } from '../i18n/index'
 
 // ========== TYPES ==========
@@ -92,8 +92,13 @@ function parseMemoryAreas(areas: any): number {
     return areas
   }
   if (typeof areas === 'string') {
+    // Try to parse as a numeric string first
     const parsed = parseInt(areas, 10)
-    return isNaN(parsed) ? 0 : parsed
+    if (!isNaN(parsed)) {
+      return parsed
+    }
+    // If not a number, try to convert from string flags (e.g., "COMBINED_PAGE_LIST|MODIFIED_FILE_CACHE")
+    return stringToAreas(areas)
   }
   return 0
 }
@@ -110,9 +115,6 @@ export async function initApp(): Promise<void> {
   // If a delay is needed, it should be based on real conditions
 
   try {
-    // Clean up any existing state (double check for safety)
-    await cleanupApp()
-
     // Load configuration
     const { getConfig } = await import('./api')
     const cfg = await getConfig()
@@ -290,140 +292,173 @@ export async function cleanupApp(): Promise<void> {
 }
 
 // ========== CONFIG MANAGEMENT ==========
+
+// Async mutex to serialize all config updates and prevent desync from
+// concurrent modifications (lost-update race condition).
+let _configUpdateLock: Promise<void> = Promise.resolve()
+
 export async function updateConfig(
   partial: Partial<Config>,
   reRegisterHotkey = false,
 ): Promise<void> {
-  const currentConfig = get(config)
+  // Serialize: wait for the previous updateConfig call to finish before starting.
+  // This prevents concurrent calls from capturing stale snapshots via get(config)
+  // and overwriting each other's changes.
+  const prev = _configUpdateLock
+  let release!: () => void
+  _configUpdateLock = new Promise<void>((r) => { release = r })
 
-  if (!currentConfig) {
-    throw new Error('No config available to update')
-  }
-
-  // FIX #6: Don't update store until save is confirmed
-  // This avoids race conditions and issues if save fails
-  // Create updated config for local calculations
-  const updatedConfig = { ...currentConfig, ...partial }
+  await prev
 
   try {
-    // Save to backend BEFORE updating store
-    const { saveConfig } = await import('./api')
-    await saveConfig(partial)
+    const currentConfig = get(config)
 
-    // Only after successful save, update store
-    config.set(updatedConfig)
-
-    // Apply side effects
-
-    // Language change
-    if (partial.language !== undefined) {
-      const validLang = getSafeLanguage(partial.language)
-      await setLanguage(validLang)
-
-      // If language was corrected, save it
-      if (validLang !== partial.language) {
-        await saveConfig({ language: validLang })
-        config.update((c) => (c ? { ...c, language: validLang } : c))
-      }
+    if (!currentConfig) {
+      throw new Error('No config available to update')
     }
 
-    // Theme change - apply correct color when theme changes
-    // IMPORTANT: maintain custom colors separated by theme
-    if (partial.theme !== undefined) {
-      const newTheme = partial.theme === 'light' ? 'light' : 'dark'
-      document.documentElement.setAttribute('data-theme', newTheme)
-      localStorage.setItem('tmc_theme', newTheme)
+    // Build the optimistically merged config for local side-effect calculations,
+    // but do NOT write it to the store until the backend confirms the save.
+    const updatedConfig = { ...currentConfig, ...partial }
 
-      // Apply correct color for new theme
-      // Priority: main_color_hex_light/dark > custom main_color_hex > default
-      let mainColor: string
-      if (newTheme === 'light') {
-        if (currentConfig.main_color_hex_light) {
-          mainColor = currentConfig.main_color_hex_light
-        } else if (
-          currentConfig.main_color_hex &&
-          currentConfig.main_color_hex !== '#0a84ff' &&
-          currentConfig.main_color_hex !== '#007aff'
-        ) {
-          mainColor = currentConfig.main_color_hex
-        } else {
-          mainColor = '#9a8a72'
-        }
-      } else {
-        if (currentConfig.main_color_hex_dark) {
-          mainColor = currentConfig.main_color_hex_dark
-        } else if (
-          currentConfig.main_color_hex &&
-          currentConfig.main_color_hex !== '#9a8a72' &&
-          currentConfig.main_color_hex !== '#007aff'
-        ) {
-          mainColor = currentConfig.main_color_hex
-        } else {
-          mainColor = '#0a84ff'
-        }
-      }
-
-      const root = document.documentElement
-      root.style.setProperty('--btn-bg', mainColor)
-      root.style.setProperty('--bar-fill', mainColor)
-      root.style.setProperty('--input-focus', mainColor)
-    }
-
-    // Main color change - applica in base al tema corrente
-    const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark'
-
-    if (partial.main_color_hex_light !== undefined || partial.main_color_hex_dark !== undefined) {
-      const mainColor =
-        currentTheme === 'light'
-          ? partial.main_color_hex_light ||
-            currentConfig.main_color_hex_light ||
-            currentConfig.main_color_hex ||
-            '#9a8a72'
-          : partial.main_color_hex_dark ||
-            currentConfig.main_color_hex_dark ||
-            currentConfig.main_color_hex ||
-            '#0a84ff'
-
-      const root = document.documentElement
-      root.style.setProperty('--btn-bg', mainColor)
-      root.style.setProperty('--bar-fill', mainColor)
-      root.style.setProperty('--input-focus', mainColor)
-    }
-
-    // Backward compatibility con main_color_hex
-    if (partial.main_color_hex !== undefined) {
-      const root = document.documentElement
-      root.style.setProperty('--btn-bg', partial.main_color_hex)
-      root.style.setProperty('--bar-fill', partial.main_color_hex)
-      root.style.setProperty('--input-focus', partial.main_color_hex)
-    }
-
-    // Hotkey re-registration
-    if (reRegisterHotkey && partial.hotkey !== undefined) {
-      try {
-        const { registerHotkey } = await import('./api')
-        await registerHotkey(partial.hotkey)
-      } catch (error) {
-        console.error('Failed to register hotkey:', error)
-        // Non-critical, don't rollback
-      }
-    }
-  } catch (error) {
-    console.error('Failed to save config:', error)
-
-    // Rollback on error
-    config.set(currentConfig)
-
-    // Try to reload from backend
     try {
-      const { getConfig } = await import('./api')
-      const freshConfig = await getConfig()
-      config.set(freshConfig)
-    } catch (reloadError) {
-      console.error('Failed to reload config:', reloadError)
-    }
+      // Save to backend BEFORE updating store
+      const { saveConfig } = await import('./api')
+      await saveConfig(partial)
 
-    throw error
+      // After successful save, reload the full config from the backend to
+      // guarantee the store is identical to the persisted state. This
+      // eliminates any drift caused by backend-side validation, defaults,
+      // or concurrent writes from other sources (e.g., Rust-side config).
+      try {
+        const { getConfig } = await import('./api')
+        const persistedConfig = await getConfig()
+        config.set(persistedConfig)
+      } catch {
+        // If the reload fails (transient IPC error), fall back to the
+        // locally merged config which is at least consistent with what
+        // we just sent to the backend.
+        config.set(updatedConfig)
+      }
+
+      // Apply side effects
+
+      // Language change
+      if (partial.language !== undefined) {
+        const validLang = getSafeLanguage(partial.language)
+        await setLanguage(validLang)
+
+        // If language was corrected, save it
+        if (validLang !== partial.language) {
+          await saveConfig({ language: validLang })
+          config.update((c) => (c ? { ...c, language: validLang } : c))
+        }
+      }
+
+      // Theme change - apply correct color when theme changes
+      // IMPORTANT: maintain custom colors separated by theme
+      if (partial.theme !== undefined) {
+        const newTheme = partial.theme === 'light' ? 'light' : 'dark'
+        document.documentElement.setAttribute('data-theme', newTheme)
+        localStorage.setItem('tmc_theme', newTheme)
+
+        // Apply correct color for new theme
+        // Priority: main_color_hex_light/dark > custom main_color_hex > default
+        const storeConfig = get(config) || updatedConfig
+        let mainColor: string
+        if (newTheme === 'light') {
+          if (storeConfig.main_color_hex_light) {
+            mainColor = storeConfig.main_color_hex_light
+          } else if (
+            storeConfig.main_color_hex &&
+            storeConfig.main_color_hex !== '#0a84ff' &&
+            storeConfig.main_color_hex !== '#007aff'
+          ) {
+            mainColor = storeConfig.main_color_hex
+          } else {
+            mainColor = '#9a8a72'
+          }
+        } else {
+          if (storeConfig.main_color_hex_dark) {
+            mainColor = storeConfig.main_color_hex_dark
+          } else if (
+            storeConfig.main_color_hex &&
+            storeConfig.main_color_hex !== '#9a8a72' &&
+            storeConfig.main_color_hex !== '#007aff'
+          ) {
+            mainColor = storeConfig.main_color_hex
+          } else {
+            mainColor = '#0a84ff'
+          }
+        }
+
+        const root = document.documentElement
+        root.style.setProperty('--btn-bg', mainColor)
+        root.style.setProperty('--bar-fill', mainColor)
+        root.style.setProperty('--input-focus', mainColor)
+      }
+
+      // Main color change - apply based on current theme
+      const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark'
+
+      if (partial.main_color_hex_light !== undefined || partial.main_color_hex_dark !== undefined) {
+        const storeConfig = get(config) || updatedConfig
+        const mainColor =
+          currentTheme === 'light'
+            ? partial.main_color_hex_light ||
+              storeConfig.main_color_hex_light ||
+              storeConfig.main_color_hex ||
+              '#9a8a72'
+            : partial.main_color_hex_dark ||
+              storeConfig.main_color_hex_dark ||
+              (storeConfig.main_color_hex && storeConfig.main_color_hex !== '#9a8a72' ? storeConfig.main_color_hex : undefined) ||
+              '#0a84ff'
+
+        const root = document.documentElement
+        root.style.setProperty('--btn-bg', mainColor)
+        root.style.setProperty('--bar-fill', mainColor)
+        root.style.setProperty('--input-focus', mainColor)
+      }
+
+      // Backward compatibility with main_color_hex
+      if (partial.main_color_hex !== undefined) {
+        const root = document.documentElement
+        root.style.setProperty('--btn-bg', partial.main_color_hex)
+        root.style.setProperty('--bar-fill', partial.main_color_hex)
+        root.style.setProperty('--input-focus', partial.main_color_hex)
+      }
+
+      // Hotkey re-registration
+      if (reRegisterHotkey && partial.hotkey !== undefined) {
+        try {
+          const { registerHotkey } = await import('./api')
+          await registerHotkey(partial.hotkey)
+        } catch (error) {
+          console.error('Failed to register hotkey:', error)
+          // Non-critical, don't rollback
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save config:', error)
+
+      // Rollback: reload the authoritative config from the backend to ensure
+      // the UI store exactly matches the persisted state. This prevents the
+      // visual desync that occurs when an optimistic update is not reverted.
+      try {
+        const { getConfig } = await import('./api')
+        const freshConfig = await getConfig()
+        config.set(freshConfig)
+      } catch (reloadError) {
+        // Last resort: if even the reload fails, restore the pre-update
+        // snapshot so the UI at least reflects a known-good state.
+        console.error('Failed to reload config from backend:', reloadError)
+        config.set(currentConfig)
+      }
+
+      throw error
+    }
+  } finally {
+    release()
   }
 }
 
@@ -467,43 +502,25 @@ export function startMemoryRefresh(intervalMs: number = MEMORY_REFRESH_INTERVAL)
       const { memoryInfo } = await import('./api')
       const mem = await memoryInfo()
       memory.set(mem)
-
-      // Adaptive refresh: adjust interval based on memory usage
-      // DISABILITATO: causa troppi riavvii dell'interval
-      /*
-      const usagePercent = mem.physical.used.percentage
-      let newInterval = intervalMs
-
-      if (usagePercent >= CRITICAL_MEMORY_THRESHOLD) {
-        newInterval = MEMORY_REFRESH_CRITICAL
-      } else if (usagePercent >= LOW_MEMORY_THRESHOLD) {
-        newInterval = MEMORY_REFRESH_LOW
-      }
-
-      // Restart with new interval if changed
-      if (newInterval !== intervalMs) {
-        stopMemoryRefresh()
-        appState.refreshInterval = window.setInterval(refresh, newInterval)
-        console.debug(`Adaptive refresh: ${newInterval}ms (memory: ${usagePercent.toFixed(1)}%)`)
-      }
-      */
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Failed to refresh memory info:', error)
       }
+    } finally {
+      // Schedule next refresh only after this one fully completes.
+      // Using setTimeout ensures no overlap — the timer starts counting
+      // only AFTER the await chain resolves.
+      appState.refreshInterval = window.setTimeout(refresh, intervalMs)
     }
   }
 
   // Initial refresh
   refresh()
-
-  // Setup interval
-  appState.refreshInterval = window.setInterval(refresh, intervalMs)
 }
 
 export function stopMemoryRefresh(): void {
   if (appState.refreshInterval !== null) {
-    clearInterval(appState.refreshInterval)
+    clearTimeout(appState.refreshInterval)
     appState.refreshInterval = null
   }
 }

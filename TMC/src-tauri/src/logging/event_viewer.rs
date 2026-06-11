@@ -4,7 +4,7 @@ use anyhow::Result;
 use once_cell::sync::Lazy;
 use std::ptr::null_mut;
 use std::sync::Arc;
-use std::sync::Mutex;
+use parking_lot::Mutex;
 use windows_sys::Win32::Foundation::{GetLastError, HANDLE};
 use windows_sys::Win32::System::EventLog::*;
 use windows_sys::Win32::System::Registry::*;
@@ -249,20 +249,57 @@ fn to_wide(s: &str) -> Vec<u16> {
 fn get_timestamp() -> String {
     use std::time::SystemTime;
 
-    // Usa SystemTime invece di chrono per evitare una dipendenza extra
+    // Usa SystemTime per ottenere il timestamp corrente
     match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
         Ok(duration) => {
             let total_secs = duration.as_secs();
+            
+            // Days since epoch (1970-01-01)
+            let days_since_epoch = total_secs / 86400;
+            
+            // Calculate year with leap year handling
+            // Gregorian calendar: every 4 years is a leap year, except centuries unless divisible by 400
+            let mut year = 1970;
+            let mut remaining_days = days_since_epoch;
+            
+            loop {
+                let is_leap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+                let days_in_year = if is_leap { 366 } else { 365 };
+                
+                if remaining_days < days_in_year as u64 {
+                    break
+                }
+                remaining_days -= days_in_year as u64;
+                year += 1;
+            }
+            
+            // Calculate month and day
+            let is_leap_year = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+            let days_in_months = if is_leap_year {
+                [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+            } else {
+                [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+            };
+            
+            let mut month = 1;
+            let mut day_in_year = remaining_days;
+            
+            for &days_in_month in &days_in_months {
+                if day_in_year < days_in_month as u64 {
+                    break
+                }
+                day_in_year -= days_in_month as u64;
+                month += 1;
+            }
+            
+            let day = day_in_year + 1; // Days are 1-indexed
+            
+            // Calculate time components
             let secs_per_day = 86400;
-            let days_since_epoch = total_secs / secs_per_day;
-
-            // Calcolo approssimativo (per logging è sufficiente)
-            let year = 1970 + (days_since_epoch / 365);
-            let month = ((days_since_epoch % 365) / 30) + 1;
-            let day = ((days_since_epoch % 365) % 30) + 1;
-            let hour = (total_secs % secs_per_day) / 3600;
-            let minute = ((total_secs % secs_per_day) % 3600) / 60;
-            let second = total_secs % 60;
+            let secs_in_day = total_secs % secs_per_day;
+            let hour = secs_in_day / 3600;
+            let minute = (secs_in_day % 3600) / 60;
+            let second = secs_in_day % 60;
 
             format!(
                 "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
@@ -400,17 +437,15 @@ pub fn log_error_event(error: &str) {
 
 // Funzione helper interna per scrivere i log
 fn write_log(event_type: u16, event_id: u32, message: &str) {
-    // FIX: Non crashare se il logging fallisce - usa catch_unwind
-    let result = std::panic::catch_unwind(|| {
-        if let Ok(guard) = EVENT_LOGGER.lock() {
-            if let Some(logger) = guard.as_ref() {
-                let _ = logger.write_event(event_type, event_id, message);
-            }
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let guard = EVENT_LOGGER.lock();
+        if let Some(logger) = guard.as_ref() {
+            let _ = logger.write_event(event_type, event_id, message);
         }
-    });
+    }));
 
     if result.is_err() {
-        tracing::debug!("Event log write panicked (non-critical)");
+        tracing::debug!("Event log write panicked (non-critical, lock recovered)");
     }
 }
 

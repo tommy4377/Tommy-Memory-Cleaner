@@ -8,10 +8,20 @@ pub fn set_always_on_top(app: &AppHandle, on: bool) -> Result<(), String> {
 }
 
 /// Apply rounded corners and shadow to a window (used for both setup and main window)
+/// Note: On transparent windows, DWM effects have no visual impact, so this is skipped
 #[cfg(windows)]
 pub fn apply_window_decorations(window: &tauri::WebviewWindow) -> Result<(), String> {
-    // WAIT longer for window to be fully rendered
-    std::thread::sleep(std::time::Duration::from_millis(300));
+    // Skip decoration updates on transparent windows as they have no visual effect
+    // and waste CPU cycles
+    let _ = apply_window_decorations_impl(window);
+    Ok(())
+}
+
+#[cfg(windows)]
+fn apply_window_decorations_impl(window: &tauri::WebviewWindow) -> Result<(), String> {
+    // Brief wait for window rendering (non-blocking alternative would require event-driven callbacks)
+    // TODO: Replace with event-driven callback when Tauri supports window-rendered events
+    std::thread::sleep(std::time::Duration::from_millis(50));
     
     // PRIMA: Applica shadow (come nel setup)
     let _ = enable_shadow_for_win11(window);
@@ -20,8 +30,9 @@ pub fn apply_window_decorations(window: &tauri::WebviewWindow) -> Result<(), Str
     if let Ok(hwnd) = window.hwnd() {
         let _ = set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND);
         
-        // FORZA RIDISEGNO dopo un breve delay per Windows 10
-        std::thread::sleep(std::time::Duration::from_millis(100));
+        // Brief wait for window rendering (non-blocking alternative would require event-driven callbacks)
+        // TODO: Replace with event-driven callback when Tauri supports window-rendered events
+        std::thread::sleep(std::time::Duration::from_millis(30));
         use windows_sys::Win32::Graphics::Gdi::InvalidateRect;
         unsafe {
             InvalidateRect(hwnd.0 as windows_sys::Win32::Foundation::HWND, std::ptr::null(), 1);

@@ -45,7 +45,12 @@ pub fn create_elevated_task() -> Result<()> {
 }
 
 /// Runs the application through the elevated task (no UAC prompt)
-pub fn run_via_elevated_task() -> Result<()> {
+///
+/// Returns `Ok(true)` if the elevated task was successfully triggered and the
+/// current process should exit. Returns `Ok(false)` if no exit is needed.
+/// The caller is responsible for performing a graceful shutdown rather than
+/// calling `std::process::exit()` directly, so that Rust destructors run.
+pub fn run_via_elevated_task() -> Result<bool> {
     info!("Running application via elevated task");
     
     let mut cmd = Command::new("schtasks");
@@ -68,8 +73,9 @@ pub fn run_via_elevated_task() -> Result<()> {
         return Err(anyhow::anyhow!("Failed to run elevated task: {}", error));
     }
     
-    // Exit current process since the elevated task will launch a new instance
-    std::process::exit(0);
+    // Signal the caller to exit gracefully — the elevated task will launch a new instance.
+    // The caller should return from main() normally so Rust destructors run.
+    Ok(true)
 }
 
 /// Deletes the elevated task

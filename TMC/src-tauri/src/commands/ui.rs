@@ -119,7 +119,9 @@ pub fn cmd_show_notification(
 ///
 /// This function is accessible from main.rs and handles both
 /// showing existing windows and creating new ones if needed.
+/// Uses a check-then-create pattern with verification to prevent race conditions.
 pub fn show_or_create_window(app: &AppHandle) {
+    // Check if window exists
     if let Some(window) = app.get_webview_window("main") {
         tracing::info!("Found existing main window");
         if let Ok(size) = window.inner_size() {
@@ -189,6 +191,13 @@ pub fn show_or_create_window(app: &AppHandle) {
                 }
                 let _ = window.set_skip_taskbar(false);
                 let _ = window.set_focus();
+                
+                // Verify window was actually created and is accessible
+                if let Some(created_window) = app.get_webview_window("main") {
+                    tracing::info!("✓ Window creation verified");
+                } else {
+                    tracing::error!("Window creation verification failed - window not found immediately after creation");
+                }
             }
             Err(e) => {
                 tracing::error!("Failed to create window: {:?}", e);
