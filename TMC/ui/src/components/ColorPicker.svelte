@@ -482,7 +482,14 @@
         </div>
       </div>
       
-      <div class="sat-light-wrapper" on:mousedown={startDragSatLight}>
+      <div 
+        class="sat-light-wrapper" 
+        role="slider" 
+        tabindex="0"
+        aria-label="Saturation and Lightness picker"
+        aria-valuenow="{Math.round(saturation)}"
+        on:mousedown={startDragSatLight}
+      >
         <div 
           class="sat-light-gradient" 
           style="background: linear-gradient(to right, hsl(0, 0%, 50%), hsl({hue}, 100%, 50%))"
@@ -497,7 +504,16 @@
         ></div>
       </div>
       
-      <div class="hue-slider" on:mousedown={startDragHue}>
+      <div 
+        class="hue-slider" 
+        role="slider" 
+        tabindex="0"
+        aria-label="Hue picker"
+        aria-valuenow="{Math.round(hue)}"
+        aria-valuemin="0"
+        aria-valuemax="360"
+        on:mousedown={startDragHue}
+      >
         <div class="hue-gradient"></div>
         <div 
           class="hue-pointer" 

@@ -193,7 +193,7 @@ pub fn show_or_create_window(app: &AppHandle) {
                 let _ = window.set_focus();
                 
                 // Verify window was actually created and is accessible
-                if let Some(created_window) = app.get_webview_window("main") {
+                if let Some(_created_window) = app.get_webview_window("main") {
                     tracing::info!("✓ Window creation verified");
                 } else {
                     tracing::error!("Window creation verification failed - window not found immediately after creation");

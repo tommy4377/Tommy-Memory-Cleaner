@@ -166,10 +166,6 @@
     }
   }
 
-  html[data-theme='dark'] button {
-    cursor: url('/cursors/dark/hand.cur'), pointer;
-  }
-
   button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
