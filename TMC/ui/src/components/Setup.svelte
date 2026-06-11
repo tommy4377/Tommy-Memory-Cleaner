@@ -299,7 +299,7 @@
     {#if elevationWarning}
       <div class="elevation-warning">
         <div class="warning-content">
-          <p>{elevationWarning}</p>
+          <p>Administrator privileges required for full memory optimization capabilities</p>
           <small>{$t('Some advanced features require administrator privileges')}</small>
           {#if !isElevated}
             <button class="elevate-btn" on:click={() => invoke('cmd_restart_with_elevation')}>
@@ -493,14 +493,8 @@
     margin: 0 4px;
     flex-shrink: 0;
     display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .elevation-warning::before {
-    content: '⚠️';
-    font-size: 18px;
-    flex-shrink: 0;
+    align-items: flex-start;
+    gap: 12px;
   }
 
   .warning-content {

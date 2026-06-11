@@ -39,12 +39,12 @@
     const dropdownWidth = rect.width
 
     // Calcola la posizione
-    let top = rect.bottom + 4
+    let top = rect.bottom + 12
     let left = rect.left
 
     // Se va fuori in basso, aprilo verso l'alto
     if (rect.bottom + dropdownHeight > viewportHeight && rect.top > dropdownHeight) {
-      top = rect.top - dropdownHeight - 4
+      top = rect.top - dropdownHeight - 12
       dropdownEl.classList.add('upward')
     } else {
       dropdownEl.classList.remove('upward')
