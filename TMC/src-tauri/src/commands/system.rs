@@ -8,18 +8,35 @@ use tauri::{AppHandle, State};
 
 /// Restarts the application with elevated privileges.
 ///
-/// Uses Tauri's graceful shutdown to exit the current process after
+/// Persists the elevation preference in config so future launches auto-elevate,
+/// then uses Tauri's graceful shutdown to exit the current process after
 /// launching the elevated instance.
 #[tauri::command]
-pub fn cmd_restart_with_elevation(app: AppHandle) -> Result<(), String> {
+pub fn cmd_restart_with_elevation(
+    app: AppHandle,
+    state: State<'_, crate::AppState>,
+) -> Result<(), String> {
     #[cfg(windows)]
     {
+        // Persist the elevation preference so future launches auto-elevate
+        {
+            let mut cfg = state
+                .cfg
+                .lock()
+                .map_err(|_| "Config lock poisoned".to_string())?;
+            cfg.request_elevation_on_startup = true;
+            if let Err(e) = cfg.save() {
+                tracing::warn!("Failed to save elevation preference: {}", e);
+            }
+        }
+        
         crate::restart_with_elevation(&app).map_err(|e| e.to_string())
     }
     
     #[cfg(not(windows))]
     {
         let _ = app;
+        let _ = state;
         Err("Elevation is only supported on Windows".to_string())
     }
 }

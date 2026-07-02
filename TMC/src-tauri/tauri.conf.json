@@ -76,5 +76,9 @@
       }
     }
   },
-  "plugins": {}
+  "plugins": {
+    "notification": {
+      "all": true
+    }
+  }
 }

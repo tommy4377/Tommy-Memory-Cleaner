@@ -247,67 +247,17 @@ fn to_wide(s: &str) -> Vec<u16> {
 
 // Funzione helper per ottenere timestamp formattato
 fn get_timestamp() -> String {
-    use std::time::SystemTime;
+    use windows_sys::Win32::Foundation::SYSTEMTIME;
+    use windows_sys::Win32::System::SystemInformation::GetLocalTime;
 
-    // Usa SystemTime per ottenere il timestamp corrente
-    match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-        Ok(duration) => {
-            let total_secs = duration.as_secs();
-            
-            // Days since epoch (1970-01-01)
-            let days_since_epoch = total_secs / 86400;
-            
-            // Calculate year with leap year handling
-            // Gregorian calendar: every 4 years is a leap year, except centuries unless divisible by 400
-            let mut year = 1970;
-            let mut remaining_days = days_since_epoch;
-            
-            loop {
-                let is_leap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
-                let days_in_year = if is_leap { 366 } else { 365 };
-                
-                if remaining_days < days_in_year as u64 {
-                    break
-                }
-                remaining_days -= days_in_year as u64;
-                year += 1;
-            }
-            
-            // Calculate month and day
-            let is_leap_year = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
-            let days_in_months = if is_leap_year {
-                [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-            } else {
-                [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-            };
-            
-            let mut month = 1;
-            let mut day_in_year = remaining_days;
-            
-            for &days_in_month in &days_in_months {
-                if day_in_year < days_in_month as u64 {
-                    break
-                }
-                day_in_year -= days_in_month as u64;
-                month += 1;
-            }
-            
-            let day = day_in_year + 1; // Days are 1-indexed
-            
-            // Calculate time components
-            let secs_per_day = 86400;
-            let secs_in_day = total_secs % secs_per_day;
-            let hour = secs_in_day / 3600;
-            let minute = (secs_in_day % 3600) / 60;
-            let second = secs_in_day % 60;
+    let mut st: SYSTEMTIME = unsafe { std::mem::zeroed() };
+    unsafe { GetLocalTime(&mut st) };
 
-            format!(
-                "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
-                year, month, day, hour, minute, second
-            )
-        }
-        Err(_) => "Unknown time".to_string(),
-    }
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+        st.wYear, st.wMonth, st.wDay,
+        st.wHour, st.wMinute, st.wSecond
+    )
 }
 
 // ========== FUNZIONI PUBBLICHE ==========

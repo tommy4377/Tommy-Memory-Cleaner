@@ -92,12 +92,10 @@ function parseMemoryAreas(areas: any): number {
     return areas
   }
   if (typeof areas === 'string') {
-    // Try to parse as a numeric string first
+    // Try numeric string first (e.g., "42")
     const parsed = parseInt(areas, 10)
-    if (!isNaN(parsed)) {
-      return parsed
-    }
-    // If not a number, try to convert from string flags (e.g., "COMBINED_PAGE_LIST|MODIFIED_FILE_CACHE")
+    if (!isNaN(parsed)) return parsed
+    // Parse textual flags like "COMBINED_PAGE_LIST|WORKING_SET"
     return stringToAreas(areas)
   }
   return 0
@@ -106,10 +104,7 @@ function parseMemoryAreas(areas: any): number {
 // ========== INITIALIZATION ==========
 export async function initApp(): Promise<void> {
   // FIX #5: Cleanup before re-initializing to prevent memory leak
-  if (appState.initialized) {
-    console.warn('App already initialized, cleaning up first...')
-    await cleanupApp()
-  }
+  await cleanupApp()
 
   // FIX #8: Remove hardcoded delay - not necessary
   // If a delay is needed, it should be based on real conditions

@@ -56,6 +56,9 @@ static OPTIMIZATION_RUNNING: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(fal
 static PRIVILEGES_INITIALIZED: Lazy<RwLock<bool>> = Lazy::new(|| RwLock::new(false));
 /// Tracks if first optimization has been completed
 static FIRST_OPTIMIZATION_DONE: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(false));
+/// Tracks whether the application started without administrator elevation.
+/// Used by the frontend to show a warning banner.
+pub static STARTED_WITHOUT_ELEVATION: AtomicBool = AtomicBool::new(false);
 /// Stores the tray icon ID for updates
 pub(crate) static TRAY_ICON_ID: Lazy<std::sync::Mutex<Option<String>>> =
     Lazy::new(|| std::sync::Mutex::new(None));
@@ -463,11 +466,28 @@ async fn perform_optimization(
                     )
                 };
 
-                // Use a single-pass replacement to avoid sequential injection issues
-                let mut body = body_template;
-                body = body.replace("%.1f", &format!("{:.1}", freed_mb.abs()));
-                body = body.replace("%.2f", &format!("{:.2}", free_gb));
-                body = body.replace("%s", &profile_name);
+                // Single-pass format substitution to prevent chain-injection
+                let mut body = String::with_capacity(body_template.len());
+                let mut chars = body_template.chars().peekable();
+                while let Some(c) = chars.next() {
+                    if c == '%' {
+                        let remaining: String = chars.clone().take(3).collect();
+                        if remaining.starts_with(".1f") {
+                            body.push_str(&format!("{:.1}", freed_mb.abs()));
+                            chars.next(); chars.next(); chars.next();
+                        } else if remaining.starts_with(".2f") {
+                            body.push_str(&format!("{:.2}", free_gb));
+                            chars.next(); chars.next(); chars.next();
+                        } else if remaining.starts_with('s') {
+                            body.push_str(&profile_name);
+                            chars.next();
+                        } else {
+                            body.push(c);
+                        }
+                    } else {
+                        body.push(c);
+                    }
+                }
 
                 // Emit event to frontend for memory stats tracking
                 let event_result = app.emit("optimization-completed", serde_json::json!({
@@ -887,6 +907,63 @@ fn main() {
         handle
     };
 
+    // Check if running with elevated privileges and manage task scheduler
+    #[cfg(windows)]
+    {
+        use crate::system::{is_app_elevated, elevated_task::{create_elevated_task, run_via_elevated_task, elevated_task_exists}};
+        let is_elevated = is_app_elevated();
+        
+        // Load config to check elevation preference
+        let config_path = crate::config::get_portable_detector().config_path();
+        
+        if config_path.exists() {
+            if let Ok(config_str) = std::fs::read_to_string(&config_path) {
+                if let Ok(config) = serde_json::from_str::<crate::config::Config>(&config_str) {
+                    if config.request_elevation_on_startup {
+                        // Create elevated task only when running as admin (requires /rl highest)
+                        if is_elevated && !elevated_task_exists() {
+                            tracing::info!("Creating elevated task for admin access...");
+                            if let Err(e) = create_elevated_task() {
+                                tracing::error!("Failed to create elevated task: {}", e);
+                            }
+                        }
+                        
+                        // If not elevated, run via task scheduler
+                        if !is_elevated {
+                            tracing::info!("Running via elevated task...");
+                            // Close the single-instance mutex BEFORE launching the elevated task.
+                            // The new instance launched by schtasks needs to acquire the mutex.
+                            close_single_instance_mutex();
+                            match run_via_elevated_task() {
+                                Ok(true) => {
+                                    // Elevated task triggered — exit gracefully by returning from main()
+                                    // so that Rust destructors run and resources are cleaned up.
+                                    tracing::info!("Elevated task launched, exiting current process gracefully");
+                                    logging::shutdown();
+                                    return;
+                                }
+                                Ok(false) => {
+                                    // No exit needed, continue normal startup
+                                }
+                                Err(e) => {
+                                    tracing::error!("Failed to run via elevated task: {}", e);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        if is_elevated {
+            tracing::info!("Application running with elevated privileges");
+            STARTED_WITHOUT_ELEVATION.store(false, Ordering::SeqCst);
+        } else {
+            tracing::warn!("Application running without elevated privileges - some features may be limited");
+            STARTED_WITHOUT_ELEVATION.store(true, Ordering::SeqCst);
+        }
+    }
+
     // WebView2 check (Windows only)
     #[cfg(windows)]
     check_webview2();
@@ -936,61 +1013,6 @@ fn main() {
         register_app_for_notifications();
     }
 
-    // Check if running with elevated privileges and manage task scheduler
-    #[cfg(windows)]
-    {
-        use crate::system::{is_app_elevated, elevated_task::{create_elevated_task, run_via_elevated_task, elevated_task_exists}};
-        let is_elevated = is_app_elevated();
-        
-        // Load config to check elevation preference
-        let config_path = crate::config::get_portable_detector().config_path();
-        
-        if config_path.exists() {
-            if let Ok(config_str) = std::fs::read_to_string(&config_path) {
-                if let Ok(config) = serde_json::from_str::<crate::config::Config>(&config_str) {
-                    if config.request_elevation_on_startup {
-                        // First time setup: create elevated task if needed
-                        if !elevated_task_exists() {
-                            tracing::info!("Creating elevated task for admin access...");
-                            if let Err(e) = create_elevated_task() {
-                                tracing::error!("Failed to create elevated task: {}", e);
-                            }
-                        }
-                        
-                        // If not elevated, run via task scheduler
-                        if !is_elevated {
-                            tracing::info!("Running via elevated task...");
-                            // Close the single-instance mutex BEFORE launching the elevated task.
-                            // The new instance launched by schtasks needs to acquire the mutex.
-                            close_single_instance_mutex();
-                            match run_via_elevated_task() {
-                                Ok(true) => {
-                                    // Elevated task triggered — exit gracefully by returning from main()
-                                    // so that Rust destructors run and resources are cleaned up.
-                                    tracing::info!("Elevated task launched, exiting current process gracefully");
-                                    logging::shutdown();
-                                    return;
-                                }
-                                Ok(false) => {
-                                    // No exit needed, continue normal startup
-                                }
-                                Err(e) => {
-                                    tracing::error!("Failed to run via elevated task: {}", e);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        if is_elevated {
-            tracing::info!("Application running with elevated privileges");
-        } else {
-            tracing::warn!("Application running without elevated privileges - some features may be limited");
-        }
-    }
-    
     // Initialize advanced optimization features
     tracing::warn!("Initializing advanced optimization features");
     if let Err(e) = crate::memory::advanced::init_advanced_features() {
@@ -1134,6 +1156,7 @@ fn main() {
             commands::ui::cmd_apply_rounded_corners,
             commands::ui::cmd_update_tray_theme,
             commands::ui::cmd_check_elevation,
+            commands::ui::cmd_is_elevation_required,
             // Commands from i18n module
             commands::i18n::cmd_set_translations,
             // Commands from hotkeys module

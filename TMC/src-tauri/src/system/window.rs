@@ -8,11 +8,10 @@ pub fn set_always_on_top(app: &AppHandle, on: bool) -> Result<(), String> {
 }
 
 /// Apply rounded corners and shadow to a window (used for both setup and main window)
-/// Note: On transparent windows, DWM effects have no visual impact, so this is skipped
+/// Note: On transparent/undecorated windows, shadow effects have no visual impact,
+/// but rounded corners still apply correctly via DWM attributes (Win11) or region-based approach (Win10)
 #[cfg(windows)]
 pub fn apply_window_decorations(window: &tauri::WebviewWindow) -> Result<(), String> {
-    // Skip decoration updates on transparent windows as they have no visual effect
-    // and waste CPU cycles
     let _ = apply_window_decorations_impl(window);
     Ok(())
 }

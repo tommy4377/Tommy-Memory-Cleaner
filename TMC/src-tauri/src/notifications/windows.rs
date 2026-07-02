@@ -110,7 +110,7 @@ fn ensure_notification_icon_available() -> Option<std::path::PathBuf> {
 /// Attempt chain (ordered by efficiency):
 /// 1. Tauri Plugin Notification (native Rust, zero overhead) - PRIMARY
 /// 2. winrt-notification crate (native Rust WinRT toast) - FALLBACK
-/// 3. PowerShell Balloon (DISABLED - high CPU overhead, see Bug 30)
+/// 3. PowerShell Balloon (LAST RESORT - for stripped-down Windows installs)
 #[cfg(windows)]
 pub fn show_windows_notification(
     app: &AppHandle,
@@ -133,12 +133,14 @@ pub fn show_windows_notification(
         if let Some(icon_path) = ensure_notification_icon_available() {
             if let Some(icon_str) = icon_path.to_str() {
                 tracing::debug!("Using icon path: {}", icon_str);
+                // Convert filesystem path to file URI for Tauri plugin
+                let icon_uri = format!("file:///{}", icon_str.replace('\\', "/"));
                 match app
                     .notification()
                     .builder()
                     .title(title)
                     .body(body)
-                    .icon(icon_str)
+                    .icon(&icon_uri)
                     .show()
                 {
                     Ok(_) => {
@@ -200,12 +202,53 @@ pub fn show_windows_notification(
         }
     }
 
-    // PowerShell balloon notifications are DISABLED due to high CPU overhead (Bug 30)
-    // and unprofessional appearance. If Windows lacks native Toast support (very rare),
-    // user should see a notification failure in the logs rather than a PowerShell process spawn.
-    
-    tracing::error!("✗ All native notification methods failed. Consider running as Administrator or checking system notifications are enabled.");
-    Err("Native Windows notifications unavailable. Ensure administrator privileges and system notifications are enabled.".to_string())
+    // ── Attempt 3: PowerShell Balloon (LAST RESORT) ──
+    // Only used when both Tauri plugin and winrt-notification fail.
+    // This is rare and typically happens on stripped-down Windows installations.
+    tracing::debug!("Attempt 3: PowerShell balloon notification (LAST RESORT)...");
+    {
+        use std::process::Command;
+
+        let exe_path = std::env::current_exe()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+
+        // Escape single quotes in title and body for PowerShell
+        let safe_title = title.replace('\'', "''");
+        let safe_body = body.replace('\'', "''");
+        let safe_exe = exe_path.replace('\'', "''");
+
+        let ps_script = format!(
+            r#"Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; $icon = [System.Drawing.Icon]::ExtractAssociatedIcon('{safe_exe}'); $notify = New-Object System.Windows.Forms.NotifyIcon; $notify.Icon = $icon; $notify.Visible = $true; $notify.BalloonTipTitle = '{safe_title}'; $notify.BalloonTipText = '{safe_body}'; $notify.BalloonTipIcon = [System.Windows.Forms.ToolTipIcon]::Info; $notify.ShowBalloonTip(5000); Start-Sleep -Seconds 6; $notify.Dispose()"#
+        );
+
+        let mut cmd = Command::new("powershell");
+        cmd.args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", &ps_script]);
+
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+
+        match cmd.output() {
+            Ok(output) if output.status.success() => {
+                tracing::info!("✓ Notification sent via PowerShell balloon (last resort)");
+                return Ok(());
+            }
+            Ok(output) => {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                tracing::warn!("PowerShell balloon failed: {}", stderr);
+            }
+            Err(e) => {
+                tracing::warn!("Failed to spawn PowerShell: {}", e);
+            }
+        }
+    }
+
+    tracing::error!("✗ All notification methods failed (Tauri plugin, winrt-notification, PowerShell balloon)");
+    Err("All notification methods failed. Ensure system notifications are enabled.".to_string())
 }
 
 #[cfg(not(windows))]

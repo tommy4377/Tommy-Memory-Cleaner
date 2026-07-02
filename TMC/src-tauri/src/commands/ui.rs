@@ -2,7 +2,11 @@
 ///
 /// This module provides Tauri commands for showing windows,
 /// displaying notifications, and positioning UI elements.
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Manager, State};
+
+/// Atomic guard to prevent concurrent window creation races.
+static WINDOW_CREATING: AtomicBool = AtomicBool::new(false);
 
 /// Returns the window configuration values including border radius.
 ///
@@ -154,6 +158,12 @@ pub fn show_or_create_window(app: &AppHandle) {
             let _ = crate::system::window::apply_window_decorations(&window);
         }
     } else {
+        // Use compare_exchange to prevent concurrent window creation races
+        if WINDOW_CREATING.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+            tracing::warn!("Window creation already in progress, skipping duplicate request");
+            return;
+        }
+
         tracing::info!("Creating new main window...");
         tracing::info!("Window dimensions will be: 500x700");
         let result = tauri::WebviewWindowBuilder::new(
@@ -170,6 +180,9 @@ pub fn show_or_create_window(app: &AppHandle) {
         .skip_taskbar(false)  // Show in taskbar
         .visible(true)  // Show window immediately for SetWindowRgn
         .build();
+
+        // Release the guard immediately after build, regardless of outcome
+        WINDOW_CREATING.store(false, Ordering::SeqCst);
 
         match result {
             Ok(window) => {
@@ -474,4 +487,18 @@ pub fn cmd_check_elevation() -> Result<serde_json::Value, String> {
         "is_elevated": true,
         "privileges": {}
     }))
+}
+
+/// Check if the application started without administrator privileges.
+/// Used by the frontend to show a warning banner on startup.
+#[tauri::command]
+pub fn cmd_is_elevation_required() -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        crate::STARTED_WITHOUT_ELEVATION.load(std::sync::atomic::Ordering::SeqCst)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        false
+    }
 }

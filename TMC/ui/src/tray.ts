@@ -240,13 +240,6 @@ win.onFocusChanged((event: any) => {
   }
 })
 
-// Fallback for click on overlay (if present)
-document.querySelector('.click-overlay')?.addEventListener('click', () => {
-  if (document.body.classList.contains('menu-open')) {
-    win.hide()
-  }
-})
-
 // Handle clicks outside menu container - only way to close menu
 document.addEventListener('click', (e) => {
   const menuContainer = document.querySelector('.menu-container')

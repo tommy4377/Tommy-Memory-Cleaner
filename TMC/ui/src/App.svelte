@@ -46,6 +46,8 @@
   let isCompact = false
   let isLoading = true
   let initError: string | null = null
+  let isElevated = true
+  let elevationWarning = ''
 
   // Subscriptions
   let configUnsub: (() => void) | null = null
@@ -124,6 +126,9 @@
     isLoading = false
     initError = null
 
+    // Check elevation status for warning banner
+    await checkElevation()
+
     // 5. Subscribe to config changes
     configUnsub = config.subscribe((v) => {
       cfg = v
@@ -173,11 +178,12 @@
 
     // Listen for setup-complete event to reload config
     const setupCompleteUnlisten = await listen('setup-complete', async () => {
-      // Ricarica la configurazione quando il setup è completato
       if (isAppInitialized()) {
-        await initApp()
-        // La config verrà aggiornata automaticamente tramite il subscribe sopra
-        
+        // Lightweight config reload instead of full re-initialization
+        const newConfig = await getConfig()
+        if (newConfig) {
+          config.set(newConfig)
+        }
         // Trigger scrollbar fix immediately after setup
         // Uses a small delay to ensure window visibility
         setTimeout(() => applyScrollbarFix(), 500);
@@ -244,6 +250,25 @@
       await appWindow.setFocus()
     } catch (error) {
       console.error('Failed to setup window:', error)
+    }
+  }
+
+  async function checkElevation() {
+    try {
+      const needsElevation = await invoke<boolean>('cmd_is_elevation_required')
+      if (needsElevation) {
+        isElevated = false
+        elevationWarning = 'Administrator privileges are required to optimize memory. Please restart as administrator.'
+      } else {
+        // Double-check with the detailed elevation command
+        const result = await invoke<any>('cmd_check_elevation')
+        isElevated = result.is_elevated
+        if (!isElevated) {
+          elevationWarning = 'Administrator privileges are required to optimize memory. Please restart as administrator.'
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check elevation:', error)
     }
   }
 
@@ -393,6 +418,23 @@
   {:else}
     <!-- Main App -->
     <Titlebar />
+    {#if elevationWarning && !isCompact}
+      <div class="elevation-warning">
+        <div class="warning-content">
+          <p>{elevationWarning}</p>
+          <button class="elevate-btn" on:click={async () => {
+            try {
+              await invoke('cmd_restart_with_elevation');
+            } catch (e) {
+              console.error('Elevation restart failed:', e);
+              elevationWarning = `Failed to restart as administrator: ${e}. Please close the app and run it manually as administrator.`;
+            }
+          }}>
+            Run as Administrator
+          </button>
+        </div>
+      </div>
+    {/if}
     {#if isCompact}
       {#await loadComponents() then}
         <svelte:component this={CompactView} />
@@ -558,5 +600,55 @@
 
   .retry-button:active {
     transform: translateY(0);
+  }
+
+  .elevation-warning {
+    background: linear-gradient(135deg, rgba(220, 120, 50, 0.1) 0%, rgba(220, 100, 30, 0.05) 100%);
+    border: 1px solid rgba(220, 120, 50, 0.3);
+    border-radius: 12px;
+    padding: 12px;
+    margin: 4px 8px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .warning-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+  }
+
+  .warning-content p {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--fg);
+  }
+
+  .elevation-warning .elevate-btn {
+    background: linear-gradient(135deg, #dc7832 0%, #d86420 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 4px;
+    width: fit-content;
+  }
+
+  .elevation-warning .elevate-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(220, 120, 50, 0.3);
+  }
+
+  .elevation-warning .elevate-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(220, 120, 50, 0.2);
   }
 </style>
