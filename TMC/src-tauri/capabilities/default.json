@@ -34,6 +34,9 @@
     "core:menu:default",
     "core:tray:default",
     "positioner:default",
-    "notification:default"
+    "notification:default",
+    "updater:default",
+    "process:default",
+    "process:allow-restart"
   ]
 }

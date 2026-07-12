@@ -21,10 +21,12 @@
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-global-shortcut": "^2.0.0",
     "@tauri-apps/plugin-notification": "^2.0.0",
-    "@tauri-apps/plugin-process": "^2.0.0"
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.10.1"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^3.0.0",
+    "@tauri-apps/cli": "^2.11.4",
     "@tsconfig/svelte": "^5.0.2",
     "@types/node": "^20.10.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",

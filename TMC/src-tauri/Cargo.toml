@@ -101,6 +101,11 @@ tauri-plugin-global-shortcut = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-positioner = { version = "2", features = ["tray-icon"] }
 
+# Auto-updater
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

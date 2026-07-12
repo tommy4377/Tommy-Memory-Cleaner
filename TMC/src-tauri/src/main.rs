@@ -1241,6 +1241,8 @@ fn main() {
             .build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_positioner::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(state.clone())
         .invoke_handler(tauri::generate_handler![
             // Commands from app_info module
@@ -1281,7 +1283,10 @@ fn main() {
             // Commands from i18n module
             commands::i18n::cmd_set_translations,
             // Commands from hotkeys module
-            cmd_register_hotkey
+            cmd_register_hotkey,
+            // Commands from updater module
+            commands::updater::check_for_update,
+            commands::updater::install_update
         ])
         .setup(move |app| {
             let app_handle = app.handle();

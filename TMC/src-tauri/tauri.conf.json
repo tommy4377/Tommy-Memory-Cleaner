@@ -45,7 +45,8 @@
   },
   "bundle": {
     "active": true,
-    "targets": [],
+    "targets": ["nsis"],
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -77,5 +78,12 @@
       }
     }
   },
-  "plugins": {}
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDEyRTUwQTkwQUUxMTQ3NjgKUldSb1J4R3VrQXJsRWxNTDlWV1QvOWd2ZVl1K0RHWXBqWERsNzVGdzh5TTE4dUNmaGRsYWFBSDkK",
+      "endpoints": [
+        "https://github.com/tommy437/Tommy-Memory-Cleaner/releases/latest/download/latest.json"
+      ]
+    }
+  }
 }

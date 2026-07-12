@@ -11,6 +11,7 @@ pub mod memory_stats;
 pub mod system;
 pub mod theme;
 pub mod ui;
+pub mod updater;
 
 // Re-export commonly used functions for convenient access
 pub use i18n::{get_translation, TranslationState};

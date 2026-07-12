@@ -1,6 +1,8 @@
 name: Release
 
-# Builds the Tauri app for Windows and attaches the installer to a GitHub Release.
+# Builds the portable Tauri app for Windows and attaches the binary + updater
+# signature to a GitHub Release. A latest.json manifest is generated so the
+# built-in auto-updater can discover new versions.
 #
 # Triggers:
 #   - pushing a semver tag (v1.2.3)  -> creates a new DRAFT release for that tag
@@ -32,10 +34,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          # NOTE: npm cache is intentionally not enabled because
-          # TMC/ui/package-lock.json is currently git-ignored. Commit the
-          # lock file and switch to `npm ci` + `cache: npm` for
-          # reproducible, faster builds.
 
       - name: Setup Rust (stable)
         uses: dtolnay/rust-toolchain@stable
@@ -49,27 +47,34 @@ jobs:
         working-directory: ${{ env.FRONTEND_DIR }}
         run: npm install
 
-      # tauri-action:
-      #   - installs the Tauri CLI (none is declared in package.json)
-      #   - runs `tauri build`, which itself runs the configured
-      #     beforeBuildCommand (`npm run build` in TMC/ui) for the
-      #     production frontend bundle
-      #   - creates the draft release (or reuses the one that triggered
-      #     the workflow) and uploads the built artifacts
-      - name: Build and publish Tauri app
+      - name: Build and publish portable Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          # Directory containing src-tauri/
           projectPath: TMC
-          # bundle.targets is [] in tauri.conf.json, so no installer would be
-          # produced by default: request the NSIS installer explicitly
-          # (produces "Tommy Memory Cleaner_<version>_x64-setup.exe")
+          # Build with updater artifacts enabled (tauri.conf.json has
+          # createUpdaterArtifacts: true).  This produces the portable exe
+          # plus its .sig signature file inside target/release/bundle/.
           args: --bundles nsis
-          # Tag from the push, or from the release that triggered the run
           tagName: ${{ github.event.release.tag_name || github.ref_name }}
           releaseName: 'Tommy Memory Cleaner ${{ github.event.release.tag_name || github.ref_name }}'
           releaseBody: 'See the attached assets to download and install this version.'
           releaseDraft: true
           prerelease: false
+
+      # tauri-action already uploads the NSIS exe + .sig and generates
+      # latest.json.  Below we additionally upload the raw portable exe
+      # (the standalone TommyMemoryCleaner.exe from target/release/) so
+      # users who prefer the portable version can grab it directly.
+
+      - name: Upload portable exe to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name || github.ref_name }}
+          files: TMC/src-tauri/target/release/TommyMemoryCleaner.exe
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
