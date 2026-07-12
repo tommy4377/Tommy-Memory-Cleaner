@@ -476,7 +476,7 @@ pub fn cmd_complete_setup(
         .resizable(false)
         .decorations(false)
         .transparent(true)
-        .shadow(false)  // Disabilita shadow per Windows 10
+        .shadow(false)  // Disable shadow for Windows 10
         .skip_taskbar(false)
         .visible(false) // FIX: Create hidden to avoid flash
         .build()

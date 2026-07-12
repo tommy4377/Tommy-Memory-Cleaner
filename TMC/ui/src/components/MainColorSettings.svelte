@@ -9,32 +9,32 @@
   let cfg: Config | null = null
   let unsub: (() => void) | null = null
   
-  // Valore locale per l'input color
+  // Local value for the color input
   let localColor = '#2f58c1'
-  
-  // Stato per il reset
+
+  // Reset state
   let isResetting = false
-  
-  // Flag per impedire aggiornamenti backend durante il drag
+
+  // Flag that blocks backend updates while a drag is in progress
   let isDraggingFromPicker = false
-  
-  // Stati per il drag system come nella tray
+
+  // Drag system state, same approach as the tray settings
   let isDragging = false
   let pendingColor: string | null = null
-  
-  // Debounce più reattivo per evitare rate limiting
+
+  // More responsive debounce to avoid rate limiting
   const debouncedColorChange = debounce(async (color: string) => {
     if (!cfg) return
-    
+
     const theme = cfg.theme === 'light' ? 'light' : 'dark'
-    
-    // Usa updateConfig diretto
+
+    // Use updateConfig directly
     const updates: Partial<Config> = theme === 'light'
       ? { main_color_hex_light: color }
       : { main_color_hex_dark: color }
-    
+
     await updateConfig(updates)
-  }, 100) // Ridotto da 300ms a 100ms per più fluidità
+  }, 100) // Reduced from 300ms to 100ms for smoother feedback
 
   onMount(() => {
     unsub = config.subscribe((v) => {
@@ -52,7 +52,7 @@
   function updateLocalColor() {
     if (!cfg) return
     
-    // Se stiamo draggando dal picker, non aggiornare!
+    // Skip updates while dragging from the picker!
     if (isDraggingFromPicker) {
       return
     }
@@ -65,7 +65,7 @@
     if (newColor !== localColor) {
       localColor = newColor
       
-      // Applica le CSS variables
+      // Apply the CSS variables
       const root = document.documentElement
       root.style.setProperty('--btn-bg', newColor)
       root.style.setProperty('--bar-fill', newColor)
@@ -90,25 +90,25 @@
       return
     }
     
-    // Imposta flag per indicare che stiamo draggendo dal picker
+    // Mark that a drag from the picker is in progress
     isDraggingFromPicker = true
-    
-    // Applica subito il colore per feedback immediato (CSS variables)
+
+    // Apply the color right away for immediate feedback (CSS variables)
     const root = document.documentElement
     root.style.setProperty('--btn-bg', color)
     root.style.setProperty('--bar-fill', color)
     root.style.setProperty('--input-focus', color)
     currentMainColor.set(color)
     
-    // Durante il drag, accumula il colore come nella tray
+    // While dragging, accumulate the color (same approach as the tray)
     pendingColor = color
-    
-    // Se non stiamo draggando, salva subito
+
+    // If not dragging, save immediately
     if (!isDragging) {
       debouncedColorChange(color)
     }
-    
-    // Resetta il flag dopo un breve ritardo
+
+    // Reset the flag after a short delay
     setTimeout(() => {
       isDraggingFromPicker = false
     }, 150)
@@ -117,31 +117,31 @@
   async function resetColor() {
     if (!cfg) return
     
-    // Se è già in stato di reset, fai un fake click (non fare nulla)
+    // If a reset is already in progress, ignore the click
     if (isResetting) {
       return
     }
-    
+
     isResetting = true
-    
-    // Esegui il reset immediatamente
+
+    // Perform the reset immediately
     setTimeout(() => {
       try {
-        // Colori originali del main
+        // Original accent colors
         const theme = cfg?.theme === 'light' ? 'light' : 'dark'
         const defaultMainColor = theme === 'light' ? '#9a8a72' : '#1363b4'
-        
-        // Aggiorna subito il locale per feedback istantaneo
+
+        // Update the local value right away for instant feedback
         localColor = defaultMainColor
-        
-        // Applica subito le CSS variables
+
+        // Apply the CSS variables right away
         const root = document.documentElement
         root.style.setProperty('--btn-bg', defaultMainColor)
         root.style.setProperty('--bar-fill', defaultMainColor)
         root.style.setProperty('--input-focus', defaultMainColor)
         currentMainColor.set(defaultMainColor)
         
-        // Salva nel config
+        // Persist to the config
         const updates: Partial<Config> = theme === 'light'
           ? { main_color_hex_light: defaultMainColor }
           : { main_color_hex_dark: defaultMainColor }
@@ -154,7 +154,7 @@
       } finally {
         isResetting = false
       }
-    }, 0) // Timeout 0 per eseguire dopo il ciclo di render corrente
+    }, 0) // Timeout 0 to run after the current render cycle
   }
   
   function handlePointerDown() {
@@ -166,7 +166,7 @@
     
     isDragging = false
     
-    // Salva il colore pendente se esiste
+    // Save the pending color if there is one
     if (pendingColor) {
       const theme = cfg?.theme === 'light' ? 'light' : 'dark'
       const updates: Partial<Config> = theme === 'light'
@@ -177,11 +177,11 @@
       pendingColor = null
     }
     
-    // Resetta il flag di dragging dal picker
+    // Reset the picker-drag flag
     isDraggingFromPicker = false
   }
-  
-  // Aggiungi listener globali per pointer up
+
+  // Register a global pointer-up listener
   onMount(() => {
     window.addEventListener('pointerup', handlePointerUp)
     return () => window.removeEventListener('pointerup', handlePointerUp)

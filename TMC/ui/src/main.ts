@@ -26,7 +26,7 @@ if (import.meta.env.PROD) {
   })
 }
 
-// Rimuove il loading
+// Remove the loading state once the app has mounted
 setTimeout(() => {
   document.getElementById('app')?.classList.add('loaded')
 }, 100)

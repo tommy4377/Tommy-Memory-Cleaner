@@ -1,57 +1,57 @@
 import { writable, type Writable } from 'svelte/store'
 import type { Config } from './types'
 
-// Store per il colore corrente (debounced)
+// Store for the current accent color (debounced)
 export const currentMainColor: Writable<string> = writable('#2f58c1')
 
-// Cache per evitare aggiornamenti non necessari
+// Cache to skip redundant DOM updates
 let lastAppliedTheme: string | null = null
 let lastAppliedColors: { light?: string; dark?: string } = {}
 
-// Funzione centralizzata per applicare i colori
+// Centralized entry point for applying theme colors
 export function applyThemeColors(config: Config) {
   if (!config) return
 
   const theme = config.theme === 'light' ? 'light' : 'dark'
-  
-  // Evita riapplicazioni non necessarie
+
+  // Skip if the same theme/color combination is already applied
   const cacheKey = theme === 'light' ? 'light' : 'dark'
   const colorToApply = theme === 'light' 
     ? config.main_color_hex_light || config.main_color_hex || '#9a8a72'
     : config.main_color_hex_dark || (config.main_color_hex && config.main_color_hex !== '#9a8a72' ? config.main_color_hex : undefined) || '#0a84ff'
   
   if (lastAppliedTheme === theme && lastAppliedColors[cacheKey] === colorToApply) {
-    return // Già applicato, salta
+    return // Already applied, skip
   }
 
   const root = document.documentElement
-  
-  // Applica il tema
+
+  // Apply the theme attribute
   if (root.getAttribute('data-theme') !== theme) {
     root.setAttribute('data-theme', theme)
   }
-  
-  // Applica le variabili CSS
+
+  // Apply the CSS custom properties
   root.style.setProperty('--btn-bg', colorToApply)
   root.style.setProperty('--bar-fill', colorToApply)
   root.style.setProperty('--input-focus', colorToApply)
-  
-  // Aggiorna la cache
+
+  // Update the cache
   lastAppliedTheme = theme
   lastAppliedColors[cacheKey] = colorToApply
-  
-  // Aggiorna lo store reattivo
+
+  // Update the reactive store
   currentMainColor.set(colorToApply)
 }
 
-// Funzione per resettare i colori
+// Builds the config updates needed to reset colors to theme defaults
 export function resetThemeColors(config: Config) {
   if (!config) return
   
   const theme = config.theme === 'light' ? 'light' : 'dark'
   const defaultColor = theme === 'dark' ? '#2f58c1' : '#9a8a72'
   
-  // Resetta entrambi i campi per consistenza
+  // Reset both fields to keep them consistent
   const updates: Partial<Config> = {
     main_color_hex: defaultColor,
     main_color_hex_light: theme === 'light' ? defaultColor : config.main_color_hex_light,
@@ -61,7 +61,7 @@ export function resetThemeColors(config: Config) {
   return updates
 }
 
-// Debounce utility con gestione della coda
+// Debounce utility with queue handling
 let updateQueue: Partial<Config>[] = []
 let isProcessingQueue = false
 
@@ -77,7 +77,7 @@ export function debounce<T extends (...args: any[]) => any>(
   }
 }
 
-// Sistema di coda per gestire il rate limiting
+// Queue system that rate-limits config updates
 async function processUpdateQueue() {
   if (isProcessingQueue || updateQueue.length === 0) return
   

@@ -150,13 +150,13 @@ impl Profile {
     pub fn get_memory_areas(&self) -> Areas {
         match self {
             Profile::Normal => {
-                // Profilo Normal: Working Set + Registry Cache + Standby List (Low Priority)
-                // - Liberazione immediata senza latenza percepibile
+                // Normal profile: Working Set + Registry Cache + Standby List (Low Priority)
+                // - Immediate freeing with no perceptible latency
                 // ~540MB Working Set + ~1.86MB Registry Cache
                 // - Uses aggressive optimizations for maximum performance
                 let mut areas = Areas::WORKING_SET | Areas::REGISTRY_CACHE;
-                
-                // Aggiunge Standby List Low Priority se disponibile
+
+                // Add Standby List Low Priority if available
                 if crate::os::has_standby_list_low() {
                     areas |= Areas::STANDBY_LIST_LOW;
                 }
@@ -164,21 +164,21 @@ impl Profile {
                 areas
             }
             Profile::Balanced => {
-                // Profilo Balanced: Include Normal + System File Cache + File Cache + Standby List (Full)
-                // - Refresh profondo del sistema dopo uso intenso
+                // Balanced profile: Includes Normal + System File Cache + File Cache + Standby List (Full)
+                // - Deep system refresh after intensive use
                 // - Uses aggressive optimizations for maximum performance
                 let mut areas = Areas::WORKING_SET | Areas::REGISTRY_CACHE;
-                
-                // Aggiunge aree aggiuntive
+
+                // Add additional areas
                 areas |= Areas::SYSTEM_FILE_CACHE;
                 areas |= Areas::STANDBY_LIST;
-                
-                // Standby List Low Priority se disponibile
+
+                // Standby List Low Priority if available
                 if crate::os::has_standby_list_low() {
                     areas |= Areas::STANDBY_LIST_LOW;
                 }
-                
-                // Modified File Cache se disponibile
+
+                // Modified File Cache if available
                 if crate::os::has_modified_file_cache() {
                     areas |= Areas::MODIFIED_FILE_CACHE;
                 }
@@ -186,19 +186,19 @@ impl Profile {
                 areas
             }
             Profile::Gaming => {
-                // Profilo Gaming: Include Balanced + Modified Page List + Combined Page List
-                // - Reset totale per gaming, tabula rasa della RAM
+                // Gaming profile: Includes Balanced + Modified Page List + Combined Page List
+                // - Total reset for gaming, a clean slate for RAM
                 // - Uses undocumented techniques for maximum performance
                 let mut areas = Areas::WORKING_SET | Areas::REGISTRY_CACHE;
-                
-                // Tutte le aree del profilo Balanced
+
+                // All areas from the Balanced profile
                 areas |= Areas::SYSTEM_FILE_CACHE;
                 areas |= Areas::STANDBY_LIST;
-                
-                // Aree aggiuntive per gaming
+
+                // Additional areas for gaming
                 areas |= Areas::MODIFIED_PAGE_LIST;
-                
-                // Aree dipendenti dalla versione Windows
+
+                // Areas dependent on the Windows version
                 if crate::os::has_standby_list_low() {
                     areas |= Areas::STANDBY_LIST_LOW;
                 }
@@ -560,7 +560,7 @@ impl Config {
             }
         } else {
             let mut default = Self::default();
-            // FIX: Prova a caricare tutte le impostazioni dall'installer se esiste
+            // FIX: Try to load all settings from the installer if it exists
             if let Some(installer_json) = Self::load_installer_settings() {
                 if let Some(lang) = installer_json.get("language").and_then(|v| v.as_str()) {
                     default.language = lang.to_string();
@@ -742,7 +742,7 @@ impl Config {
                         // TODO: Use tokio::time::sleep when save() is made async
                         std::thread::sleep(std::time::Duration::from_millis(30 * attempt as u64));
                     } else {
-                        // Ultimo tentativo fallito, ripristina backup
+                        // Last attempt failed, restore backup
                         if backup_path.exists() && path.exists() {
                             let _ = fs::copy(&backup_path, &path);
                         }

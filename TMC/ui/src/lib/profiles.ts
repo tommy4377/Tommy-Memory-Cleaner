@@ -4,14 +4,14 @@ import { AreasFlag } from './types'
 export function areasForProfile(profile: Profile): Areas {
   switch (profile) {
     case 'Normal':
-      // Profilo Normal: Working Set + Registry Cache + Standby List (Low Priority)
-      // - Liberazione immediata senza latenza percepibile
+      // Normal profile: Working Set + Registry Cache + Standby List (Low Priority)
+      // - Immediate memory release with no perceptible latency
       // ~540MB Working Set + ~1.86MB Registry Cache
-      // NOTA: MODIFIED_PAGE_LIST non è incluso nel profilo Normal (come da specifiche utente)
+      // NOTE: MODIFIED_PAGE_LIST is intentionally excluded from the Normal profile (per user spec)
       return AreasFlag.WORKING_SET | AreasFlag.REGISTRY_CACHE | AreasFlag.STANDBY_LIST_LOW
     case 'Balanced':
-      // Profilo Balanced: Include Normal + System File Cache + File Cache + Standby List (Full)
-      // - Refresh profondo del sistema dopo uso intenso
+      // Balanced profile: Normal areas + System File Cache + File Cache + Standby List (full)
+      // - Deep system refresh after heavy usage
       return (
         AreasFlag.WORKING_SET |
         AreasFlag.REGISTRY_CACHE |
@@ -21,8 +21,8 @@ export function areasForProfile(profile: Profile): Areas {
         AreasFlag.STANDBY_LIST_LOW
       )
     case 'Gaming':
-      // Profilo Gaming: Include Balanced + Modified Page List + Combined Page List
-      // - Reset totale per gaming, tabula rasa della RAM
+      // Gaming profile: Balanced areas + Modified Page List + Combined Page List
+      // - Full RAM reset, clean slate for gaming sessions
       return (
         AreasFlag.WORKING_SET |
         AreasFlag.REGISTRY_CACHE |
@@ -51,7 +51,7 @@ export function areaNamesForAreas(areas: Areas): string[] {
   return names
 }
 
-// Nuova funzione per convertire il numero in stringa di flag
+// Converts the numeric bitmask into a pipe-separated flag string for the backend
 export function areasToString(areas: Areas): string {
   const flags: string[] = []
 
@@ -67,7 +67,7 @@ export function areasToString(areas: Areas): string {
   return flags.join('|')
 }
 
-// Funzione per convertire da stringa a numero (se necessario)
+// Converts a pipe-separated flag string back into the numeric bitmask
 export function stringToAreas(flagString: string): Areas {
   const flags = flagString.split('|')
   let areas = 0

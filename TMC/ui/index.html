@@ -9,7 +9,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
     <link rel="icon" type="image/png" sizes="128x128" href="/icon-128.png" />
     <style>
-      /* Reset iniziale */
+      /* Base reset */
       * {
         margin: 0;
         padding: 0;
@@ -27,10 +27,12 @@
         outline: none;
         margin: 0;
         padding: 0;
-        border-radius: 10px;
+        /* Platform-aware radius, kept in sync with the app root
+           (16px on Windows 10, 0px on Windows 11 where DWM rounds natively) */
+        border-radius: var(--window-border-radius, 16px);
       }
 
-      /* Rimuove il bordo rettangolare su Windows 10 per finestre trasparenti */
+      /* Remove the rectangular border on Windows 10 for transparent windows */
       body {
         border: none !important;
         outline: none !important;
@@ -47,7 +49,7 @@
         opacity: 1;
       }
 
-      /* Disabilita selezione per elementi non interattivi */
+      /* Disable text selection for non-interactive elements */
       body {
         -webkit-user-select: none;
         user-select: none;
@@ -56,7 +58,7 @@
           'Helvetica Neue', Arial, sans-serif;
       }
 
-      /* Permetti selezione per elementi form */
+      /* Allow selection for form elements */
       input,
       select,
       textarea,
@@ -68,13 +70,13 @@
         cursor: auto !important;
       }
 
-      /* Gestione drag regions */
+      /* Drag region handling */
       * {
         -webkit-app-region: no-drag;
       }
 
-      /* Rimuoviamo data-tauri-drag-region per permettere cursore personalizzato */
-      /* Il drag viene gestito manualmente con startDragging() */
+      /* data-tauri-drag-region is not used so a custom cursor can be shown */
+      /* Window dragging is handled manually via startDragging() */
 
       [data-tauri-drag-region] button,
       [data-tauri-drag-region] input,
@@ -89,7 +91,7 @@
         cursor: url('/cursors/dark/hand.cur'), pointer !important;
       }
 
-      /* Rimuovi outline di focus predefinito */
+      /* Remove the default focus outline */
       :focus {
         outline: none;
       }
@@ -100,7 +102,7 @@
         outline-offset: 2px;
       }
 
-      /* Scrollbar personalizzata */
+      /* Custom scrollbar */
       ::-webkit-scrollbar {
         width: 6px;
         height: 6px;

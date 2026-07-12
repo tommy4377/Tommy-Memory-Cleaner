@@ -8,9 +8,11 @@ use tauri::{AppHandle, State};
 
 /// Restarts the application with elevated privileges.
 ///
-/// Persists the elevation preference in config so future launches auto-elevate,
-/// then uses Tauri's graceful shutdown to exit the current process after
-/// launching the elevated instance.
+/// Persists the elevation preference in config BEFORE launching, because the
+/// new elevated instance reads it at startup to create the silent-elevation
+/// scheduled task. If the launch fails (e.g., the user declines the UAC
+/// prompt), the previous preference is restored so the next startup does not
+/// prompt unexpectedly, and the current process keeps running.
 #[tauri::command]
 pub fn cmd_restart_with_elevation(
     app: AppHandle,
@@ -19,20 +21,35 @@ pub fn cmd_restart_with_elevation(
     #[cfg(windows)]
     {
         // Persist the elevation preference so future launches auto-elevate
-        {
+        let previous_preference = {
             let mut cfg = state
                 .cfg
                 .lock()
                 .map_err(|_| "Config lock poisoned".to_string())?;
+            let previous = cfg.request_elevation_on_startup;
             cfg.request_elevation_on_startup = true;
             if let Err(e) = cfg.save() {
                 tracing::warn!("Failed to save elevation preference: {}", e);
             }
+            previous
+        };
+
+        if let Err(e) = crate::restart_with_elevation(&app) {
+            // The elevated instance did not start: roll back the preference
+            // if we were the ones who flipped it on.
+            if !previous_preference {
+                if let Ok(mut cfg) = state.cfg.lock() {
+                    cfg.request_elevation_on_startup = false;
+                    if let Err(save_err) = cfg.save() {
+                        tracing::warn!("Failed to roll back elevation preference: {}", save_err);
+                    }
+                }
+            }
+            return Err(e.to_string());
         }
-        
-        crate::restart_with_elevation(&app).map_err(|e| e.to_string())
+        Ok(())
     }
-    
+
     #[cfg(not(windows))]
     {
         let _ = app;

@@ -13,14 +13,14 @@ const EVENT_SOURCE: &str = "TommyMemoryCleaner";
 const REGISTRY_PATH: &str =
     r"SYSTEM\CurrentControlSet\Services\EventLog\Application\TommyMemoryCleaner";
 
-// Event IDs per diversi tipi di eventi
+// Event IDs for different event types
 const EVENT_ID_STARTUP: u32 = 100;
 const EVENT_ID_SHUTDOWN: u32 = 200;
 const EVENT_ID_OPTIMIZATION: u32 = 1000;
 const EVENT_ID_AUTO_OPTIMIZATION: u32 = 1100;
 const EVENT_ID_ERROR: u32 = 2000;
 
-// Wrapper thread-safe per HANDLE
+// Thread-safe wrapper for HANDLE
 struct SafeHandle {
     handle: *mut std::ffi::c_void,
 }
@@ -54,14 +54,14 @@ impl Drop for SafeHandle {
     }
 }
 
-// Logger principale con Arc per condivisione thread-safe
+// Main logger with Arc for thread-safe sharing
 struct EventLoggerInner {
     handle: SafeHandle,
 }
 
 impl EventLoggerInner {
     fn new() -> Result<Self> {
-        // Auto-registra se necessario
+        // Auto-register if necessary
         Self::ensure_event_source_registered();
 
         unsafe {
@@ -70,7 +70,7 @@ impl EventLoggerInner {
 
             // HANDLE in windows-sys is isize, so compare with 0
             if handle == std::ptr::null_mut() {
-                // Fallback: prova con Application direttamente
+                // Fallback: try with Application directly
                 let app_source = to_wide("Application");
                 let fallback_handle = RegisterEventSourceW(null_mut(), app_source.as_ptr());
 
@@ -98,7 +98,7 @@ impl EventLoggerInner {
             let mut hkey: HKEY = std::ptr::null_mut();
             let path = to_wide(REGISTRY_PATH);
 
-            // Prova a creare/aprire la chiave del registro
+            // Try to create/open the registry key
             let result = RegCreateKeyExW(
                 HKEY_LOCAL_MACHINE,
                 path.as_ptr(),
@@ -113,12 +113,12 @@ impl EventLoggerInner {
 
             // HKEY in windows-sys is isize, so compare with 0
             if result != 0 || hkey == std::ptr::null_mut() {
-                // Non riusciamo a creare la chiave, probabilmente non siamo admin
-                // Non è un errore critico, continua comunque
+                // Couldn't create the key, likely not running as admin
+                // Not a critical error, continue anyway
                 return;
             }
 
-            // Imposta EventMessageFile
+            // Set EventMessageFile
             if let Ok(exe_path) = std::env::current_exe() {
                 if let Some(exe_str) = exe_path.to_str() {
                     let exe_wide = to_wide(exe_str);
@@ -135,7 +135,7 @@ impl EventLoggerInner {
                 }
             }
 
-            // Imposta TypesSupported
+            // Set TypesSupported
             let types_name = to_wide("TypesSupported");
             let types_value: u32 = EVENTLOG_ERROR_TYPE as u32
                 | EVENTLOG_WARNING_TYPE as u32
@@ -150,7 +150,7 @@ impl EventLoggerInner {
                 4,
             );
 
-            // Imposta CategoryCount
+            // Set CategoryCount
             let cat_name = to_wide("CategoryCount");
             let cat_value: u32 = 0;
 
@@ -173,13 +173,13 @@ impl EventLoggerInner {
         }
 
         unsafe {
-            // FIX: Assicurati che il buffer rimanga valido durante la chiamata
-            // Converti il messaggio in wide string e mantienilo in scope
+            // FIX: Make sure the buffer stays valid during the call
+            // Convert the message to a wide string and keep it in scope
             let msg_wide = to_wide(message);
 
-            // FIX: Limita la lunghezza del messaggio per evitare overflow
-            // Windows Event Log ha un limite di ~32KB per messaggio
-            let max_len = 30000; // Limite sicuro
+            // FIX: Limit the message length to avoid overflow
+            // Windows Event Log has a limit of ~32KB per message
+            let max_len = 30000; // Safe limit
             let msg_wide = if msg_wide.len() > max_len {
                 let mut truncated = msg_wide[..max_len].to_vec();
                 truncated.push(0); // Null terminator
@@ -190,12 +190,12 @@ impl EventLoggerInner {
 
             let msg_ptr = msg_wide.as_ptr();
 
-            // FIX: Crea l'array di stringhe in modo sicuro
-            // Il puntatore deve rimanere valido durante la chiamata
+            // FIX: Build the string array safely
+            // The pointer must remain valid during the call
             let strings: [*const u16; 1] = [msg_ptr];
 
-            // FIX: Assicurati che il vettore non venga deallocato durante la chiamata
-            // Manteniamo msg_wide in scope fino alla fine
+            // FIX: Make sure the vector isn't deallocated during the call
+            // Keep msg_wide in scope until the end
             let result = ReportEventW(
                 self.handle.as_handle(),
                 event_type,
@@ -208,12 +208,12 @@ impl EventLoggerInner {
                 null_mut(), // raw data
             );
 
-            // msg_wide rimane valido fino a qui
+            // msg_wide remains valid up to this point
 
             if result == 0 {
                 let error = GetLastError();
                 tracing::debug!("Failed to write event log entry: {}", error);
-                // Non propaghiamo l'errore per non bloccare l'app
+                // We don't propagate the error so as not to block the app
             }
 
             Ok(())
@@ -234,7 +234,7 @@ static EVENT_LOGGER: Lazy<Arc<Mutex<Option<EventLoggerInner>>>> =
         }
     });
 
-// Helper per convertire stringhe in wide strings Windows
+// Helper to convert strings to Windows wide strings
 fn to_wide(s: &str) -> Vec<u16> {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
@@ -245,7 +245,7 @@ fn to_wide(s: &str) -> Vec<u16> {
         .collect()
 }
 
-// Funzione helper per ottenere timestamp formattato
+// Helper function to get a formatted timestamp
 fn get_timestamp() -> String {
     use windows_sys::Win32::Foundation::SYSTEMTIME;
     use windows_sys::Win32::System::SystemInformation::GetLocalTime;
@@ -260,17 +260,17 @@ fn get_timestamp() -> String {
     )
 }
 
-// ========== FUNZIONI PUBBLICHE ==========
+// ========== PUBLIC FUNCTIONS ==========
 
-/// Log dell'avvio dell'applicazione
+/// Logs application startup
 pub fn log_startup_event(version: &str, config_loaded: bool) {
-    // FIX: Limita la lunghezza del messaggio per evitare problemi
+    // FIX: Limit the message length to avoid issues
     let exe_path = std::env::current_exe()
         .unwrap_or_default()
         .to_string_lossy()
         .to_string();
 
-    // Limita la lunghezza del path se troppo lungo
+    // Limit the path length if it's too long
     let exe_display = if exe_path.len() > 200 {
         format!("{}...", &exe_path[..200])
     } else {
@@ -289,7 +289,7 @@ pub fn log_startup_event(version: &str, config_loaded: bool) {
     write_log(EVENTLOG_INFORMATION_TYPE, EVENT_ID_STARTUP, &message);
 }
 
-/// Log dello shutdown dell'applicazione
+/// Logs application shutdown
 pub fn log_shutdown_event() {
     let message = format!(
         "Tommy Memory Cleaner Shutdown\n\
@@ -303,7 +303,7 @@ pub fn log_shutdown_event() {
     write_log(EVENTLOG_INFORMATION_TYPE, EVENT_ID_SHUTDOWN, &message);
 }
 
-/// Log di un'ottimizzazione completata
+/// Logs a completed optimization
 pub fn log_optimization_event(
     memory_freed_mb: f64,
     profile: &str,
@@ -351,7 +351,7 @@ pub fn log_optimization_event(
     write_log(event_type, EVENT_ID_OPTIMIZATION, &message);
 }
 
-/// Log di un'ottimizzazione automatica
+/// Logs an automatic optimization
 pub fn log_auto_optimization_event(reason: &str, threshold: u8) {
     let message = format!(
         "Automatic Optimization Triggered\n\
@@ -371,7 +371,7 @@ pub fn log_auto_optimization_event(reason: &str, threshold: u8) {
     );
 }
 
-/// Log di un errore generico
+/// Logs a generic error
 pub fn log_error_event(error: &str) {
     let message = format!(
         "Tommy Memory Cleaner Error\n\
@@ -385,7 +385,7 @@ pub fn log_error_event(error: &str) {
     write_log(EVENTLOG_ERROR_TYPE, EVENT_ID_ERROR, &message);
 }
 
-// Funzione helper interna per scrivere i log
+// Internal helper function to write log entries
 fn write_log(event_type: u16, event_id: u32, message: &str) {
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let guard = EVENT_LOGGER.lock();

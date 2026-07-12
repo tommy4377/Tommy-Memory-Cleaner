@@ -1,25 +1,25 @@
 #[cfg(windows)]
 use tauri::AppHandle;
 
-// Helper per convertire ICO in PNG ad alta risoluzione
+// Helper to convert ICO to high-resolution PNG
 #[cfg(windows)]
 fn convert_ico_to_highres_png(ico_data: &[u8]) -> Result<Vec<u8>, String> {
-    // Carica l'ICO usando image::load_from_memory che gestisce automaticamente il formato
+    // Load the ICO using image::load_from_memory, which handles the format automatically
     let img =
         image::load_from_memory(ico_data).map_err(|e| format!("Failed to load ICO: {}", e))?;
 
-    // Converti in RGBA8
+    // Convert to RGBA8
     let rgba_img = img.to_rgba8();
 
-    // Resize a 256x256 (alta risoluzione per Windows Toast)
+    // Resize to 256x256 (high resolution for Windows Toast)
     let resized =
         image::imageops::resize(&rgba_img, 256, 256, image::imageops::FilterType::Lanczos3);
 
-    // Codifica come PNG usando DynamicImage::save (API image 0.25)
-    // Converti RgbaImage in DynamicImage per poter usare save
+    // Encode as PNG using DynamicImage::save (image API 0.25)
+    // Convert RgbaImage to DynamicImage in order to use save
     let dynamic_img = image::DynamicImage::ImageRgba8(resized);
 
-    // Salva in un buffer in memoria usando il metodo save_with_format
+    // Save to an in-memory buffer using the save_with_format method
     let mut png_data = Vec::new();
     {
         let mut cursor = std::io::Cursor::new(&mut png_data);
@@ -31,18 +31,18 @@ fn convert_ico_to_highres_png(ico_data: &[u8]) -> Result<Vec<u8>, String> {
     Ok(png_data)
 }
 
-// Helper per ottenere il percorso dell'icona PNG ad alta risoluzione accessibile
-// Windows Toast funziona meglio con PNG ad alta risoluzione (128x128 o più grande) invece di ICO
+// Helper to get the path to an accessible high-resolution PNG icon
+// Windows Toast works better with high-resolution PNG (128x128 or larger) instead of ICO
 #[cfg(windows)]
 fn ensure_notification_icon_available() -> Option<std::path::PathBuf> {
     use std::fs;
 
-    // Prova prima a leggere PNG 128x128 dalla directory runtime (se distribuito con l'app)
-    // Altrimenti usa ICO embedded e convertilo in PNG usando la libreria image
+    // Try reading a 128x128 PNG from the runtime directory first (if bundled with the app)
+    // Otherwise use the embedded ICO and convert it to PNG using the image library
     let (icon_data, icon_ext) = {
         let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
 
-        // Prova a leggere PNG dalla directory runtime (se l'app è distribuita con le icone)
+        // Try reading PNG from the runtime directory (if the app ships with icons)
         if let Ok(png_data) = fs::read(exe_dir.join("icons").join("128x128.png")) {
             (png_data, "png")
         } else if let Ok(png_data) = fs::read(exe_dir.join("128x128.png")) {
@@ -52,8 +52,8 @@ fn ensure_notification_icon_available() -> Option<std::path::PathBuf> {
         } else if let Ok(png_data) = fs::read(exe_dir.join("icon.png")) {
             (png_data, "png")
         } else {
-            // Fallback: converti ICO embedded in PNG 256x256 ad alta risoluzione
-            // Questo risolve il problema della sgranatura
+            // Fallback: convert the embedded ICO to a high-resolution 256x256 PNG
+            // This fixes the pixelation/blurriness issue
             match convert_ico_to_highres_png(include_bytes!("../../icons/icon.ico")) {
                 Ok(png_data) => {
                     tracing::debug!(
@@ -69,13 +69,13 @@ fn ensure_notification_icon_available() -> Option<std::path::PathBuf> {
         }
     };
 
-    // Prova a salvare l'icona nella directory dati dell'app
+    // Try to save the icon in the app's data directory
     let icon_path = {
         let detector = crate::config::get_portable_detector();
         detector.data_dir().join(format!("icon.{}", icon_ext))
     };
 
-    // Crea la directory se non esiste
+    // Create the directory if it doesn't exist
     if let Some(parent) = icon_path.parent() {
         if let Err(e) = fs::create_dir_all(parent) {
             tracing::warn!("Failed to create icon directory: {}", e);
@@ -83,11 +83,11 @@ fn ensure_notification_icon_available() -> Option<std::path::PathBuf> {
         }
     }
 
-    // Copia l'icona solo se non esiste o se è stata modificata
-    // Controlla se il file esiste e ha la stessa dimensione
+    // Copy the icon only if it doesn't exist or has changed
+    // Check whether the file exists and has the same size
     let needs_copy = match fs::metadata(&icon_path) {
         Ok(meta) => meta.len() != icon_data.len() as u64,
-        Err(_) => true, // File non esiste, devi copiarlo
+        Err(_) => true, // File doesn't exist, needs to be copied
     };
 
     if needs_copy {
@@ -269,7 +269,7 @@ pub fn register_app_for_notifications() {
     use windows_sys::Win32::System::Registry::{RegSetValueExW, HKEY_CURRENT_USER, REG_SZ};
 
     let _app_id = "TommyMemoryCleaner";
-    // Usa to_string_lossy() per gestire correttamente i percorsi con caratteri Unicode
+    // Use to_string_lossy() to correctly handle paths with Unicode characters
     let exe_path = std::env::current_exe()
         .unwrap_or_default()
         .to_string_lossy()
@@ -280,19 +280,19 @@ pub fn register_app_for_notifications() {
         return;
     }
 
-    // Registra AppUserModelID nel registro con DisplayName e IconUri
-    // IMPORTANTE: Windows richiede che questa registrazione avvenga PRIMA di qualsiasi notifica
-    // USIAMO "TommyMemoryCleaner" come AppUserModelID per mostrare un nome user-friendly nelle notifiche
+    // Register AppUserModelID in the registry with DisplayName and IconUri
+    // IMPORTANT: Windows requires this registration to happen BEFORE any notification
+    // WE USE "TommyMemoryCleaner" as the AppUserModelID to show a user-friendly name in notifications
     let key_path = r"Software\Classes\AppUserModelId\TommyMemoryCleaner";
     let display_name = "Tommy Memory Cleaner";
 
-    // Elimina ricorsivamente la chiave esistente per forzare la ricreazione (utile se è stata modificata)
-    // Usa SHDeleteKey per eliminare anche le sottocartelle
+    // Recursively delete the existing key to force re-creation (useful if it was modified)
+    // Use SHDeleteKey to also remove subkeys
     unsafe {
         use windows_sys::Win32::System::Registry::{
             RegCloseKey, RegDeleteKeyW, RegOpenKeyExW, KEY_ALL_ACCESS,
         };
-        // Prova prima ad aprire la chiave per verificare se esiste
+        // First try opening the key to check whether it exists
         let key_path_wide: Vec<u16> = OsStr::new(key_path).encode_wide().chain(Some(0)).collect();
         let mut hkey_test: windows_sys::Win32::Foundation::HANDLE = std::ptr::null_mut();
         let open_result = RegOpenKeyExW(
@@ -304,7 +304,7 @@ pub fn register_app_for_notifications() {
         );
         if open_result == 0 && hkey_test != std::ptr::null_mut() {
             RegCloseKey(hkey_test);
-            // Elimina la chiave - potrebbe richiedere più tentativi
+            // Delete the key - may require multiple attempts
             let delete_result = RegDeleteKeyW(HKEY_CURRENT_USER, key_path_wide.as_ptr());
             if delete_result != 0 {
                 tracing::debug!(
@@ -317,13 +317,13 @@ pub fn register_app_for_notifications() {
         }
     }
 
-    // Prova a usare un file .ico dedicato per migliori risultati con Windows Toast
-    // Fallback all'exe se non riesce
+    // Try to use a dedicated .ico file for better results with Windows Toast
+    // Fall back to the exe if it fails
     let icon_path = ensure_notification_icon_available()
         .and_then(|p| p.to_str().map(|s| s.to_string()))
         .unwrap_or_else(|| exe_path.clone());
 
-    // Converti stringhe a wide strings
+    // Convert strings to wide strings
     let key_path_wide: Vec<u16> = OsStr::new(key_path).encode_wide().chain(Some(0)).collect();
     let display_name_wide: Vec<u16> = OsStr::new(display_name)
         .encode_wide()
@@ -331,7 +331,7 @@ pub fn register_app_for_notifications() {
         .collect();
 
     unsafe {
-        // Crea la chiave se non esiste e imposta i valori
+        // Create the key if it doesn't exist and set the values
         let mut hkey: windows_sys::Win32::Foundation::HANDLE = std::ptr::null_mut();
         let result = windows_sys::Win32::System::Registry::RegCreateKeyExW(
             HKEY_CURRENT_USER,
@@ -346,7 +346,7 @@ pub fn register_app_for_notifications() {
         );
 
         if result == 0 {
-            // Imposta DisplayName
+            // Set DisplayName
             let display_name_value: Vec<u16> = OsStr::new("DisplayName")
                 .encode_wide()
                 .chain(Some(0))
@@ -360,7 +360,7 @@ pub fn register_app_for_notifications() {
                 (display_name_wide.len() * 2) as u32,
             );
 
-            // Imposta IconUri
+            // Set IconUri
             let icon_uri_value: Vec<u16> =
                 OsStr::new("IconUri").encode_wide().chain(Some(0)).collect();
             let icon_path_wide: Vec<u16> = OsStr::new(&icon_path)

@@ -64,9 +64,9 @@ export interface Config {
   font_size: number
   language: string
   theme: string // "light" or "dark"
-  main_color_hex: string // Colore principale personalizzabile (deprecated, usa main_color_hex_light/dark)
-  main_color_hex_light: string // Colore principale per light theme
-  main_color_hex_dark: string // Colore principale per dark theme
+  main_color_hex: string // Customizable accent color (deprecated, use main_color_hex_light/dark)
+  main_color_hex_light: string // Accent color for the light theme
+  main_color_hex_dark: string // Accent color for the dark theme
 
   profile: Profile
   memory_areas: Areas

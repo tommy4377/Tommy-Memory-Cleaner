@@ -4,7 +4,7 @@ pub mod startup;
 pub mod window;
 pub mod elevated_task;
 
-/// Verifica se il processo corrente è eseguito con privilegi amministratore
+/// Checks whether the current process is running with administrator privileges
 #[cfg(windows)]
 pub fn is_app_elevated() -> bool {
     unsafe {
@@ -45,7 +45,7 @@ pub fn is_app_elevated() -> bool {
             return false;
         }
 
-        // Usa scopeguard per garantire la chiusura del token
+        // Use scopeguard to guarantee the token is closed
         // HANDLE in windows-sys is isize, so compare with 0
         let _guard = scopeguard::guard(token, |t: HANDLE| {
             if t != std::ptr::null_mut() {

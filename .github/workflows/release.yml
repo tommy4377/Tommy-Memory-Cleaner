@@ -1,0 +1,75 @@
+name: Release
+
+# Builds the Tauri app for Windows and attaches the installer to a GitHub Release.
+#
+# Triggers:
+#   - pushing a semver tag (v1.2.3)  -> creates a new DRAFT release for that tag
+#   - creating a release manually    -> builds and uploads the assets to it
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  release:
+    types: [created]
+
+# Required so the GITHUB_TOKEN can create the release and upload assets
+permissions:
+  contents: write
+
+env:
+  # Project lives in a subfolder: TMC/src-tauri (backend) + TMC/ui (frontend)
+  FRONTEND_DIR: TMC/ui
+
+jobs:
+  release-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          # NOTE: npm cache is intentionally not enabled because
+          # TMC/ui/package-lock.json is currently git-ignored. Commit the
+          # lock file and switch to `npm ci` + `cache: npm` for
+          # reproducible, faster builds.
+
+      - name: Setup Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: TMC/src-tauri -> target
+
+      - name: Install frontend dependencies
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: npm install
+
+      # tauri-action:
+      #   - installs the Tauri CLI (none is declared in package.json)
+      #   - runs `tauri build`, which itself runs the configured
+      #     beforeBuildCommand (`npm run build` in TMC/ui) for the
+      #     production frontend bundle
+      #   - creates the draft release (or reuses the one that triggered
+      #     the workflow) and uploads the built artifacts
+      - name: Build and publish Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Directory containing src-tauri/
+          projectPath: TMC
+          # bundle.targets is [] in tauri.conf.json, so no installer would be
+          # produced by default: request the NSIS installer explicitly
+          # (produces "Tommy Memory Cleaner_<version>_x64-setup.exe")
+          args: --bundles nsis
+          # Tag from the push, or from the release that triggered the run
+          tagName: ${{ github.event.release.tag_name || github.ref_name }}
+          releaseName: 'Tommy Memory Cleaner ${{ github.event.release.tag_name || github.ref_name }}'
+          releaseBody: 'See the attached assets to download and install this version.'
+          releaseDraft: true
+          prerelease: false

@@ -43,12 +43,12 @@
   }
 
   function handleDragStart(e: Event) {
-    // Previene il drag dei pulsanti
+    // Prevent the buttons from being dragged
     e.preventDefault()
   }
 
   function handleDragOver(e: DragEvent) {
-    // Previene il comportamento di default del drag
+    // Prevent the default drag behavior
     e.preventDefault()
   }
 
@@ -57,7 +57,7 @@
     const areas = areasForProfile(selected)
     const areaNames: string[] = []
 
-    // Usa l'ordine e i nomi specifici per ogni area
+    // Use the specific display order and name for each area
     if (areas & 128) areaNames.push(t_func('Working Set'))
     if (areas & 4) areaNames.push(t_func('Modified Pages'))
     if (areas & 16) areaNames.push(t_func('Standby List'))
@@ -139,7 +139,7 @@
     -ms-user-select: none;
   }
 
-  /* Effetto shimmer per i bottoni dei profili quando sono attivi */
+  /* Shimmer effect for profile buttons while active */
   .seg button.active::after {
     content: '';
     position: absolute;

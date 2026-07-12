@@ -44,7 +44,7 @@
     return `${value.toFixed(1)} GB`
   }
 
-  // Manteniamo il font leggibile ma compatto
+  // Keep the font readable but compact
   $: fontSize = totalFreedGB >= 10 ? '14px' : '15px'
 </script>
 

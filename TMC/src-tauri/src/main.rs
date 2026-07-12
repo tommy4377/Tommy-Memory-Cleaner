@@ -106,51 +106,140 @@ fn to_wide(s: &str) -> Vec<u16> {
 }
 
 // ============= PRIVILEGE MANAGEMENT =============
-/// Restart the application with elevated privileges
-///
-/// This function launches a new instance of the application with admin rights
-/// via ShellExecuteW "runas", then gracefully exits the current process using
-/// Tauri's shutdown mechanism to ensure all cleanup hooks run.
-#[cfg(windows)]
-fn restart_with_elevation(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    use std::env;
-    use windows_sys::Win32::UI::Shell::ShellExecuteW;
-    use windows_sys::Win32::Foundation::GetLastError;
-    
-    let current_exe = env::current_exe()?;
-    let exe_path = current_exe.to_string_lossy();
-    
-    tracing::info!("Restarting application with elevated privileges...");
-    
-    // Close the single-instance mutex BEFORE launching the new elevated process.
-    // If we don't, the new instance will see ERROR_ALREADY_EXISTS and self-terminate.
-    close_single_instance_mutex();
 
-    // Keep the wide string alive for the duration of the call
+/// Re-create the single-instance mutex after a failed elevation attempt.
+///
+/// `close_single_instance_mutex()` must be called before launching an elevated
+/// instance; if that launch fails (e.g., the user declines the UAC prompt),
+/// this restores single-instance protection for the still-running process.
+#[cfg(windows)]
+fn reacquire_single_instance_mutex() {
+    use windows_sys::Win32::Foundation::{GetLastError, ERROR_ACCESS_DENIED, ERROR_ALREADY_EXISTS};
+    use windows_sys::Win32::System::Threading::CreateMutexW;
+
+    let mut guard = SINGLE_INSTANCE_MUTEX_HANDLE.lock();
+    if guard.is_some() {
+        return; // Already held
+    }
+
+    // Same name/fallback strategy as the acquisition in main()
+    let global_name = to_wide("Global\\TommyMemoryCleaner_SingleInstance");
+    let local_name = to_wide("TommyMemoryCleaner_SingleInstance");
+
+    let handle = unsafe { CreateMutexW(std::ptr::null_mut(), 1, global_name.as_ptr()) };
+    let handle = if handle.is_null() && unsafe { GetLastError() } == ERROR_ACCESS_DENIED {
+        unsafe { CreateMutexW(std::ptr::null_mut(), 1, local_name.as_ptr()) }
+    } else {
+        handle
+    };
+
+    if !handle.is_null() {
+        if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS as u32 {
+            // An elevated instance came up despite the reported failure;
+            // it now owns single-instance protection.
+            tracing::warn!("Mutex already exists while reacquiring - an elevated instance may be running");
+        }
+        *guard = Some(handle as usize);
+        tracing::info!("Single-instance mutex reacquired after failed elevation");
+    } else {
+        tracing::error!(
+            "Failed to reacquire single-instance mutex: GetLastError={}",
+            unsafe { GetLastError() }
+        );
+    }
+}
+
+/// Launch a new instance of this executable with administrator privileges
+/// via the ShellExecuteW "runas" verb (triggers a UAC consent prompt).
+///
+/// The caller MUST close the single-instance mutex first, and is responsible
+/// for exiting the current process on success (or reacquiring the mutex on
+/// failure). Returns the sentinel error "cancelled" when the user declines
+/// the UAC prompt so callers can treat that case gracefully.
+#[cfg(windows)]
+fn launch_elevated_instance() -> Result<(), String> {
+    use windows_sys::Win32::Foundation::GetLastError;
+    use windows_sys::Win32::UI::Shell::ShellExecuteW;
+
+    /// Set by ShellExecuteW when the user declines the UAC consent dialog
+    const ERROR_CANCELLED: u32 = 1223;
+
+    let current_exe = std::env::current_exe().map_err(|e| e.to_string())?;
+
+    // Keep the wide strings alive for the duration of the call
     let runas = to_wide("runas");
-    let exe_wide = exe_path.encode_utf16().chain(std::iter::once(0)).collect::<Vec<_>>();
-    
+    let exe_wide = to_wide(&current_exe.to_string_lossy());
+    // Give the elevated instance a sane working directory (the exe's folder)
+    // instead of inheriting whatever CWD the launcher had
+    let dir_wide = current_exe
+        .parent()
+        .map(|d| to_wide(&d.to_string_lossy()));
+
     let result = unsafe {
         ShellExecuteW(
             std::ptr::null_mut(), // HWND null
             runas.as_ptr(),
             exe_wide.as_ptr(),
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
+            std::ptr::null(), // no parameters
+            dir_wide
+                .as_ref()
+                .map_or(std::ptr::null(), |d| d.as_ptr()),
             1, // SW_SHOWNORMAL
         )
     };
-    
-    // ShellExecuteW returns HINSTANCE (HANDLE) which is isize in windows-sys
-    if (result as isize) <= 32 {
-        let error_code = unsafe { GetLastError() };
-        tracing::error!("Failed to restart with elevation. ShellExecuteW returned: {:?}, GetLastError: {}", result as isize, error_code);
-        Err(format!("Failed to restart with elevation (code: {:?}, error: {})", result as isize, error_code).into())
+
+    // ShellExecuteW returns a value > 32 on success
+    if (result as isize) > 32 {
+        return Ok(());
+    }
+
+    let error_code = unsafe { GetLastError() };
+    if error_code == ERROR_CANCELLED {
+        tracing::warn!("User declined the UAC elevation prompt");
+        Err("cancelled".to_string())
     } else {
-        // Graceful shutdown via Tauri — runs cleanup hooks, flushes files, closes windows
-        app.exit(0);
-        // app.exit() should not return, but just in case:
-        Ok(())
+        tracing::error!(
+            "ShellExecuteW(runas) failed: return={}, GetLastError={}",
+            result as isize,
+            error_code
+        );
+        Err(format!(
+            "ShellExecuteW failed (return: {}, error: {})",
+            result as isize, error_code
+        ))
+    }
+}
+
+/// Restart the application with elevated privileges
+///
+/// Launches a new admin instance via ShellExecuteW "runas", then gracefully
+/// exits the current process through Tauri's shutdown mechanism so all
+/// cleanup hooks run. On failure (including a declined UAC prompt) the
+/// single-instance mutex is reacquired and the current process keeps running.
+#[cfg(windows)]
+fn restart_with_elevation(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    tracing::info!("Restarting application with elevated privileges...");
+
+    // Close the single-instance mutex BEFORE launching the new elevated process.
+    // If we don't, the new instance will see ERROR_ALREADY_EXISTS and self-terminate.
+    close_single_instance_mutex();
+
+    match launch_elevated_instance() {
+        Ok(()) => {
+            // Graceful shutdown via Tauri — runs cleanup hooks, flushes files, closes windows
+            app.exit(0);
+            Ok(())
+        }
+        Err(e) => {
+            // The elevated instance did not start — restore single-instance
+            // protection so this process keeps behaving correctly.
+            reacquire_single_instance_mutex();
+            if e == "cancelled" {
+                Err("Elevation cancelled by user".into())
+            } else {
+                Err(format!("Failed to restart with elevation: {}", e).into())
+            }
+        }
     }
 }
 
@@ -570,13 +659,13 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
                 }
             }
 
-            // Posiziona prima di mostrare (evita lampeggio)
+            // Position before showing (avoids flicker)
             position_tray_menu(&menu_win);
 
-            // Piccolo delay per assicurarsi che il posizionamento sia completato
+            // Small delay to make sure positioning has completed
             tokio::time::sleep(Duration::from_millis(50)).await;
 
-            // Mostra il menu con retry
+            // Show the menu with retry
             match menu_win.show() {
                 Ok(_) => {
                     tracing::info!("Tray menu shown successfully (attempt {})", attempt);
@@ -584,17 +673,17 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
                     // Emit event globally to trigger config reload in frontend
                     let _ = app.emit("tray-menu-open", ());
 
-                    // ⭐ INDISPENSABILE: Imposta il focus per ricevere eventi di focus su Windows
+                    // ⭐ REQUIRED: set focus so the window receives focus events on Windows
                     if let Err(e) = menu_win.set_focus() {
                         tracing::warn!("Failed to set focus on tray menu: {:?}", e);
                     }
 
-                    // Verifica che sia effettivamente visibile
+                    // Verify that it is actually visible
                     tokio::time::sleep(Duration::from_millis(100)).await;
 
                     if let Ok(is_visible) = menu_win.is_visible() {
                         if is_visible {
-                            // Chiama loadConfig per applicare tema e colori
+                            // Call loadConfig to apply theme and colors
                             let _ = menu_win.eval(
                                 r#"
                                 if (typeof loadConfig === 'function') {
@@ -620,7 +709,7 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
                 }
             }
         } else {
-            // Finestra non esiste, creala
+            // Window does not exist, create it
             tracing::info!(
                 "Tray menu window does not exist, creating it (attempt {})",
                 attempt
@@ -640,7 +729,7 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
             .visible(false)
             .shadow(false)
             .resizable(false)
-            .focused(true)  // ⭐ INDISPENSABILE su Windows per ricevere eventi di focus
+            .focused(true)  // ⭐ REQUIRED on Windows to receive focus events
             .build()
             {
                 Ok(menu_win) => {
@@ -685,13 +774,13 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
                         }
                     });
 
-                    // Posiziona prima di mostrare
+                    // Position before showing
                     position_tray_menu(&menu_win);
 
-                    // Piccolo delay per assicurarsi che il posizionamento sia completato
+                    // Small delay to make sure positioning has completed
                     tokio::time::sleep(Duration::from_millis(50)).await;
 
-                    // Mostra la finestra
+                    // Show the window
                     match menu_win.show() {
                         Ok(_) => {
                             tracing::info!(
@@ -701,7 +790,7 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
                             // Emit event globally to trigger config reload in frontend
                             let _ = app.emit("tray-menu-open", ());
 
-                            // ⭐ INDISPENSABILE: Imposta il focus per ricevere eventi di focus su Windows
+                            // ⭐ REQUIRED: set focus so the window receives focus events on Windows
                             if let Err(e) = menu_win.set_focus() {
                                 tracing::warn!(
                                     "Failed to set focus on newly created tray menu: {:?}",
@@ -709,12 +798,12 @@ async fn show_tray_menu_with_retry(app: &AppHandle) {
                                 );
                             }
 
-                            // Verifica che sia effettivamente visibile
+                            // Verify that it is actually visible
                             tokio::time::sleep(Duration::from_millis(100)).await;
 
                             if let Ok(is_visible) = menu_win.is_visible() {
                                 if is_visible {
-                                    // Chiama loadConfig per applicare tema e colori
+                                    // Call loadConfig to apply theme and colors
                                     let _ = menu_win.eval(
                                         r#"
                                         if (typeof loadConfig === 'function') {
@@ -786,12 +875,12 @@ fn check_webview2() {
             let output_result = match output {
                 Ok(result) => {
                     if !result.status.success() {
-                        true // WebView2 non trovato
+                        true // WebView2 not found
                     } else {
-                        false // WebView2 trovato
+                        false // WebView2 found
                     }
                 }
-                Err(_) => true, // Errore, considera WebView2 non trovato
+                Err(_) => true, // Error: treat WebView2 as not found
             };
 
             if output_result {
@@ -910,43 +999,75 @@ fn main() {
     // Check if running with elevated privileges and manage task scheduler
     #[cfg(windows)]
     {
-        use crate::system::{is_app_elevated, elevated_task::{create_elevated_task, run_via_elevated_task, elevated_task_exists}};
+        use crate::system::{is_app_elevated, elevated_task::{create_elevated_task, run_via_elevated_task, elevated_task_matches_current_exe}};
         let is_elevated = is_app_elevated();
-        
+
         // Load config to check elevation preference
         let config_path = crate::config::get_portable_detector().config_path();
-        
+
         if config_path.exists() {
             if let Ok(config_str) = std::fs::read_to_string(&config_path) {
                 if let Ok(config) = serde_json::from_str::<crate::config::Config>(&config_str) {
                     if config.request_elevation_on_startup {
-                        // Create elevated task only when running as admin (requires /rl highest)
-                        if is_elevated && !elevated_task_exists() {
-                            tracing::info!("Creating elevated task for admin access...");
+                        // Create (or repair) the elevated task only when running as admin
+                        // (schtasks requires elevation for /rl highest). create_elevated_task
+                        // deletes any existing task first, so a stale exe path is also fixed here.
+                        if is_elevated && !elevated_task_matches_current_exe() {
+                            tracing::info!("Creating elevated task for silent admin startup...");
                             if let Err(e) = create_elevated_task() {
                                 tracing::error!("Failed to create elevated task: {}", e);
                             }
                         }
-                        
-                        // If not elevated, run via task scheduler
+
+                        // Not elevated: self-elevate. Prefer the silent scheduled task;
+                        // fall back to an explicit UAC prompt (ShellExecuteW "runas").
                         if !is_elevated {
-                            tracing::info!("Running via elevated task...");
-                            // Close the single-instance mutex BEFORE launching the elevated task.
-                            // The new instance launched by schtasks needs to acquire the mutex.
+                            // 1) Silent path: only usable if the task exists AND points at
+                            //    this exe. Running a stale task "succeeds" per schtasks but
+                            //    launches nothing, which previously made the app vanish
+                            //    at startup without ever elevating.
+                            if elevated_task_matches_current_exe() {
+                                tracing::info!("Elevating silently via scheduled task...");
+                                // Close the single-instance mutex BEFORE launching the
+                                // elevated task so the new instance can acquire it.
+                                close_single_instance_mutex();
+                                match run_via_elevated_task() {
+                                    Ok(true) => {
+                                        // Elevated task triggered — exit gracefully by returning
+                                        // from main() so Rust destructors run.
+                                        tracing::info!("Elevated task launched, exiting current process gracefully");
+                                        logging::shutdown();
+                                        return;
+                                    }
+                                    Ok(false) => {
+                                        // No exit needed — restore single-instance protection
+                                        reacquire_single_instance_mutex();
+                                    }
+                                    Err(e) => {
+                                        tracing::error!("Failed to run via elevated task: {}", e);
+                                        reacquire_single_instance_mutex();
+                                    }
+                                }
+                            }
+
+                            // 2) UAC fallback: first run (task not created yet), stale task,
+                            //    or the task trigger failed. Once the elevated instance is
+                            //    up it creates the task, so this prompt appears only once.
+                            tracing::info!("Elevating via UAC prompt (scheduled task unavailable)...");
                             close_single_instance_mutex();
-                            match run_via_elevated_task() {
-                                Ok(true) => {
-                                    // Elevated task triggered — exit gracefully by returning from main()
-                                    // so that Rust destructors run and resources are cleaned up.
-                                    tracing::info!("Elevated task launched, exiting current process gracefully");
+                            match launch_elevated_instance() {
+                                Ok(()) => {
+                                    tracing::info!("Elevated instance launched via UAC, exiting current process gracefully");
                                     logging::shutdown();
                                     return;
                                 }
-                                Ok(false) => {
-                                    // No exit needed, continue normal startup
-                                }
                                 Err(e) => {
-                                    tracing::error!("Failed to run via elevated task: {}", e);
+                                    reacquire_single_instance_mutex();
+                                    if e == "cancelled" {
+                                        tracing::warn!("User declined UAC prompt - continuing without elevation");
+                                    } else {
+                                        tracing::error!("UAC elevation failed: {} - continuing without elevation", e);
+                                    }
                                 }
                             }
                         }
@@ -1199,12 +1320,12 @@ fn main() {
                 }
                 Err(e) => {
                     tracing::error!("Failed to build tray icon: {:?}", e);
-                    // Continua comunque senza tray icon - wrappa l'errore
+                    // Wrap the error; the app cannot continue building the tray icon
                     return Err(Box::new(e) as Box<dyn std::error::Error>);
                 }
             };
 
-            // FIX: Rimosso il tipo esplicito errato. Lasciamo che Rust deduca i tipi.
+            // FIX: Removed the incorrect explicit type; let Rust infer the types.
             // Check is_first_run to prevent tray actions during setup
             let is_first_run_for_tray = is_first_run;
             tray_builder = tray_builder.on_tray_icon_event(move |tray, event| {
@@ -1222,7 +1343,7 @@ fn main() {
                     }
                 }
                 
-                // Collega positioner
+                // Hook up the positioner plugin
                 tauri_plugin_positioner::on_tray_event(tray.app_handle(), &event);
 
                 match event {
@@ -1233,7 +1354,7 @@ fn main() {
                     } => {
                         let app = tray.app_handle();
                         if let Some(window) = app.get_webview_window("main") {
-                            // FIX: Gestisci il Result per evitare errori di tipo
+                            // FIX: Handle the Result to avoid type errors
                             if let Err(e) = window.show() { tracing::warn!("Show window failed: {}", e); }
                             let _ = window.set_focus();
                         } else {
@@ -1248,7 +1369,7 @@ fn main() {
                         let app_handle = tray.app_handle();
                         tracing::info!("Right click on tray icon detected");
 
-                        // Usa async runtime per gestire l'apertura in modo non bloccante
+                        // Use the async runtime to open the menu without blocking
                         let app_clone = app_handle.clone();
                         tauri::async_runtime::spawn(async move {
                             show_tray_menu_with_retry(&app_clone).await;
@@ -1269,21 +1390,21 @@ fn main() {
                 }
             };
 
-            // Salviamo l'ID per usarlo in tray.rs
+            // Store the ID so it can be used in tray.rs
             let tray_id = tray.id().0.clone();
             if let Ok(mut id) = TRAY_ICON_ID.lock() {
                 *id = Some(tray_id.clone());
             }
 
-            // FIX: Rinomina variabili non usate con _ per rimuovere warning
+            // FIX: Prefix unused variables with _ to silence warnings
             let _cfg_for_setup = cfg.clone();
 
-            // FIX: Controlla se è stato chiamato con --startup-config dall'installer
+            // FIX: Check whether the app was launched with --startup-config by the installer
             let args: Vec<String> = std::env::args().collect();
             let is_startup_config = args.iter().any(|a| a == "--startup-config");
 
             if is_startup_config {
-                // Configura startup se richiesto dall'installer
+                // Configure run-on-startup when requested by the installer
                 let _ = crate::system::startup::set_run_on_startup(true);
                 if let Ok(mut c) = _cfg_for_setup.lock() {
                     c.run_on_startup = true;
@@ -1294,10 +1415,10 @@ fn main() {
                 return Ok(());
             }
 
-            // ⭐ Controlla se è il primo avvio e mostra il setup
-            // Verifica anche che il file di config esista per evitare setup multipli
+            // ⭐ Check whether this is the first run and show the setup.
+            // Also verify the config file exists to avoid launching multiple setups.
             let show_setup = {
-                // ⭐ Fallback 1: Verifica se la finestra setup è già aperta
+                // ⭐ Fallback 1: check whether the setup window is already open
                 if app_handle.get_webview_window("setup").is_some() {
                     tracing::info!("Setup window already exists, skipping creation");
                     return Ok(());
@@ -1334,12 +1455,12 @@ fn main() {
             };
 
             if show_setup {
-                // Nascondi la finestra principale
+                // Hide the main window
                 if let Some(window) = app_handle.get_webview_window("main") {
                     let _ = window.hide();
                 }
 
-                // Crea e mostra la finestra di setup
+                // Create and show the setup window
                 tracing::info!("First run detected, showing setup window...");
                 let setup_url = WebviewUrl::App("setup.html".into());
                 let app_clone = app_handle.clone();
@@ -1362,7 +1483,7 @@ fn main() {
                         // Center the setup window
                         let _ = setup_window.center();
                         
-                        // Assicura che sia sempre in primo piano
+                        // Ensure it always stays on top
                         let _ = setup_window.set_always_on_top(true);
                         
                         // Apply rounded corners on Windows 10/11
@@ -1383,7 +1504,7 @@ fn main() {
                         
                         let _ = setup_window.set_focus();
                         
-                        // Ri-applica always_on_top dopo un breve delay per sicurezza
+                        // Re-apply always_on_top after a short delay, to be safe
                         let app_clone = app_handle.clone();
                         tauri::async_runtime::spawn(async move {
                             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -1394,14 +1515,14 @@ fn main() {
                     }
                     Err(e) => {
                         tracing::error!("Failed to create setup window: {:?}", e);
-                        // Fallback: mostra la finestra principale
+                        // Fallback: show the main window
                         if let Some(window) = app_handle.get_webview_window("main") {
                             let _ = window.show();
                         }
                     }
                 }
             } else {
-                // Mostra finestra all'avvio - usa app_handle invece di app
+                // Show the window at startup - use app_handle instead of app
                 tracing::info!("Checking main window visibility...");
                 if let Some(window) = app_handle.get_webview_window("main") {
                     tracing::info!("Main window exists, ensuring it's visible...");
@@ -1427,16 +1548,16 @@ fn main() {
                         let _ = crate::system::window::apply_window_decorations(&window);
                     }
                     
-                    // FIX: Abilita devtools per debug (tasto destro -> Inspect)
+                    // FIX: Enable devtools for debugging (right-click -> Inspect)
                     #[cfg(debug_assertions)]
                     {
                         let _ = window.open_devtools();
                     }
                 } else {
-                    // Se la finestra non esiste, creala
+                    // If the window does not exist, create it
                     tracing::warn!("Main window not found, creating it...");
                     show_or_create_window(&app_handle);
-                    // Verifica che sia stata creata
+                    // Verify that it was created
                     if let Some(window) = app_handle.get_webview_window("main") {
                         tracing::info!("Window created successfully");
                         let _ = window.set_skip_taskbar(false);
@@ -1448,18 +1569,18 @@ fn main() {
                 }
             }
 
-            // Aggiorna menu tray (Tauri v2 - gestito dal builder)
+            // Tray menu updates (Tauri v2 - handled by the builder)
 
-            // Applica configurazioni iniziali
+            // Apply initial configurations
             if let Ok(c) = _cfg_for_setup.lock() {
                 // Startup
                 if c.run_on_startup && !crate::system::startup::is_startup_enabled() {
                     let _ = crate::system::startup::set_run_on_startup(true);
                 }
 
-                // Registra l'app per Windows Toast notifications (richiesto per applicazioni non confezionate)
-                // IMPORTANTE: deve essere chiamato PRIMA di qualsiasi notifica
-                // La registrazione per le notifiche è già stata fatta all'avvio in main()
+                // Registering the app for Windows Toast notifications (required for unpackaged apps)
+                // IMPORTANT: must be called BEFORE any notification is sent.
+                // Notification registration already happened at startup in main().
 
                 // Hotkey
                 if !c.hotkey.is_empty() && crate::os::has_hotkey_manager() {

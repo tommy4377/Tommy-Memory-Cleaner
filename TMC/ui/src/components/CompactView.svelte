@@ -19,10 +19,10 @@
     memUnsub = memory.subscribe((v) => (memInfo = v));
     cfgUnsub = config.subscribe((v) => {
       cfg = v;
-      // Usa la configurazione salvata per determinare se siamo su Windows 10
+      // Use the saved configuration to determine whether we are on Windows 10
       isWindows10 = v?.is_windows_10 ?? false;
     });
-    // FIX: Usa lo store progress invece di una variabile locale per mantenere lo stato durante il cambio di vista
+    // FIX: Use the progress store instead of a local variable so state survives view switches
     progUnsub = progress.subscribe((v) => (prog = v));
   });
 
@@ -33,15 +33,15 @@
   });
 
   async function optimize() {
-    // FIX: Usa prog?.running invece di optimizing locale per mantenere lo stato
+    // FIX: Use prog?.running instead of a local optimizing flag so state is preserved
     if (prog?.running || !cfg) {
       console.warn('Cannot optimize: running=', prog?.running, 'cfg=', cfg);
       return;
     }
     
     try {
-      // FIX: Usa sempre le aree dal profilo selezionato, non quelle salvate
-      // Il backend farà comunque il controllo finale, ma questo evita warning inutili
+      // FIX: Always use the areas derived from the selected profile, not the saved ones.
+      // The backend still performs the final validation, but this avoids spurious warnings.
       const areas = areasForProfile(cfg.profile);
       
       console.log('Starting optimization with profile:', cfg.profile, 'areas:', areas);
@@ -53,7 +53,7 @@
     }
   }
   
-  // Helper per ottenere il testo del bottone tradotto (reattivo)
+  // Helper for the translated button text (reactive)
   $: buttonText = prog?.running ? $t('Optimizing...') : $t('Optimize');
   
 </script>
@@ -70,7 +70,7 @@
     overflow: hidden;
   }
   
-  /* Applica border-radius solo su Windows 10 */
+  /* Apply border-radius only on Windows 10 */
   .compact.windows-10 {
     border-radius: var(--window-border-radius, 16px);
   }
@@ -180,7 +180,7 @@
     animation: pulse 1.5s infinite;
   }
   
-  /* Rimuovi shimmer quando disabled */
+  /* Remove shimmer while disabled */
   button:disabled::after {
     display: none;
   }

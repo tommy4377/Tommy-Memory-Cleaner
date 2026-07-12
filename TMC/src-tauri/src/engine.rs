@@ -153,7 +153,7 @@ impl Engine {
             required_privs.len()
         );
 
-        // Valida le aree disponibili per questa versione di Windows
+        // Validate the areas available for this Windows version
         let mut validated_areas = Areas::empty();
         if areas.contains(Areas::STANDBY_LIST) && os::has_standby_list() {
             validated_areas |= Areas::STANDBY_LIST;
@@ -194,14 +194,14 @@ impl Engine {
         // TODO: Use tokio::time::sleep when optimize() is made async
         std::thread::sleep(std::time::Duration::from_millis(50));
 
-        // Ottieni memoria PRIMA dell'ottimizzazione
+        // Get memory usage BEFORE optimization
         let before = self.memory()?;
 
         let mut area_operations = Vec::new();
         let mut area_names = Vec::new();
         let mut successful_areas = 0;
 
-        // Costruisci lista operazioni
+        // Build the list of operations
         // Order operations for optimal chaining:
         // 1. ModifiedFileCache first (flushes disk cache)
         // 2. ModifiedPageList second (needs flushed data)
@@ -222,8 +222,8 @@ impl Engine {
         if areas.contains(Areas::STANDBY_LIST) {
             area_operations.push(("StandbyList", "Standby List"));
         }
-        // FIX: Aggiungi STANDBY_LIST_LOW anche se STANDBY_LIST è presente
-        // Sono due ottimizzazioni diverse e complementari
+        // FIX: Add STANDBY_LIST_LOW even if STANDBY_LIST is present
+        // These are two distinct, complementary optimizations
         if areas.contains(Areas::STANDBY_LIST_LOW) {
             area_operations.push(("StandbyListLowPriority", "Standby List (Low Priority)"));
         }
@@ -234,7 +234,7 @@ impl Engine {
             area_operations.push(("RegistryCache", "Registry Cache"));
         }
 
-        // Validazione per evitare overflow: len() potrebbe essere > 255
+        // Validation to avoid overflow: len() could be > 255
         let total = area_operations
             .len()
             .try_into()
@@ -246,10 +246,10 @@ impl Engine {
         let mut errors = Vec::new();
         let start_all = Instant::now();
 
-        // FIX #10: Timeout per operazioni di ottimizzazione (30 secondi per operazione)
+        // FIX #10: Timeout for optimization operations (30 seconds per operation)
         const OPERATION_TIMEOUT: Duration = Duration::from_secs(30);
 
-        // Esegui ottimizzazioni
+        // Run the optimizations
         for (operation_name, display_name) in &area_operations {
             idx = idx.saturating_add(1);
             area_names.push(display_name.to_string());
@@ -258,7 +258,7 @@ impl Engine {
                 cb(idx, total, display_name.to_string());
             }
 
-            // FIX: Aumenta il delay tra operazioni per il primo run
+            // FIX: Increase the delay between operations on the first run
             if idx > 1 {
                 // Brief delay between operations to avoid overwhelming the system
                 // TODO: Use tokio::time::sleep when optimize() is made async
@@ -267,23 +267,23 @@ impl Engine {
 
             let t0 = Instant::now();
 
-            // FIX #10: Esegui l'operazione con timeout usando un thread separato
+            // FIX #10: Run the operation with a timeout using a separate thread
             let operation_name_clone = operation_name.to_string();
             let cfg_clone = self.cfg.clone();
             let use_indirect_syscalls_clone = use_indirect_syscalls;
 
             let (tx, rx) = mpsc::channel();
             let handle = std::thread::spawn(move || {
-                // Ricrea l'engine per eseguire l'operazione
+                // Recreate the engine to run the operation
                 let engine = Engine { cfg: cfg_clone };
                 let result = engine.execute_optimization(&operation_name_clone, use_indirect_syscalls_clone);
                 let _ = tx.send(result);
             });
 
-            // Attendi il risultato con timeout
+            // Wait for the result with a timeout
             let res = match rx.recv_timeout(OPERATION_TIMEOUT) {
                 Ok(result) => {
-                    // Aspetta che il thread finisca (dovrebbe essere già finito)
+                    // Wait for the thread to finish (should already be done)
                     if let Err(e) = handle.join() {
                         tracing::warn!(
                             "Thread panicked during operation {}: {:?}",
@@ -299,16 +299,16 @@ impl Engine {
                         display_name,
                         OPERATION_TIMEOUT
                     );
-                    // Il thread potrebbe ancora essere in esecuzione, ma non possiamo aspettarlo indefinitamente
-                    // Nota: Non possiamo fare join qui perché il thread è ancora in esecuzione e potrebbe bloccarci
-                    // Il thread continuerà in background ma terminerà naturalmente quando completa l'operazione
+                    // The thread might still be running, but we cannot wait for it indefinitely.
+                    // Note: we cannot join here because the thread is still running and could block us.
+                    // It will keep running in the background and terminate naturally once the operation completes.
                     Err(anyhow::anyhow!(
                         "Operation timed out after {:?}",
                         OPERATION_TIMEOUT
                     ))
                 }
                 Err(mpsc::RecvTimeoutError::Disconnected) => {
-                    // Il thread è crashato o è stato terminato
+                    // The thread crashed or was terminated
                     if let Err(e) = handle.join() {
                         tracing::warn!(
                             "Thread panicked during operation {} (disconnected): {:?}",
@@ -358,18 +358,18 @@ impl Engine {
         // TODO: Use tokio::time::sleep when optimize() is made async
         std::thread::sleep(std::time::Duration::from_millis(100));
 
-        // Ottieni memoria DOPO con retry e validazione
+        // Get memory usage AFTER, with retry and validation
         let mut after = self.memory()?;
         let mut retry_count = 0;
         const MAX_RETRIES: u32 = 3;
 
-        // FIX: Se non c'è differenza significativa, riprova con delay progressivi
+        // FIX: If there is no significant difference, retry with progressive delays
         loop {
-            // FIX #12: Usa saturating_sub anche qui per coerenza
+            // FIX #12: Use saturating_sub here too for consistency
             let freed = (after.physical.free.bytes as i64)
                 .saturating_sub(before.physical.free.bytes as i64);
 
-            // Se abbiamo liberato almeno 1MB o abbiamo fatto tutti i retry, usciamo
+            // Exit once at least 1MB was freed or all retries have been exhausted
             if freed.abs() >= 1024 * 1024 || retry_count >= MAX_RETRIES {
                 if retry_count > 0 {
                     tracing::info!(
@@ -391,9 +391,9 @@ impl Engine {
             after = self.memory()?;
         }
 
-        // FIX #16: Usa saturating_sub per evitare problemi con overflow/underflow
-        // Inoltre, valida che i valori siano in un range sicuro prima del cast per evitare overflow
-        // i64::MAX è ~9 exabytes, quindi limitiamo a 8 exabytes per sicurezza
+        // FIX #16: Use saturating_sub to avoid overflow/underflow issues.
+        // Also validate that values are within a safe range before casting, to avoid overflow.
+        // i64::MAX is ~9 exabytes, so we clamp to 8 exabytes for safety.
         const MAX_SAFE_BYTES: u64 = 8 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024; // 8 EiB
 
         let after_phys_safe = after.physical.free.bytes.min(MAX_SAFE_BYTES);
@@ -401,7 +401,7 @@ impl Engine {
         let after_commit_safe = after.commit.free.bytes.min(MAX_SAFE_BYTES);
         let before_commit_safe = before.commit.free.bytes.min(MAX_SAFE_BYTES);
 
-        // Se i valori sono molto grandi, logga un warning ma continua
+        // If the values are very large, log a warning but continue
         if after.physical.free.bytes > MAX_SAFE_BYTES || before.physical.free.bytes > MAX_SAFE_BYTES
         {
             tracing::warn!(
@@ -410,19 +410,19 @@ impl Engine {
             );
         }
 
-        // Cast sicuro dopo il clamping
+        // Safe cast after clamping
         let freed_phys = (after_phys_safe as i64).saturating_sub(before_phys_safe as i64);
         let freed_commit = (after_commit_safe as i64).saturating_sub(before_commit_safe as i64);
         let duration = start_all.elapsed().as_millis();
 
-        // FIX: Validazione risultati per evitare ottimizzazioni fake
+        // FIX: Validate results to avoid reporting fake optimizations
         let freed_phys_mb = freed_phys as f64 / 1024.0 / 1024.0;
         let freed_commit_mb = freed_commit as f64 / 1024.0 / 1024.0;
 
-        // Verifica che almeno una area sia stata ottimizzata con successo
+        // Verify that at least one area was optimized successfully
         let has_successful_area = results.iter().any(|r| r.error.is_none());
 
-        // Se non abbiamo liberato memoria E non abbiamo aree di successo, potrebbe essere un problema
+        // If no memory was freed AND no areas succeeded, this might indicate a problem
         if freed_phys.abs() < 1024 * 1024 && !has_successful_area && successful_areas == 0 {
             tracing::warn!("Optimization may have failed: no memory freed and no successful areas");
         }
@@ -435,7 +435,7 @@ impl Engine {
         successful_areas
     );
 
-        // Log nell'Event Viewer solo se abbiamo liberato memoria significativa o abbiamo aree di successo
+        // Log to the Event Viewer only if significant memory was freed or some areas succeeded
         if freed_phys.abs() > 1024 * 1024 || has_successful_area {
             let freed_mb = freed_phys as f64 / 1024.0 / 1024.0;
             let profile_name = self

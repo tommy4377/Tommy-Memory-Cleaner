@@ -1,9 +1,9 @@
 import { writable } from 'svelte/store'
 
-// Store globale per gestire quale color picker è aperto
+// Global store tracking which color picker is currently open
 export const openColorPicker = writable<string | null>(null)
 
-// Funzione per chiudere tutti i color picker tranne uno specifico
+// Closes every color picker except the specified one
 export function closeOtherPickers(currentId: string) {
   openColorPicker.update(openId => {
     if (openId && openId !== currentId) {
@@ -13,7 +13,7 @@ export function closeOtherPickers(currentId: string) {
   })
 }
 
-// Funzione per chiudere un color picker specifico
+// Closes a specific color picker if it is the one currently open
 export function closePicker(pickerId: string) {
   openColorPicker.update(openId => {
     if (openId === pickerId) {

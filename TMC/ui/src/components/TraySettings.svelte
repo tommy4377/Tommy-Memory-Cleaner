@@ -17,28 +17,28 @@
   let rafId: number | null = null
   let trayIcon: TrayIcon | null = null
   
-  // Flag per impedire aggiornamenti backend durante il drag
+  // Flag that blocks backend updates while a drag is in progress
   let isDraggingFromPicker = false
-  
-  // Cache per le icone generate
+
+  // Cache for generated icons
   let iconCache = new Map<string, Uint8Array>()
-  
-  // Stato per il reset colors
+
+  // Reset-colors state
   let isResetting = false
   let resetTimeout: number | null = null
-  
-  // Funzione throttled con requestAnimationFrame per update visivo immediato
+
+  // Throttled via requestAnimationFrame for immediate visual updates
   function throttledUpdate() {
     if (rafId) return
-    
+
     rafId = requestAnimationFrame(async () => {
       rafId = null
-      // Aggiorna subito la tray icon per preview
+      // Refresh the tray icon right away for a live preview
       await updateTrayIcon()
     })
   }
-  
-  // Genera l'icona della tray con i colori correnti
+
+  // Generates the tray icon with the current colors
   async function generateTrayIcon(textColor: string, bgColor: string): Promise<Uint8Array> {
     const cacheKey = `${textColor}-${bgColor}`
     
@@ -60,18 +60,18 @@
     }
   }
   
-  // Aggiorna la tray icon istantaneamente
+  // Updates the tray icon instantly
   async function updateTrayIcon() {
     if (!cfg || !cfg.tray?.show_mem_usage) return
-    
+
     try {
-      // Ottieni la tray icon esistente
+      // Get the existing tray icon
       if (!trayIcon) {
         trayIcon = await TrayIcon.getById('main')
       }
-      
+
       if (trayIcon) {
-        // Genera e aggiorna l'icona con i colori correnti
+        // Generate and apply the icon with the current colors
         const iconData = await generateTrayIcon(
           cfg.tray.text_color_hex,
           cfg.tray.background_color_hex
@@ -94,7 +94,7 @@
     if (resetTimeout) clearTimeout(resetTimeout)
   })
 
-  // Debounce per salvare i colori della tray
+  // Debounced save for the tray colors
   const debouncedTrayColorUpdate = debounce(async (color: string, field: keyof Config['tray']) => {
     if (!cfg) return
     
@@ -108,19 +108,19 @@
     await updateConfig(updates)
   }, 100)
   
-  // Funzione ottimizzata per aggiornare i colori della tray
+  // Optimized handler for tray color changes
   function onTrayColorChange(color: string, field: keyof Config['tray']) {
-    // Imposta flag per indicare che stiamo draggando
+    // Mark that a drag from the picker is in progress
     isDraggingFromPicker = true
-    
-    // Aggiorna subito visivamente
+
+    // Update visually right away
     pendingUpdates = { ...pendingUpdates, [field]: color }
     throttledUpdate()
-    
-    // Salva con debounce
+
+    // Persist with debounce
     debouncedTrayColorUpdate(color, field)
-    
-    // Resetta il flag
+
+    // Reset the flag
     setTimeout(() => {
       isDraggingFromPicker = false
     }, 150)
@@ -129,13 +129,13 @@
   function updateTray(partial: Partial<Config['tray']>) {
     if (!cfg) return
     
-    // Aggiorna subito visivamente
+    // Update visually right away
     throttledUpdate()
-    
-    // Durante il drag, accumula gli aggiornamenti
+
+    // While dragging, accumulate the updates
     pendingUpdates = { ...pendingUpdates, ...partial }
-    
-    // Se non stiamo draggando, salva subito
+
+    // If not dragging, save immediately
     if (!isDragging) {
       queueConfigUpdate({
         tray: { ...cfg.tray, ...partial },
@@ -153,7 +153,7 @@
     
     isDragging = false
     
-    // Salva tutti gli aggiornamenti pendenti
+    // Save all pending updates
     if (Object.keys(pendingUpdates).length > 0) {
       queueConfigUpdate({
         tray: {
@@ -171,11 +171,11 @@
       pendingUpdates = {}
     }
     
-    // Update finale per assicurarsi che l'icona sia aggiornata
+    // Final update to make sure the icon reflects the latest state
     throttledUpdate()
   }
-  
-  // Aggiungi listener globali per pointer up
+
+  // Register a global pointer-up listener
   onMount(() => {
     window.addEventListener('pointerup', handlePointerUp)
     return () => window.removeEventListener('pointerup', handlePointerUp)
@@ -184,21 +184,21 @@
   function resetTrayColors() {
     if (!cfg) return
     
-    // Se è già in stato di reset, fai un fake click (non fare nulla)
+    // If a reset is already in progress, ignore the click
     if (isResetting) {
       return
     }
-    
+
     isResetting = true
-    
-    // Esegui il reset immediatamente
+
+    // Perform the reset immediately
     setTimeout(() => {
       try {
-        // Colori originali 
+        // Original colors
         const defaultText = '#ffffff'
-        const defaultBg = '#2d8a3d' // Verde originale
-        const defaultWarning = '#d97706' // Arancione originale
-        const defaultDanger = '#b91c1c' // Rosso originale
+        const defaultBg = '#2d8a3d' // Original green
+        const defaultWarning = '#d97706' // Original orange
+        const defaultDanger = '#b91c1c' // Original red
         
         queueConfigUpdate({
           tray: {
@@ -213,10 +213,10 @@
           },
         })
         
-        // Pulisci la cache delle icone forzando la rigenerazione
+        // Clear the icon cache to force regeneration
         iconCache.clear()
-        
-        // Aggiorna l'icona subito senza delay
+
+        // Refresh the icon immediately, without delay
         throttledUpdate()
         
       } catch (error) {

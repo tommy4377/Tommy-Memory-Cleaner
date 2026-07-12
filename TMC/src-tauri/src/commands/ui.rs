@@ -12,10 +12,22 @@ static WINDOW_CREATING: AtomicBool = AtomicBool::new(false);
 ///
 /// This command exposes the window styling values to the frontend
 /// so they can be synchronized dynamically instead of being hardcoded.
+///
+/// The border radius is platform-aware:
+/// - Windows 11: 0 — the OS rounds the window natively via DWM
+///   (DWMWCP_ROUND), so the CSS must NOT round the content again
+///   (double rounding causes curvature mismatch and corner artifacts).
+/// - Windows 10 (and anything else): 16 — the rounded shape is drawn
+///   entirely in CSS on the transparent window.
 #[tauri::command]
 pub fn cmd_get_window_config() -> Result<serde_json::Value, String> {
+    #[cfg(windows)]
+    let border_radius = if crate::os::is_windows_11() { 0 } else { 16 };
+    #[cfg(not(windows))]
+    let border_radius = 16;
+
     Ok(serde_json::json!({
-        "border_radius": 16, // Matches the radius in window.rs and App.svelte
+        "border_radius": border_radius,
         "titlebar_height": 32
     }))
 }
@@ -52,24 +64,21 @@ pub fn cmd_update_tray_theme(app: AppHandle, theme: String) -> Result<(), String
     Ok(())
 }
 
-/// Apply rounded corners to the current window
+/// Re-assert the platform-appropriate corner decorations on the main window.
+///
+/// Idempotent and cheap: on Windows 11 it re-applies the persistent DWM corner
+/// preference; on Windows 10 it is effectively a no-op because rounding is done
+/// in CSS. Kept for compatibility with callers, but no longer required after
+/// resizes — neither strategy needs per-resize reapplication.
 #[tauri::command]
 pub fn cmd_apply_rounded_corners(app: AppHandle) -> Result<(), String> {
     #[cfg(windows)]
     {
         if let Some(window) = app.get_webview_window("main") {
-            if let Ok(hwnd) = window.hwnd() {
-                let _ = crate::system::window::set_rounded_corners(hwnd.0 as windows_sys::Win32::Foundation::HWND);
-                
-                // Force redraw after applying rounded corners
-                use windows_sys::Win32::Graphics::Gdi::InvalidateRect;
-                unsafe {
-                    InvalidateRect(hwnd.0 as windows_sys::Win32::Foundation::HWND, std::ptr::null(), 1);
-                }
-            }
+            let _ = crate::system::window::apply_window_decorations(&window);
         }
     }
-    
+
     Ok(())
 }
 
@@ -132,31 +141,19 @@ pub fn show_or_create_window(app: &AppHandle) {
             tracing::info!("Current window size: {}x{}", size.width, size.height);
         }
         
-        // Reapply rounded corners when showing existing window
+        // Re-assert decorations once, BEFORE the window becomes visible,
+        // so no frame is ever presented with square corners
         #[cfg(windows)]
         {
-            tracing::info!("Reapplying rounded corners to existing window");
-            // PRIMA: Applica i bordi arrotondati
-            if let Ok(hwnd) = window.hwnd() {
-                let _ = crate::system::window::set_rounded_corners(
-                    hwnd.0 as windows_sys::Win32::Foundation::HWND
-                );
-            }
-            // DOPO: Applica shadow per Win11
-            let _ = crate::system::window::enable_shadow_for_win11(&window);
+            tracing::info!("Reapplying window decorations to existing window");
+            let _ = crate::system::window::apply_window_decorations(&window);
         }
-        
+
         let _: Result<(), _> = window.set_skip_taskbar(false); // Show in taskbar
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
         let _ = window.center();
-        
-        // Apply rounded corners using centralized function
-        #[cfg(windows)]
-        {
-            let _ = crate::system::window::apply_window_decorations(&window);
-        }
     } else {
         // Use compare_exchange to prevent concurrent window creation races
         if WINDOW_CREATING.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
@@ -176,9 +173,9 @@ pub fn show_or_create_window(app: &AppHandle) {
         .resizable(false)
         .decorations(false)
         .transparent(true)
-        .shadow(false)  // Disabilita shadow per Windows 10
+        .shadow(false)  // Off by default; enabled on Win11 by apply_window_decorations
         .skip_taskbar(false)  // Show in taskbar
-        .visible(true)  // Show window immediately for SetWindowRgn
+        .visible(false)  // Keep hidden until decorations are applied (prevents square-corner flash)
         .build();
 
         // Release the guard immediately after build, regardless of outcome
@@ -187,18 +184,18 @@ pub fn show_or_create_window(app: &AppHandle) {
         match result {
             Ok(window) => {
                 tracing::info!("Window created successfully");
-                
-                // Center window first
+
+                // Center and decorate while still hidden, then show:
+                // the first presented frame already has the correct corners
                 let _ = window.center();
-                
-                // Apply rounded corners using centralized function
+
                 #[cfg(windows)]
                 {
                     let _ = crate::system::window::apply_window_decorations(&window);
-                    // Re-center window after applying rounded corners
-                    let _ = window.center();
                 }
-                
+
+                let _ = window.show();
+
                 if let Ok(size) = window.inner_size() {
                     tracing::info!("Actual window size: {}x{}", size.width, size.height);
                 }

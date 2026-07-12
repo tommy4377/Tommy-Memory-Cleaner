@@ -38,11 +38,11 @@
     const dropdownHeight = 200 // max-height
     const dropdownWidth = rect.width
 
-    // Calcola la posizione
+    // Compute the position
     let top = rect.bottom + 2
     let left = rect.left
 
-    // Se va fuori in basso, aprilo verso l'alto
+    // If it overflows the bottom edge, open upward
     if (rect.bottom + dropdownHeight > viewportHeight && rect.top > dropdownHeight) {
       top = rect.top - dropdownHeight - 2
       dropdownEl.classList.add('upward')
@@ -50,12 +50,12 @@
       dropdownEl.classList.remove('upward')
     }
 
-    // Assicurati che non vada fuori a destra
+    // Keep it from overflowing the right edge
     if (left + dropdownWidth > viewportWidth) {
       left = viewportWidth - dropdownWidth - 8
     }
 
-    // Assicurati che non vada fuori a sinistra
+    // Keep it from overflowing the left edge
     if (left < 8) {
       left = 8
     }

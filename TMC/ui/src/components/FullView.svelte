@@ -19,7 +19,7 @@
   import { invoke } from '@tauri-apps/api/core'
 
   let activeTab: 'main' | 'settings' | 'customization' = 'main'
-  let hideTabs = false // Mostra i tabs
+  let hideTabs = false // Tabs are visible by default
   let cfg: Config | null = null
   let cfgUnsub: (() => void) | null = null
   let memUnsub: (() => void) | null = null
@@ -30,7 +30,7 @@
     memUnsub = memory.subscribe((v) => (memInfo = v));
     cfgUnsub = config.subscribe((v) => {
       cfg = v;
-      // Usa la configurazione salvata per determinare se siamo su Windows 10
+      // Use the saved configuration to determine whether we are on Windows 10
       isWindows10 = v?.is_windows_10 ?? false;
     });
   });
@@ -47,8 +47,8 @@
     }
 
     try {
-      // FIX: Usa sempre le aree dal profilo selezionato, non quelle salvate
-      // Il backend farà comunque il controllo finale, ma questo evita warning inutili
+      // FIX: Always use the areas derived from the selected profile, not the saved ones.
+      // The backend still performs the final validation, but this avoids spurious warnings.
       const areas = areasForProfile(cfg.profile)
 
       console.log('Starting optimization with profile:', cfg.profile, 'areas:', areas)
@@ -112,7 +112,7 @@
 </div>
 
 <style>
-  /* Rimuovi bordi predefiniti del body per Windows 10 */
+  /* Remove the default body borders on Windows 10 */
   :global(body) {
     border: none !important;
     outline: none !important;
@@ -127,7 +127,7 @@
     border-radius: inherit;
   }
   
-  /* Applica border-radius solo su Windows 10 */
+  /* Apply border-radius only on Windows 10 */
   .container.windows-10 {
     border-radius: var(--window-border-radius, 16px);
   }

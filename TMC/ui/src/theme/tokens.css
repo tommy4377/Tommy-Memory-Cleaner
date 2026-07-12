@@ -1,4 +1,4 @@
-/* Default light theme - Sepia/Warm tone, più saturo e appariscente */
+/* Default light theme - sepia/warm tone, more saturated and eye-catching */
 :root,
 [data-theme='light'] {
   --bg: #e5d9c8;
@@ -7,13 +7,13 @@
   --border: rgba(50, 38, 25, 0.2);
   --bar-track: rgba(50, 38, 25, 0.22);
   --bar-fill: #9a8a72;
-  --bar-free: #9a8a72; /* Stesso colore del main */
+  --bar-free: #9a8a72; /* Same color as the accent */
   --btn-bg: #9a8a72;
   --btn-fg: #ffffff;
   --btn-border: transparent;
   --tab-active: rgba(245, 235, 220, 1);
 
-  /* Inputs e selects */
+  /* Inputs and selects */
   --input-bg: rgba(252, 245, 230, 0.95);
   --input-border: rgba(50, 38, 25, 0.28);
   --input-focus: #9a8a72;
@@ -27,13 +27,13 @@ html[data-theme='dark'] {
   --border: rgba(255, 255, 255, 0.08);
   --bar-track: rgba(255, 255, 255, 0.15);
   --bar-fill: #1363b4;
-  --bar-free: #1363b4; /* Stesso colore del main */
-  --btn-bg: #1363b4; /* Colore #1363b4 come richiesto */
+  --bar-free: #1363b4; /* Same color as the accent */
+  --btn-bg: #1363b4; /* #1363b4 as requested */
   --btn-fg: #ffffff;
   --btn-border: transparent;
   --tab-active: rgba(58, 58, 60, 1);
 
-  /* Inputs e selects per dark mode */
+  /* Inputs and selects for dark mode */
   --input-bg: rgba(58, 58, 60, 0.8);
   --input-border: rgba(255, 255, 255, 0.12);
   --input-focus: #1363b4;
@@ -65,7 +65,7 @@ html[data-theme='dark'] body {
   cursor: url('/cursors/dark/arrow.cur'), auto !important;
 }
 
-/* Cursore personalizzato per tutti gli elementi interattivi */
+/* Custom cursor for all interactive elements */
 a,
 [role='button'],
 [tabindex]:not([tabindex='-1']) {
@@ -78,7 +78,7 @@ html[data-theme='dark'] [tabindex]:not([tabindex='-1']) {
   cursor: url('/cursors/dark/hand.cur'), pointer !important;
 }
 
-/* Input e Select globali - IMPORTANTE: permettere interazioni */
+/* Global inputs and selects - IMPORTANT: interactions must stay enabled */
 input[type='text'],
 input[type='number'],
 textarea {
@@ -128,7 +128,7 @@ textarea:focus {
   border-color: var(--input-focus);
 }
 
-/* Box shadow per focus - usa il colore del tema */
+/* Focus box shadow - uses the theme color */
 [data-theme='light'] input[type='text']:focus,
 [data-theme='light'] input[type='number']:focus,
 [data-theme='light'] select:focus,
@@ -143,7 +143,7 @@ html[data-theme='dark'] textarea:focus {
   box-shadow: 0 0 0 3px rgba(19, 99, 180, 0.15);
 }
 
-/* Select styling per Windows - più tondeggiante e carino */
+/* Select styling for Windows - more rounded and polished */
 select {
   cursor: url('/cursors/light/hand.cur'), pointer !important;
   -webkit-appearance: none !important;
@@ -162,14 +162,14 @@ html[data-theme='dark'] select {
   cursor: url('/cursors/dark/hand.cur'), pointer !important;
 }
 
-/* Styling per le option - Light theme con colore attinente al tema */
+/* Option styling - light theme with a color that matches the theme */
 select option {
   background: var(--input-bg) !important;
   color: var(--fg) !important;
   padding: 8px 12px !important;
 }
 
-/* Light theme: colore di selezione più attinente al tema (marrone caldo) */
+/* Light theme: selection color that matches the theme (warm brown) */
 [data-theme='light'] select option {
   background: rgba(252, 245, 230, 0.95) !important;
   color: #2a1f12 !important;
@@ -182,7 +182,7 @@ select option {
   color: white !important;
 }
 
-/* Pseudo-elementi specifici per Windows/Edge */
+/* Windows/Edge-specific pseudo-elements */
 [data-theme='light'] select::-ms-value {
   background: #9a8a72 !important;
   color: white !important;
@@ -192,7 +192,7 @@ select option {
   color: #9a8a72 !important;
 }
 
-/* Dark theme: mantieni lo stile esistente (blu) */
+/* Dark theme: keep the existing style (blue) */
 html[data-theme='dark'] select option {
   background: rgba(58, 58, 60, 0.8) !important;
   color: #f2f2f7 !important;
@@ -210,7 +210,7 @@ html[data-theme='dark'] select::-ms-value {
   color: white !important;
 }
 
-/* Checkbox styling - Personalizzato e moderno */
+/* Checkbox styling - custom and modern */
 input[type='checkbox'] {
   -webkit-appearance: none;
   appearance: none;
@@ -250,7 +250,7 @@ input[type='checkbox']:hover {
 input[type='checkbox']:checked {
   background: var(--btn-bg);
   border-color: var(--btn-bg);
-  /* Nessun checkmark - solo colore */
+  /* No checkmark - color fill only */
 }
 
 input[type='checkbox']:focus-visible {
@@ -258,7 +258,7 @@ input[type='checkbox']:focus-visible {
   outline-offset: 2px;
 }
 
-/* Label con checkbox - cursore personalizzato (solo per label che contengono checkbox) */
+/* Labels containing a checkbox - custom cursor (only for labels wrapping a checkbox) */
 label:has(input[type='checkbox']) {
   cursor: url('/cursors/light/hand.cur'), pointer !important;
 }
@@ -295,7 +295,7 @@ button:hover {
   opacity: 0.9;
 }
 
-/* Keyframes per shimmer - usato da vari componenti */
+/* Shimmer keyframes - shared by several components */
 @keyframes shimmer {
   0% {
     transform: translateX(-100%);
@@ -305,10 +305,10 @@ button:hover {
   }
 }
 
-/* NOTA: Lo shimmer è gestito individualmente da ogni componente */
-/* Non aggiungere regole generiche qui per evitare shimmer su elementi non desiderati */
+/* NOTE: shimmer is applied individually by each component */
+/* Do not add generic rules here, to avoid shimmer on unintended elements */
 
-/* Range slider specifici - Design pulito senza pallini che escono */
+/* Range slider specifics - clean design with the thumb kept inside the track */
 input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
@@ -446,7 +446,7 @@ html[data-theme='dark'] select:disabled {
   cursor: url('/cursors/dark/no.cur'), not-allowed !important;
 }
 
-/* Focus visible per accessibilità */
+/* Focus-visible outline for accessibility */
 :focus-visible {
   outline: 2px solid var(--input-focus);
   outline-offset: 2px;

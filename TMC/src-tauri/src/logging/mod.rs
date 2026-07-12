@@ -17,8 +17,8 @@ pub fn init() {
 
         tracing::info!("TMC logging initialized");
 
-        // Log startup nell'Event Viewer (se possibile) - in modo sicuro
-        // FIX: Non crashare se il logging degli eventi fallisce
+        // Log startup to Event Viewer (if possible) - safely
+        // FIX: Don't crash if event logging fails
         std::panic::catch_unwind(|| {
             event_viewer::log_startup_event(env!("CARGO_PKG_VERSION"), true);
         })
@@ -29,7 +29,7 @@ pub fn init() {
 }
 
 pub fn shutdown() {
-    // FIX: Non crashare se il logging degli eventi fallisce
+    // FIX: Don't crash if event logging fails
     std::panic::catch_unwind(|| {
         event_viewer::log_shutdown_event();
     })

@@ -17,7 +17,7 @@ textarea {
   font-size: inherit;
 }
 
-/* Scrollbar personalizzata compatta */
+/* Compact custom scrollbar */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -37,7 +37,7 @@ textarea {
   background: var(--btn-bg);
 }
 
-/* Animazioni */
+/* Animations */
 @keyframes fadeIn {
   from {
     opacity: 0;

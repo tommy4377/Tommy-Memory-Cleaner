@@ -16,13 +16,13 @@
     })
   })
 
-  // Calcola percentuale e testo status in modo reattivo
+  // Reactively compute the percentage and status text
   $: percent = p && p.total > 0 ? Math.floor((p.value / p.total) * 100) : 0
 
-  // Rendi statusText reattivo sia al progress che alla lingua
+  // Make statusText reactive to both progress and language changes
   $: statusText = (() => {
     if (p?.running && p?.step) {
-      // Traduci i nomi delle aree
+      // Translate the memory area names
       const stepTranslations: Record<string, string> = {
         'Working Set': $t('Working Set'),
         'Modified Page List': $t('Modified Pages'),
@@ -172,7 +172,7 @@
     background: var(--bar-track);
   }
 
-  /* Rimuovi shimmer quando disabled */
+  /* Remove shimmer while disabled */
   button:disabled::after {
     display: none;
   }

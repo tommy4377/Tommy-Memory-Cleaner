@@ -36,8 +36,8 @@ pub fn is_windows_10() -> bool {
 }
 
 pub fn get_windows_version() -> OsVersion {
-    // FIX: GetVersionExW è deprecato e può restituire informazioni errate su Windows 8+
-    // Usa RtlGetVersion che è più affidabile
+    // FIX: GetVersionExW is deprecated and can return incorrect info on Windows 8+
+    // Use RtlGetVersion instead, which is more reliable
     unsafe {
         #[repr(C)]
         struct RTL_OSVERSIONINFOEXW {
@@ -56,12 +56,12 @@ pub fn get_windows_version() -> OsVersion {
 
         type RtlGetVersionFn = unsafe extern "system" fn(*mut RTL_OSVERSIONINFOEXW) -> i32;
 
-        // Carica ntdll.dll e ottieni RtlGetVersion
+        // Load ntdll.dll and get RtlGetVersion
         use windows_sys::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
 
         let ntdll_name = b"ntdll.dll\0";
         let ntdll = GetModuleHandleA(ntdll_name.as_ptr());
-        // GetModuleHandleA restituisce un HMODULE che è isize in windows-sys
+        // GetModuleHandleA returns an HMODULE, which is isize in windows-sys
         // Compare with 0 instead of null_mut()
         if ntdll != std::ptr::null_mut() {
             let rtl_get_version_name = b"RtlGetVersion\0";
@@ -87,7 +87,7 @@ pub fn get_windows_version() -> OsVersion {
             }
         }
 
-        // Fallback a GetVersionExW se RtlGetVersion non è disponibile
+        // Fallback to GetVersionExW if RtlGetVersion is unavailable
         use windows_sys::Win32::System::SystemInformation::{GetVersionExW, OSVERSIONINFOEXW};
         let mut os_info: OSVERSIONINFOEXW = std::mem::zeroed();
         os_info.dwOSVersionInfoSize = std::mem::size_of::<OSVERSIONINFOEXW>() as u32;
@@ -99,8 +99,8 @@ pub fn get_windows_version() -> OsVersion {
                 os_info.dwMinorVersion,
                 os_info.dwBuildNumber
             );
-            // Se GetVersionExW restituisce 6.2, probabilmente è Windows 10/11
-            // Assumiamo Windows 10 come default sicuro
+            // If GetVersionExW returns 6.2, it's probably Windows 10/11
+            // Assume Windows 10 as a safe default
             if os_info.dwMajorVersion == 6 && os_info.dwMinorVersion == 2 {
                 tracing::warn!("GetVersionExW returned 6.2 (Windows 8), assuming Windows 10+");
                 OsVersion {
@@ -109,7 +109,7 @@ pub fn get_windows_version() -> OsVersion {
                     build: 19041,
                 }
             } else if os_info.dwMajorVersion >= 6 && os_info.dwMajorVersion <= 12 {
-                // Validate version is in reasonable range (Windows Vista 6.0 through future)
+                // Validate that the version is in a reasonable range (Windows Vista 6.0 through future)
                 OsVersion {
                     major: os_info.dwMajorVersion,
                     minor: os_info.dwMinorVersion,
@@ -125,7 +125,7 @@ pub fn get_windows_version() -> OsVersion {
                 }
             }
         } else {
-            // Default a Windows 10 se non riusciamo a rilevare
+            // Default to Windows 10 if detection fails
             tracing::warn!("Failed to detect Windows version, defaulting to Windows 10");
             OsVersion {
                 major: 10,
@@ -137,7 +137,7 @@ pub fn get_windows_version() -> OsVersion {
 }
 
 pub fn has_standby_list() -> bool {
-    true // Disponibile su tutte le versioni Windows moderne
+    true // Available on all modern Windows versions
 }
 
 pub fn has_standby_list_low() -> bool {
@@ -154,15 +154,15 @@ pub fn has_standby_list_low() -> bool {
 }
 
 pub fn has_modified_page_list() -> bool {
-    true // Sempre disponibile
+    true // Always available
 }
 
 pub fn has_registry_cache() -> bool {
-    true // Sempre disponibile
+    true // Always available
 }
 
 pub fn has_system_file_cache() -> bool {
-    true // Sempre disponibile
+    true // Always available
 }
 
 pub fn has_combined_page_list() -> bool {
@@ -180,15 +180,15 @@ pub fn has_combined_page_list() -> bool {
 }
 
 pub fn has_working_set() -> bool {
-    true // Sempre disponibile
+    true // Always available
 }
 
 pub fn has_hotkey_manager() -> bool {
-    true // Sempre disponibile
+    true // Always available
 }
 
 pub fn has_modified_file_cache() -> bool {
-    // MODIFIED_FILE_CACHE è disponibile solo su Windows 10 1803+ (build 17134)
+    // MODIFIED_FILE_CACHE is only available on Windows 10 1803+ (build 17134)
     let ver = get_windows_version();
     let result = ver.major > 10 || (ver.major == 10 && ver.build >= 17134);
     tracing::debug!(

@@ -19,10 +19,10 @@
   onMount(() => {
     unsub = config.subscribe((v) => (cfg = v))
 
-    // Carica prima i processi critici dal backend
+    // Load the critical processes from the backend first
     Promise.all([listProcessNames(), getCriticalProcesses()])
       .then(([processes, critical]) => {
-        // Memorizza i processi critici in un Set per lookup veloce
+        // Store critical processes in a Set for fast lookup
         criticalProcesses = new Set(critical.map((p) => p.toLowerCase().replace('.exe', '')))
 
         const uniqueProcesses = new Set<string>()
@@ -31,7 +31,7 @@
           const cleanName = process.toLowerCase().replace('.exe', '')
           const displayName = process.endsWith('.exe') ? process : `${process}.exe`
 
-          // Salta se è un processo critico
+          // Skip critical processes
           if (
             criticalProcesses.has(cleanName) ||
             criticalProcesses.has(displayName.toLowerCase())
@@ -39,7 +39,7 @@
             continue
           }
 
-          // Salta processi di sistema Windows comuni
+          // Skip common Windows system processes
           if (
             cleanName.startsWith('windows') ||
             cleanName.startsWith('microsoft') ||
@@ -64,7 +64,7 @@
         filtered = []
       })
 
-    // Gestione click fuori dal dropdown
+    // Handle clicks outside the dropdown
     const handleClick = (e: MouseEvent) => {
       if (!e.target || !(e.target as Element).closest('.dropdown-container')) {
         showDropdown = false
@@ -87,26 +87,26 @@
     const searchTerm = selected.toLowerCase().trim()
     const excluded = cfg?.process_exclusion_list || []
 
-    // Combina processi esclusi (in alto) e candidati disponibili
+    // Combine excluded processes (at the top) and available candidates
     let combinedList: string[] = []
 
-    // Prima aggiungi i processi esclusi che matchano la ricerca
+    // First add the excluded processes that match the search
     if (searchTerm) {
       combinedList = excluded.filter((p) => p.toLowerCase().includes(searchTerm))
     } else {
       combinedList = [...excluded]
     }
 
-    // Poi aggiungi i candidati non ancora esclusi
+    // Then add the candidates that are not excluded yet
     const availableProcesses = candidates.filter((p) => {
       const processName = p.toLowerCase()
 
-      // Non mostrare se già escluso
+      // Hide if already excluded
       if (excluded.some((ex) => ex.toLowerCase() === processName)) {
         return false
       }
 
-      // Filtra per ricerca
+      // Filter by search term
       if (searchTerm && !processName.includes(searchTerm)) {
         return false
       }
@@ -114,7 +114,7 @@
       return true
     })
 
-    // Unisci le due liste
+    // Merge the two lists
     filtered = [...combinedList, ...availableProcesses.slice(0, 50)]
   }
 
@@ -192,13 +192,13 @@
 
     let processName = selected.trim()
 
-    // Security: Validazione lunghezza massima
+    // Security: enforce a maximum length
     if (processName.length > 100) {
       processName = processName.slice(0, 100)
       selected = processName
     }
 
-    // Security: Rimuovi caratteri pericolosi
+    // Security: reject dangerous characters
     const dangerousPatterns = [
       '<',
       '>',
@@ -225,7 +225,7 @@
       return
     }
 
-    // Security: Verifica pattern di injection
+    // Security: check for injection patterns
     const injectionPatterns = [
       'javascript:',
       'data:',
@@ -244,13 +244,13 @@
 
     const cleanName = processName.toLowerCase()
 
-    // Verifica che non sia un processo critico
+    // Make sure it is not a critical process
     if (criticalProcesses.has(cleanName.replace('.exe', '')) || criticalProcesses.has(cleanName)) {
       selected = ''
       return
     }
 
-    // Verifica che non sia già nella lista
+    // Make sure it is not already in the list
     const existing = cfg.process_exclusion_list.map((x) => x.toLowerCase())
     if (!existing.includes(cleanName)) {
       const next = [...cfg.process_exclusion_list, processName]
@@ -469,7 +469,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 36px; /* Aggiunto - altezza minima per ogni item */
+    min-height: 36px; /* Minimum height for each item */
   }
 
   .dropdown-item.excluded {
@@ -492,7 +492,7 @@
     align-items: center;
     gap: 8px; /* Aumentato da 6px */
     flex: 1;
-    font-weight: 450; /* Aggiunto - testo più leggibile */
+    font-weight: 450; /* More readable text */
   }
 
   .excluded-badge {

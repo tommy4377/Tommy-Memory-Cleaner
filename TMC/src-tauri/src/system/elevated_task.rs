@@ -6,21 +6,29 @@ use tracing::{info, error, warn};
 /// Task name for elevated execution
 const ELEVATED_TASK_NAME: &str = "TommyMemoryCleanerElevated";
 
-/// Creates an elevated scheduled task that can run the app without UAC prompt
+/// Creates an elevated scheduled task that can run the app without UAC prompt.
+///
+/// The task is on-demand only (`/sc once` with a start time already in the
+/// past): it never fires by itself and is triggered explicitly via
+/// `schtasks /run`. Logon autostart remains solely controlled by the
+/// registry Run entry (system/startup.rs); using `onlogon` here caused a
+/// duplicate launch at every logon (task + registry) and an
+/// "Another instance is already running" popup.
 pub fn create_elevated_task() -> Result<()> {
     let detector = get_portable_detector();
     let exe_path = detector.exe_path();
-    
+
     // Delete existing task if it exists
     delete_elevated_task()?;
-    
+
     // Create new task with highest privileges
     let mut cmd = Command::new("schtasks");
     cmd.args([
         "/create",
         "/tn", ELEVATED_TASK_NAME,
         "/tr", &format!("\"{}\"", exe_path.display()),
-        "/sc", "onlogon",
+        "/sc", "once",
+        "/st", "00:00", // Start time in the past: on-demand only, never self-fires
         "/rl", "highest",
         "/f",
         "/it",  // Run only when user is logged on
@@ -106,24 +114,44 @@ pub fn delete_elevated_task() -> Result<()> {
     Ok(())
 }
 
-/// Checks if the elevated task exists
-pub fn elevated_task_exists() -> bool {
+/// Checks that the elevated task exists AND its action points at the
+/// currently running executable.
+///
+/// `schtasks /run` reports success even when the task's target exe no longer
+/// exists (e.g., the app was moved or updated in place), in which case nothing
+/// is launched. Trusting a stale task made the app exit at startup without
+/// ever starting the elevated instance. Callers should fall back to a UAC
+/// prompt when this returns false; the elevated instance then recreates the
+/// task with the correct path.
+pub fn elevated_task_matches_current_exe() -> bool {
+    let exe = match std::env::current_exe() {
+        Ok(p) => p,
+        Err(_) => return false,
+    };
+    let exe_str = exe.to_string_lossy().to_lowercase();
+
     let mut cmd = Command::new("schtasks");
     cmd.args([
         "/query",
         "/tn", ELEVATED_TASK_NAME,
+        "/xml",
     ]);
-    
+
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
     }
-    
-    let output = cmd.output();
-    
-    match output {
-        Ok(result) => result.status.success(),
-        Err(_) => false,
+
+    match cmd.output() {
+        Ok(output) if output.status.success() => {
+            // The XML contains the action as <Command>"C:\path\to\exe"</Command>.
+            // A simple case-insensitive substring check is sufficient here; on a
+            // false negative we merely fall back to the UAC prompt.
+            String::from_utf8_lossy(&output.stdout)
+                .to_lowercase()
+                .contains(&exe_str)
+        }
+        _ => false,
     }
 }

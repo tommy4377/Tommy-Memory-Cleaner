@@ -118,7 +118,7 @@ pub fn nt_call_u32(class: u32, command: u32) -> Result<()> {
 
             last_error = status;
 
-            // Alcuni errori comuni che indicano blocco antivirus
+            // Some common errors that indicate an antivirus block
             match status {
                 -1073741823i32 => {
                     // STATUS_UNSUCCESSFUL (0xC0000001)
@@ -142,15 +142,15 @@ pub fn nt_call_u32(class: u32, command: u32) -> Result<()> {
                     }
                 }
                 _ => {
-                    // Altri errori, non retry
+                    // Other errors, don't retry
                     break;
                 }
             }
         }
     }
 
-    // FIX #4: Ritorna un errore invece di sempre Ok(())
-    // Le funzioni chiamanti gestiranno l'errore come warning e continueranno
+    // FIX #4: Return an error instead of always Ok(())
+    // Calling functions will handle the error as a warning and continue
     let error_msg = format!(
         "NtSetSystemInformation(class={}, cmd={}) failed after {} attempts: 0x{:x}",
         class, command, MAX_RETRIES, last_error
@@ -356,7 +356,7 @@ pub fn optimize_system_file_cache() -> Result<()> {
             // Set optimal limits based on available RAM
             if SetSystemFileCacheSize(min_size, max_size, 0) == 0 {
                 tracing::warn!("SetSystemFileCacheSize with limits failed, continuing...");
-                // Non far crashare
+                // Don't crash
                 return Ok(());
             }
         }

@@ -34,7 +34,7 @@
       } else {
         await updateConfig({ auto_opt_free_threshold: value })
       }
-    }, 300) // Debounce di 300ms
+    }, 300) // 300ms debounce
   }
 
   function onHoursInput(e: Event) {

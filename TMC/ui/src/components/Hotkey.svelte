@@ -48,7 +48,7 @@
     return parts.join('+')
   }
 
-  // NUOVA FUNZIONE - Aggiungi questa
+  // Validates the main key and returns it normalized, or an empty string if invalid
   function validateMainKey(key: string): string {
     const upperKey = key.toUpperCase().trim()
 
@@ -90,18 +90,18 @@
     return ''
   }
 
-  // NUOVA FUNZIONE - Aggiungi questa
+  // Sanitizes and validates the key typed into the text input
   function onKeyInput(e: Event) {
-    const target = e.target as HTMLInputElement // Cast esplicito
+    const target = e.target as HTMLInputElement
     let input = target.value
 
-    // Security: Limita lunghezza e rimuovi caratteri pericolosi
+    // Security: enforce a maximum length
     if (input.length > 50) {
       input = input.slice(0, 50)
       target.value = input
     }
 
-    // Rimuovi caratteri potenzialmente pericolosi
+    // Reject potentially dangerous characters
     const dangerousPatterns = [
       '<',
       '>',
@@ -190,7 +190,7 @@
     </button>
   </div>
 
-  <!-- MODIFICA QUI - Sostituisci l'input esistente con questo -->
+  <!-- Main key input with live validation -->
   <input
     type="text"
     class="key-input"
@@ -281,7 +281,7 @@
     overflow: hidden;
   }
 
-  /* Shimmer solo per i bottoni Apply/Default, non per i mod-box */
+  /* Shimmer only for the Apply/Default buttons, not for the mod-boxes */
   button:not(.mod-box)::after {
     content: '';
     position: absolute;
@@ -299,7 +299,7 @@
     pointer-events: none;
   }
 
-  /* Shimmer solo per i mod-box attivi */
+  /* Shimmer only for active mod-boxes */
   .mod-box.active {
     position: relative;
     overflow: hidden;
