@@ -204,25 +204,19 @@ pub fn cmd_save_config(
         update_bool!(compact_mode);
 
         // Numeric fields
+        // 0 is a VALID value for both auto-opt settings: it means "disabled".
+        // Config::validate and the auto_optimizer scheduler both treat 0 as
+        // disabled — rewriting it to 1 here made the sliders snap back to
+        // enabled whenever the user tried to turn them off.
         if let Some(v) = obj.get("auto_opt_interval_hours") {
             if let Some(n) = v.as_u64() {
-                if n == 0 {
-                    tracing::warn!("auto_opt_interval_hours cannot be 0, using default value 1");
-                    current_cfg.auto_opt_interval_hours = 1;
-                } else {
-                    current_cfg.auto_opt_interval_hours = n.min(24) as u32;
-                }
+                current_cfg.auto_opt_interval_hours = n.min(24) as u32;
             }
         }
 
         if let Some(v) = obj.get("auto_opt_free_threshold") {
             if let Some(n) = v.as_u64() {
-                if n == 0 {
-                    tracing::warn!("auto_opt_free_threshold cannot be 0, using default value 1");
-                    current_cfg.auto_opt_free_threshold = 1;
-                } else {
-                    current_cfg.auto_opt_free_threshold = n.min(100) as u8;
-                }
+                current_cfg.auto_opt_free_threshold = n.min(100) as u8;
             }
         }
 

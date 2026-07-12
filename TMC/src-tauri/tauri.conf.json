@@ -57,7 +57,8 @@
       "../ui/dist/tray.html"
     ],
     "externalBin": [],
-    "copyright": "© 2025 Tommy437",
+    "publisher": "Tommy Memory Cleaner",
+    "copyright": "© 2025 Tommy Memory Cleaner. All rights reserved.",
     "category": "Utility",
     "shortDescription": "Advanced memory optimization tool",
     "longDescription": "Tommy Memory Cleaner - Professional memory optimization utility for Windows",

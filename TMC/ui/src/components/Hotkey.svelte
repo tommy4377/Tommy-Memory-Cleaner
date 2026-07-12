@@ -281,56 +281,6 @@
     overflow: hidden;
   }
 
-  /* Shimmer only for the Apply/Default buttons, not for the mod-boxes */
-  button:not(.mod-box)::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(
-      135deg,
-      transparent 30%,
-      rgba(255, 255, 255, 0.1) 50%,
-      transparent 70%
-    );
-    animation: shimmer 2s infinite;
-    pointer-events: none;
-  }
-
-  /* Shimmer only for active mod-boxes */
-  .mod-box.active {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .mod-box.active::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(
-      135deg,
-      transparent 30%,
-      rgba(255, 255, 255, 0.1) 50%,
-      transparent 70%
-    );
-    animation: shimmer 2s infinite;
-    pointer-events: none;
-  }
-
-  @keyframes shimmer {
-    0% {
-      transform: translateX(-100%);
-    }
-    100% {
-      transform: translateX(100%);
-    }
-  }
-
   .msg {
     margin-top: 4px;
     font-size: 9px;

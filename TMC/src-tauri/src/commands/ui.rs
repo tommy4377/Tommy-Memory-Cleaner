@@ -21,10 +21,12 @@ static WINDOW_CREATING: AtomicBool = AtomicBool::new(false);
 ///   entirely in CSS on the transparent window.
 #[tauri::command]
 pub fn cmd_get_window_config() -> Result<serde_json::Value, String> {
+    // Windows 10: must match CORNER_RADIUS_PX in system/window.rs so the CSS
+    // edge and the GDI clip region coincide. Windows 11 rounds natively (0).
     #[cfg(windows)]
-    let border_radius = if crate::os::is_windows_11() { 0 } else { 16 };
+    let border_radius = if crate::os::is_windows_11() { 0 } else { 12 };
     #[cfg(not(windows))]
-    let border_radius = 16;
+    let border_radius = 12;
 
     Ok(serde_json::json!({
         "border_radius": border_radius,
@@ -67,9 +69,9 @@ pub fn cmd_update_tray_theme(app: AppHandle, theme: String) -> Result<(), String
 /// Re-assert the platform-appropriate corner decorations on the main window.
 ///
 /// Idempotent and cheap: on Windows 11 it re-applies the persistent DWM corner
-/// preference; on Windows 10 it is effectively a no-op because rounding is done
-/// in CSS. Kept for compatibility with callers, but no longer required after
-/// resizes — neither strategy needs per-resize reapplication.
+/// preference; on Windows 10 it rebuilds the rounded GDI clip region for the
+/// current window size. Resizes are additionally handled automatically by the
+/// global window-event handler in main.rs.
 #[tauri::command]
 pub fn cmd_apply_rounded_corners(app: AppHandle) -> Result<(), String> {
     #[cfg(windows)]

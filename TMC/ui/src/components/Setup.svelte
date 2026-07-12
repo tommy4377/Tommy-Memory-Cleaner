@@ -277,14 +277,10 @@
     await invoke('cmd_exit')
   }
 
-  function handleDragStart(e: MouseEvent) {
-    // Only when the click lands on the titlebar
-    const target = e.target as HTMLElement
-    if (target.closest('.titlebar')) {
-      const window = WebviewWindow.getCurrent()
-      window?.startDragging()
-    }
-  }
+  // NOTE: window dragging is handled entirely by the shared <Titlebar>
+  // component (single-click-move threshold before startDragging). Do not add
+  // another startDragging() call here — a second initiator reintroduces the
+  // Windows stuck-drag bug.
 </script>
 
 <div class="setup-container" class:windows-10={isWindows10}>

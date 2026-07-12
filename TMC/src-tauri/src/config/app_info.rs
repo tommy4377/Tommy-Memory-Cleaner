@@ -1,10 +1,12 @@
 // Application metadata constants - centralized for consistency
 pub const APP_NAME: &str = "Tommy Memory Cleaner";
-pub const COMPANY_NAME: &str = "Tommy437";
-pub const VERSION: &str = "2.5.0";
-pub const VERSION_FULL: &str = "2.5.0.0";
+pub const COMPANY_NAME: &str = "Tommy Memory Cleaner";
+// Single source of truth: the version in Cargo.toml (keep tauri.conf.json in
+// sync — the bundler/installer reads its own `version` field).
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const VERSION_FULL: &str = concat!(env!("CARGO_PKG_VERSION"), ".0");
 pub const FILE_DESCRIPTION: &str = "Advanced Memory Optimization Tool for Windows";
-pub const COPYRIGHT: &str = "© 2025 Tommy437. All rights reserved.";
+pub const COPYRIGHT: &str = "© 2025 Tommy Memory Cleaner. All rights reserved.";
 
 // Get application version in different formats
 pub fn get_version() -> &'static str {

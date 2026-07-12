@@ -1,14 +1,14 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
-  import type { Component } from 'svelte'
+  import type { ComponentType } from 'svelte'
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
   import { LogicalSize, type PhysicalSize } from '@tauri-apps/api/window'
   import { listen, type UnlistenFn } from '@tauri-apps/api/event'
   import Titlebar from './components/Titlebar.svelte'
 
   // Lazy load components for better performance
-  let CompactView: Component | null = null
-  let FullView: Component | null = null
+  let CompactView: ComponentType | null = null
+  let FullView: ComponentType | null = null
 
   // Load components when needed
   async function loadComponents() {

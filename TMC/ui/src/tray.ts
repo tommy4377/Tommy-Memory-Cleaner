@@ -10,6 +10,11 @@ import { areasForProfile, areasToString } from './lib/profiles'
 import { dict, setLanguage, lang } from './i18n'
 import { get } from 'svelte/store'
 
+// Disable the default WebView2 context menu in production (same as main.ts)
+if (import.meta.env.PROD) {
+  document.addEventListener('contextmenu', (e) => e.preventDefault())
+}
+
 const win = getCurrentWebviewWindow()
 
 // Expose win globally for Rust inline code

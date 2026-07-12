@@ -29,11 +29,11 @@
       document.documentElement.style.setProperty('--window-border-radius', `${borderRadius}px`)
     } catch (error) {
       console.error('Failed to get window config:', error)
-      // Fallback to hardcoded values. 16px matches the Windows 10 CSS corners;
-      // on Windows 11 this merely rounds the content inside the DWM frame,
-      // which is cosmetic and safe.
+      // Fallback to hardcoded values. 12px matches the Windows 10 clip region
+      // (CORNER_RADIUS_PX in system/window.rs); on Windows 11 this merely
+      // rounds the content inside the DWM frame, which is cosmetic and safe.
       document.documentElement.style.setProperty('--titlebar-height', '32px')
-      document.documentElement.style.setProperty('--window-border-radius', '16px')
+      document.documentElement.style.setProperty('--window-border-radius', '12px')
     }
     
     unsub = config.subscribe((v) => (cfg = v))
@@ -102,24 +102,79 @@
     await appWindow.minimize()
   }
 
-  async function handleDragStart(e: MouseEvent) {
-    // Only on left click and not on an interactive element (button, input, select)
-    const target = e.target as HTMLElement
-    if (e.button === 0 && !target.closest('button, input, select, .traffic')) {
-      e.preventDefault()
-      // Set the appropriate cursor while dragging
+  // ── Manual window dragging ──────────────────────────────────────────────
+  // The titlebar deliberately does NOT use `data-tauri-drag-region`: the
+  // attribute makes wry's injected script call the native drag on every
+  // mousedown, which would race the handlers below (double drag initiation)
+  // and reintroduce the Windows "window stuck to cursor" bug: if the OS drag
+  // loop starts on a quick click, the release can be lost and the window
+  // keeps following the mouse (tauri-apps/tauri#10767).
+  //
+  // Instead, mousedown only *arms* a drag; `startDragging()` is called once
+  // the pointer moves a few pixels with the left button still held. A click
+  // that never moves (including each press of a double-click) therefore never
+  // enters the OS drag loop and cannot get stuck.
+  let dragPending = false
+  let dragStartX = 0
+  let dragStartY = 0
+  const DRAG_THRESHOLD_PX = 4
+
+  function isInteractiveTarget(target: EventTarget | null): boolean {
+    return !!(target as HTMLElement | null)?.closest('button, input, select, .traffic')
+  }
+
+  function handleDragStart(e: MouseEvent) {
+    // Only a single left-click on a non-interactive area arms the drag
+    if (e.button !== 0 || isInteractiveTarget(e.target)) return
+    e.preventDefault()
+    if (e.detail >= 2) {
+      // Second press of a double-click: handled by dblclick (toggleMaximize),
+      // must never start a drag
+      dragPending = false
+      return
+    }
+    dragPending = true
+    dragStartX = e.clientX
+    dragStartY = e.clientY
+  }
+
+  async function handleDragMove(e: MouseEvent) {
+    if (!dragPending) return
+    if (e.buttons !== 1) {
+      // Left button no longer held (release was lost) — disarm
+      dragPending = false
+      return
+    }
+    const dx = Math.abs(e.clientX - dragStartX)
+    const dy = Math.abs(e.clientY - dragStartY)
+    if (dx < DRAG_THRESHOLD_PX && dy < DRAG_THRESHOLD_PX) return
+
+    dragPending = false
+    try {
+      // A maximized window must not be dragged
+      if (await appWindow.isMaximized()) return
       document.body.style.cursor = 'move'
-      try {
-        await appWindow.startDragging()
-      } catch (err) {
-        console.warn('Failed to start dragging:', err)
-      }
+      await appWindow.startDragging()
+    } catch (err) {
+      console.warn('Failed to start dragging:', err)
+    } finally {
+      document.body.style.cursor = ''
     }
   }
 
   function handleDragEnd() {
-    // Restore the cursor when the drag ends
+    // Disarm any pending drag and restore the cursor
+    dragPending = false
     document.body.style.cursor = ''
+  }
+
+  function handleTitlebarDblClick(e: MouseEvent) {
+    if (isInteractiveTarget(e.target)) return
+    // This is a fixed-size window (500x700 / compact): double-click must NOT
+    // maximize it — `resizable: false` does not block programmatic maximize,
+    // and toggleMaximize() here visibly blew the window up. The handler only
+    // makes sure no armed drag can fire from the double-click.
+    dragPending = false
   }
 
   let isTransitioning = false
@@ -166,21 +221,17 @@
 
 <div
   class="titlebar"
-  data-tauri-drag-region
   on:mousedown={handleDragStart}
+  on:mousemove={handleDragMove}
   on:mouseup={handleDragEnd}
   on:mouseleave={handleDragEnd}
+  on:dblclick={handleTitlebarDblClick}
   role="toolbar"
   tabindex="0"
 >
-  <div
-    class="draggable"
-    data-tauri-drag-region
-    on:mousedown={handleDragStart}
-    on:mouseup={handleDragEnd}
-    on:mouseleave={handleDragEnd}
-    role="none"
-  >
+  <!-- Mouse events bubble to the .titlebar handlers above; attaching them
+       here too would double-fire (a double toggleMaximize cancels itself) -->
+  <div class="draggable" role="none">
     <img class="logo" src="/icon.png" alt="Tommy Memory Cleaner" />
     <div class="title">{title}</div>
   </div>

@@ -136,72 +136,38 @@ fn set_portable_startup(enable: bool) -> Result<()> {
         // Create the folder if it doesn't exist
         std::fs::create_dir_all(&startup_folder)?;
 
-        // Create shortcut via PowerShell with the correct name and icon
-        // Look for icon.ico in the same folder as the exe, otherwise use the exe itself
-        let icon_path = if let Some(parent) = exe_path.parent() {
-            // Try icon.ico in the same folder first
-            let ico_path = parent.join("icon.ico");
-            if ico_path.exists() {
-                ico_path.to_string_lossy().replace('\\', "\\\\")
-            } else {
-                // Try icons/icon.ico
+        // Look for icon.ico in the same folder as the exe, otherwise use the
+        // exe itself (it has an embedded icon)
+        let icon_path = exe_path
+            .parent()
+            .map(|parent| {
+                let ico_path = parent.join("icon.ico");
                 let icons_ico = parent.join("icons").join("icon.ico");
-                if icons_ico.exists() {
-                    icons_ico.to_string_lossy().replace('\\', "\\\\")
+                if ico_path.exists() {
+                    ico_path
+                } else if icons_ico.exists() {
+                    icons_ico
                 } else {
-                    // Fallback to the exe itself as icon (it already has an embedded icon)
-                    exe_path.to_string_lossy().replace('\\', "\\\\")
+                    exe_path.to_path_buf()
                 }
-            }
-        } else {
-            exe_path.to_string_lossy().replace('\\', "\\\\")
-        };
+            })
+            .unwrap_or_else(|| exe_path.to_path_buf());
 
-        let ps_script = format!(
-            r#"
-            $WshShell = New-Object -comObject WScript.Shell
-            $Shortcut = $WshShell.CreateShortcut("{}")
-            $Shortcut.TargetPath = "{}"
-            $Shortcut.WorkingDirectory = "{}"
-            $Shortcut.IconLocation = "{}, 0"
-            $Shortcut.Description = "Tommy Memory Cleaner - Memory Optimization Tool"
-            $Shortcut.WindowStyle = 1
-            $Shortcut.Save()
-            "#,
-            shortcut_path.to_string_lossy().replace('\\', "\\\\"),
-            exe_path.to_string_lossy().replace('\\', "\\\\"),
+        // Write the .lnk directly (pure Rust) instead of spawning PowerShell +
+        // WScript.Shell COM: no process launch, no AV heuristic exposure
+        let mut link = mslnk::ShellLink::new(&exe_path)
+            .map_err(|e| anyhow::anyhow!("Failed to build startup shortcut: {:?}", e))?;
+        link.set_working_dir(
             exe_path
                 .parent()
-                .ok_or_else(|| anyhow::anyhow!("Executable path has no parent directory"))?
-                .to_string_lossy()
-                .replace('\\', "\\\\"),
-            icon_path
+                .map(|p| p.to_string_lossy().to_string()),
         );
-
-        // FIX #19: Use a timeout for the PowerShell command
-        #[cfg(windows)]
-        let mut cmd = std::process::Command::new("powershell");
-        #[cfg(windows)]
-        cmd.arg("-NoProfile")
-            .arg("-NonInteractive")
-            .arg("-Command")
-            .arg(&ps_script)
-            .creation_flags(0x08000000); // CREATE_NO_WINDOW
-
-        #[cfg(not(windows))]
-        let mut cmd = std::process::Command::new("powershell");
-        #[cfg(not(windows))]
-        cmd.arg("-NoProfile")
-            .arg("-NonInteractive")
-            .arg("-Command")
-            .arg(&ps_script);
-
-        let result = run_command_with_timeout(cmd)?;
-
-        if !result.status.success() {
-            let error = String::from_utf8_lossy(&result.stderr);
-            bail!("Failed to create startup shortcut: {}", error);
-        }
+        link.set_icon_location(Some(icon_path.to_string_lossy().to_string()));
+        link.set_name(Some(
+            "Tommy Memory Cleaner - Memory Optimization Tool".to_string(),
+        ));
+        link.create_lnk(&shortcut_path)
+            .map_err(|e| anyhow::anyhow!("Failed to create startup shortcut: {:?}", e))?;
 
         // Verify that the file was created
         if !shortcut_path.exists() {
@@ -251,7 +217,30 @@ fn set_installed_startup(enable: bool) -> Result<()> {
     }
 }
 
+/// HKCU Run key used for the installed-mode startup entry.
+#[cfg(windows)]
+const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
+
+#[cfg(windows)]
+fn to_wide(s: &str) -> Vec<u16> {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+    OsStr::new(s).encode_wide().chain(Some(0)).collect()
+}
+
+/// Set or remove the HKCU Run value directly via the registry API.
+/// This used to spawn PowerShell (New-ItemProperty/Remove-ItemProperty), which
+/// is a common AV heuristic trigger when launched from an elevated exe.
+#[cfg(windows)]
 fn set_registry_startup(exe_path: &str, enable: bool) -> Result<()> {
+    use windows_sys::Win32::System::Registry::{
+        RegCloseKey, RegCreateKeyExW, RegDeleteValueW, RegOpenKeyExW, RegSetValueExW,
+        HKEY_CURRENT_USER, KEY_SET_VALUE, REG_SZ,
+    };
+
+    let key_wide = to_wide(RUN_KEY);
+    let name_wide = to_wide(app_name());
+
     if enable {
         // FIX: Use an absolute path and verify it exists
         let exe_path_abs = if std::path::Path::new(exe_path).is_absolute() {
@@ -265,108 +254,61 @@ fn set_registry_startup(exe_path: &str, enable: bool) -> Result<()> {
             bail!("Executable path does not exist: {}", exe_path_abs);
         }
 
-        // Use PowerShell to avoid encoding issues
-        let ps_script = format!(
-            r#"
-            try {{
-                $exePath = '{}'
-                if (-not (Test-Path $exePath)) {{
-                    Write-Error "Executable not found: $exePath"
-                    exit 1
-                }}
-                New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" `
-                    -Name "{}" `
-                    -Value "`"$exePath`"" `
-                    -PropertyType String `
-                    -Force `
-                    -ErrorAction Stop | Out-Null
-                exit 0
-            }} catch {{
-                Write-Error $_.Exception.Message
-                exit 1
-            }}
-            "#,
-            exe_path_abs.replace('\\', "\\\\").replace('\'', "''"),
-            app_name()
-        );
+        // Quote the path, same format the PowerShell version wrote
+        let value_wide = to_wide(&format!("\"{}\"", exe_path_abs));
 
-        // FIX #19: Use a timeout for the PowerShell command
-        #[cfg(windows)]
-        let mut cmd = std::process::Command::new("powershell");
-        #[cfg(windows)]
-        cmd.arg("-NoProfile")
-            .arg("-NonInteractive")
-            .arg("-Command")
-            .arg(&ps_script)
-            .creation_flags(0x08000000);
-
-        #[cfg(not(windows))]
-        let mut cmd = std::process::Command::new("powershell");
-        #[cfg(not(windows))]
-        cmd.arg("-NoProfile")
-            .arg("-NonInteractive")
-            .arg("-Command")
-            .arg(&ps_script);
-
-        let result = run_command_with_timeout(cmd)?;
-
-        if !result.status.success() {
-            let error = String::from_utf8_lossy(&result.stderr);
-            bail!("Failed to set registry startup: {}", error);
+        unsafe {
+            let mut hkey: windows_sys::Win32::System::Registry::HKEY = std::ptr::null_mut();
+            let open = RegCreateKeyExW(
+                HKEY_CURRENT_USER,
+                key_wide.as_ptr(),
+                0,
+                std::ptr::null(),
+                0,
+                KEY_SET_VALUE,
+                std::ptr::null(),
+                &mut hkey,
+                std::ptr::null_mut(),
+            );
+            if open != 0 {
+                bail!("Failed to open HKCU Run key: error {}", open);
+            }
+            let set = RegSetValueExW(
+                hkey,
+                name_wide.as_ptr(),
+                0,
+                REG_SZ,
+                value_wide.as_ptr() as *const u8,
+                (value_wide.len() * 2) as u32,
+            );
+            RegCloseKey(hkey);
+            if set != 0 {
+                bail!("Failed to set registry startup value: error {}", set);
+            }
         }
     } else {
-        let ps_script = format!(
-            r#"
-            try {{
-                Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" `
-                    -Name "{}" `
-                    -Force `
-                    -ErrorAction Stop
-                exit 0
-            }} catch {{
-                # If the property doesn't exist, it's not a critical error
-                if ($_.Exception.Message -like "*does not exist*") {{
-                    exit 0
-                }}
-                Write-Error $_.Exception.Message
-                exit 1
-            }}
-            "#,
-            app_name()
-        );
-
-        // Use a timeout for removal too
-        #[cfg(windows)]
-        let mut cmd = std::process::Command::new("powershell");
-        #[cfg(windows)]
-        cmd.arg("-NoProfile")
-            .arg("-NonInteractive")
-            .arg("-Command")
-            .arg(&ps_script)
-            .creation_flags(0x08000000);
-
-        #[cfg(not(windows))]
-        let mut cmd = std::process::Command::new("powershell");
-        #[cfg(not(windows))]
-        cmd.arg("-NoProfile")
-            .arg("-NonInteractive")
-            .arg("-Command")
-            .arg(&ps_script);
-
-        // Don't fail if removal fails (the property might not exist)
-        if let Ok(result) = run_command_with_timeout(cmd) {
-            if !result.status.success() {
-                let error = String::from_utf8_lossy(&result.stderr);
-                tracing::warn!(
-                    "Failed to remove registry startup (non-critical): {}",
-                    error
-                );
+        unsafe {
+            let mut hkey: windows_sys::Win32::System::Registry::HKEY = std::ptr::null_mut();
+            let open = RegOpenKeyExW(HKEY_CURRENT_USER, key_wide.as_ptr(), 0, KEY_SET_VALUE, &mut hkey);
+            if open == 0 {
+                const ERROR_FILE_NOT_FOUND: u32 = 2; // value absent — not an error
+                let del = RegDeleteValueW(hkey, name_wide.as_ptr());
+                RegCloseKey(hkey);
+                if del != 0 && del != ERROR_FILE_NOT_FOUND {
+                    tracing::warn!(
+                        "Failed to remove registry startup (non-critical): error {}",
+                        del
+                    );
+                }
             }
-        } else {
-            tracing::warn!("Failed to execute removal command (non-critical)");
         }
     }
 
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn set_registry_startup(_exe_path: &str, _enable: bool) -> Result<()> {
     Ok(())
 }
 
@@ -384,7 +326,7 @@ fn set_task_scheduler_startup(exe_path: &str, enable: bool) -> Result<()> {
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
     <Date>2025-01-01T00:00:00</Date>
-    <Author>Tommy437</Author>
+    <Author>Tommy Memory Cleaner</Author>
     <Description>Tommy Memory Cleaner - Auto Start on Login</Description>
   </RegistrationInfo>
   <Triggers>
@@ -550,37 +492,31 @@ pub fn is_startup_enabled() -> bool {
         // Check registry
         #[cfg(windows)]
         {
-            let ps_script = format!(
-                r#"
-                $value = Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" `
-                    -Name "{}" `
-                    -ErrorAction SilentlyContinue
-                if ($value) {{ exit 0 }} else {{ exit 1 }}
-                "#,
-                app_name()
-            );
+            use windows_sys::Win32::System::Registry::{
+                RegCloseKey, RegOpenKeyExW, RegQueryValueExW, HKEY_CURRENT_USER, KEY_QUERY_VALUE,
+            };
 
-            // FIX #19: Use a timeout for the PowerShell command
-            #[cfg(windows)]
-            let mut cmd = std::process::Command::new("powershell");
-            #[cfg(windows)]
-            cmd.arg("-NoProfile")
-                .arg("-NonInteractive")
-                .arg("-Command")
-                .arg(&ps_script)
-                .creation_flags(0x08000000);
-
-            #[cfg(not(windows))]
-            let mut cmd = std::process::Command::new("powershell");
-            #[cfg(not(windows))]
-            cmd.arg("-NoProfile")
-                .arg("-NonInteractive")
-                .arg("-Command")
-                .arg(&ps_script);
-
-            if let Ok(result) = run_command_with_timeout(cmd) {
-                if result.status.success() {
-                    return true;
+            // Direct registry query (previously spawned PowerShell Get-ItemProperty)
+            let key_wide = to_wide(RUN_KEY);
+            let name_wide = to_wide(app_name());
+            unsafe {
+                let mut hkey: windows_sys::Win32::System::Registry::HKEY = std::ptr::null_mut();
+                if RegOpenKeyExW(HKEY_CURRENT_USER, key_wide.as_ptr(), 0, KEY_QUERY_VALUE, &mut hkey)
+                    == 0
+                {
+                    // Null data pointers: we only care whether the value exists
+                    let query = RegQueryValueExW(
+                        hkey,
+                        name_wide.as_ptr(),
+                        std::ptr::null_mut(),
+                        std::ptr::null_mut(),
+                        std::ptr::null_mut(),
+                        std::ptr::null_mut(),
+                    );
+                    RegCloseKey(hkey);
+                    if query == 0 {
+                        return true;
+                    }
                 }
             }
 

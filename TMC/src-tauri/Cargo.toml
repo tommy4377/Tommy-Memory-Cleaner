@@ -90,6 +90,11 @@ windows-sys = { version = "0.61", features = [
 # NT API
 ntapi = "0.4"
 
+# Pure-Rust .lnk shortcut writer (replaces PowerShell WScript.Shell for the
+# Startup-folder shortcut — spawning PowerShell from an elevated exe is a
+# common AV heuristic trigger)
+mslnk = "0.1"
+
 # Tauri v2
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-global-shortcut = "2"
@@ -98,7 +103,6 @@ tauri-plugin-positioner = { version = "2", features = ["tray-icon"] }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
-winres = "0.1"
 
 [dev-dependencies]
 # Dev dependencies for linting and testing
@@ -115,12 +119,17 @@ lto = true
 opt-level = "s"
 strip = true
 
-[package.metadata.winres]
+# Read by tauri-build (via tauri-winres) — the section name must be
+# "tauri-winres", not "winres". ProductName, CompanyName, FileDescription and
+# LegalCopyright are overridden by tauri-build from tauri.conf.json
+# (productName, bundle.publisher, bundle.copyright); OriginalFilename is only
+# settable here.
+[package.metadata.tauri-winres]
 OriginalFilename = "TommyMemoryCleaner.exe"
 ProductName = "Tommy Memory Cleaner"
-CompanyName = "Tommy437"
+CompanyName = "Tommy Memory Cleaner"
 FileDescription = "Advanced Memory Optimization Tool for Windows"
-LegalCopyright = "© 2025 Tommy437. All rights reserved."
+LegalCopyright = "© 2025 Tommy Memory Cleaner. All rights reserved."
 
 [package.metadata.tauri]
 [package.metadata.tauri.windows]

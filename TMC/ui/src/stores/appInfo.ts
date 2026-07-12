@@ -13,10 +13,10 @@ interface AppInfo {
 // Create a writable store with default values
 export const appInfo = writable<AppInfo>({
   name: 'Tommy Memory Cleaner',
-  version: '2.5.0',
-  versionFull: '2.5.0.0',
-  company: 'Tommy437',
-  copyright: '© 2025 Tommy437. All rights reserved.',
+  version: '4.0.0',
+  versionFull: '4.0.0.0',
+  company: 'Tommy Memory Cleaner',
+  copyright: '© 2025 Tommy Memory Cleaner. All rights reserved.',
   description: 'Advanced Memory Optimization Tool for Windows'
 });
 
@@ -34,8 +34,8 @@ export async function loadAppInfo() {
 
 // Individual getters
 export const appName = writable('Tommy Memory Cleaner');
-export const appVersion = writable('2.5.0');
-export const companyName = writable('Tommy437');
+export const appVersion = writable('4.0.0');
+export const companyName = writable('Tommy Memory Cleaner');
 
 // Load individual values
 export async function loadAppName() {

@@ -107,13 +107,20 @@ fn ensure_notification_icon_available() -> Option<std::path::PathBuf> {
 
 /// Show Windows notification with proper icon and theme
 ///
-/// Attempt chain (ordered by efficiency):
-/// 1. Tauri Plugin Notification (native Rust, zero overhead) - PRIMARY
-/// 2. winrt-notification crate (native Rust WinRT toast) - FALLBACK
-/// 3. PowerShell Balloon (LAST RESORT - for stripped-down Windows installs)
+/// Attempt chain:
+/// 1. winrt-notification with our registered AppUserModelID - PRIMARY
+/// 2. PowerShell Balloon (LAST RESORT - for stripped-down Windows installs)
+///
+/// tauri-plugin-notification is deliberately NOT part of this chain: its
+/// desktop backend spawns the real WinRT call on an async task and discards
+/// the result, so it returns Ok(()) even when the toast never appears, which
+/// would silently terminate the fallback chain. It also skips our
+/// AppUserModelID when the exe runs from target\debug or target\release
+/// (toasts then show as "Windows PowerShell" via notify-rust's default
+/// AUMID), and its icon parameter is ignored by notify-rust on Windows.
 #[cfg(windows)]
 pub fn show_windows_notification(
-    app: &AppHandle,
+    _app: &AppHandle,
     title: &str,
     body: &str,
     _theme: &str,
@@ -124,68 +131,20 @@ pub fn show_windows_notification(
         body
     );
 
-    // ── Attempt 1: Tauri plugin notification (native Rust, zero overhead) - PRIMARY ──
-    tracing::debug!("Attempt 1: Tauri plugin notification (PRIMARY)...");
-    {
-        use tauri_plugin_notification::NotificationExt;
-        
-        // Try with icon if available
-        if let Some(icon_path) = ensure_notification_icon_available() {
-            if let Some(icon_str) = icon_path.to_str() {
-                tracing::debug!("Using icon path: {}", icon_str);
-                // Convert filesystem path to file URI for Tauri plugin
-                let icon_uri = format!("file:///{}", icon_str.replace('\\', "/"));
-                match app
-                    .notification()
-                    .builder()
-                    .title(title)
-                    .body(body)
-                    .icon(&icon_uri)
-                    .show()
-                {
-                    Ok(_) => {
-                        tracing::info!("✓ Notification sent via Tauri plugin (native, zero overhead)");
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        tracing::warn!("Tauri plugin with icon failed: {}, retrying without icon", e);
-                    }
-                }
-            }
-        }
-        
-        // Fallback: try without icon
-        tracing::debug!("Retrying Tauri plugin without icon...");
-        match app
-            .notification()
-            .builder()
-            .title(title)
-            .body(body)
-            .show()
-        {
-            Ok(_) => {
-                tracing::info!("✓ Notification sent via Tauri plugin (no icon)");
-                return Ok(());
-            }
-            Err(e) => {
-                tracing::warn!("Tauri plugin notification failed entirely: {}, trying fallback", e);
-            }
-        }
-    }
-
-    // ── Attempt 2: winrt-notification crate (native Rust WinRT toast) - FALLBACK ──
-    tracing::debug!("Attempt 2: winrt-notification crate (FALLBACK)...");
+    // ── Attempt 1: winrt-notification with our AppUserModelID (PRIMARY) ──
+    // "TommyMemoryCleaner" must match both SetCurrentProcessExplicitAppUserModelID
+    // in main.rs and the HKCU\Software\Classes\AppUserModelId registration, so
+    // Windows shows the DisplayName "Tommy Memory Cleaner" and the registered icon.
+    tracing::debug!("Attempt 1: winrt-notification with registered AUMID (PRIMARY)...");
     {
         use winrt_notification::{IconCrop, Toast};
 
         let icon_path = ensure_notification_icon_available();
 
-        let mut toast = Toast::new("TommyMemoryCleaner")
-            .title(title)
-            .text1(body);
+        let mut toast = Toast::new("TommyMemoryCleaner").title(title).text1(body);
 
         if let Some(ref path) = icon_path {
-            toast = toast.icon(path, IconCrop::Circular, "Tommy Memory Cleaner");
+            toast = toast.icon(path, IconCrop::Square, "Tommy Memory Cleaner");
         }
 
         match toast.show() {
@@ -194,18 +153,30 @@ pub fn show_windows_notification(
                 return Ok(());
             }
             Err(e) => {
-                tracing::warn!(
-                    "winrt-notification failed: {}, fallbacks exhausted",
-                    e
-                );
+                tracing::warn!("winrt-notification with icon failed: {:?}", e);
+            }
+        }
+
+        // The toast XML with a file:/// image can be rejected (e.g. icon file
+        // missing or unreadable) — retry once without the icon before giving up.
+        if icon_path.is_some() {
+            tracing::debug!("Retrying winrt-notification without icon...");
+            match Toast::new("TommyMemoryCleaner").title(title).text1(body).show() {
+                Ok(_) => {
+                    tracing::info!("✓ Notification sent via winrt-notification (no icon)");
+                    return Ok(());
+                }
+                Err(e) => {
+                    tracing::warn!("winrt-notification without icon failed: {:?}", e);
+                }
             }
         }
     }
 
-    // ── Attempt 3: PowerShell Balloon (LAST RESORT) ──
-    // Only used when both Tauri plugin and winrt-notification fail.
+    // ── Attempt 2: PowerShell Balloon (LAST RESORT) ──
+    // Only used when the WinRT toast API is unavailable.
     // This is rare and typically happens on stripped-down Windows installations.
-    tracing::debug!("Attempt 3: PowerShell balloon notification (LAST RESORT)...");
+    tracing::debug!("Attempt 2: PowerShell balloon notification (LAST RESORT)...");
     {
         use std::process::Command;
 
@@ -247,7 +218,7 @@ pub fn show_windows_notification(
         }
     }
 
-    tracing::error!("✗ All notification methods failed (Tauri plugin, winrt-notification, PowerShell balloon)");
+    tracing::error!("✗ All notification methods failed (winrt-notification, PowerShell balloon)");
     Err("All notification methods failed. Ensure system notifications are enabled.".to_string())
 }
 

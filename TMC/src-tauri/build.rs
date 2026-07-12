@@ -8,7 +8,7 @@ fn main() {
     tauri_build::try_build(tauri_build::Attributes::new().windows_attributes(windows_attributes))
         .expect("failed to run tauri-build");
 
-    // Embed version info from centralized config
-    println!("cargo:rustc-env=CARGO_PKG_VERSION=2.7.0");
-    println!("cargo:rustc-env=CARGO_PKG_NAME=TommyMemoryCleaner");
+    // NOTE: never override CARGO_PKG_VERSION/CARGO_PKG_NAME here — cargo sets
+    // them from Cargo.toml, and an override silently desyncs env!() values
+    // (a stale 2.7.0 override used to shadow the real version).
 }

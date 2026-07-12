@@ -1620,6 +1620,31 @@ fn main() {
             Ok(())
         })
         .on_window_event(|app, event| {
+            // Windows 10 rounds corners with a fixed-size GDI region
+            // (SetWindowRgn), which does not scale with the window — rebuild it
+            // on every resize. Windows 11 uses the persistent DWM corner
+            // preference and needs nothing here.
+            #[cfg(windows)]
+            if let tauri::WindowEvent::Resized(_) = event {
+                if app.label() == "main" && crate::os::is_windows_10() {
+                    if let Some(window) = app.get_webview_window("main") {
+                        // Skip while minimized: GetWindowRect reports the tiny
+                        // minimized ghost (160x28 at -32000,-32000) and the
+                        // region would briefly clip the window on restore.
+                        // Restore fires another Resized event, so the region
+                        // is rebuilt with the real size then.
+                        if window.is_minimized().unwrap_or(false) {
+                            return;
+                        }
+                        if let Ok(hwnd) = window.hwnd() {
+                            let _ = crate::system::window::set_rounded_corners(
+                                hwnd.0 as windows_sys::Win32::Foundation::HWND,
+                            );
+                        }
+                    }
+                }
+            }
+
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 // In Tauri v2, we get the window from app parameter using the window from event
                 // But we need to check which window emitted the event

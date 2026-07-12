@@ -295,18 +295,8 @@ button:hover {
   opacity: 0.9;
 }
 
-/* Shimmer keyframes - shared by several components */
-@keyframes shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-/* NOTE: shimmer is applied individually by each component */
-/* Do not add generic rules here, to avoid shimmer on unintended elements */
+/* NOTE: the periodic button shimmer effect was removed on purpose — */
+/* buttons must keep a static appearance. Do not reintroduce it. */
 
 /* Range slider specifics - clean design with the thumb kept inside the track */
 input[type='range'] {
