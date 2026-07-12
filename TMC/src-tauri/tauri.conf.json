@@ -80,7 +80,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDEyRTUwQTkwQUUxMTQ3NjgKUldSb1J4R3VrQXJsRWxNTDlWV1QvOWd2ZVl1K0RHWXBqWERsNzVGdzh5TTE4dUNmaGRsYWFBSDkK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVBNENBOTcyMDI1RUM4OTMKUldTVHlGNENjcWxNV2xsZTFIb3FFb1pzR1ZxY3FOdWJsWnZZbk9jSE9yQk5PUUxRVmhYck82TDIK",
       "endpoints": [
         "https://github.com/tommy437/Tommy-Memory-Cleaner/releases/latest/download/latest.json"
       ]
