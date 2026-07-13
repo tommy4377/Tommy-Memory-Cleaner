@@ -16,3 +16,4 @@ pub mod updater;
 // Re-export commonly used functions for convenient access
 pub use i18n::{get_translation, TranslationState};
 pub use ui::{position_tray_menu, show_or_create_window};
+pub use updater::{is_update_ready, take_ready_update};

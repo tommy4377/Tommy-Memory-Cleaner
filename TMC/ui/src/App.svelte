@@ -38,6 +38,10 @@
   import { memoryInfo } from './lib/api'
   import type { Config } from './lib/types'
   import { invoke } from '@tauri-apps/api/core'
+  import {
+    initializeSilentUpdater,
+    listenForUpdateCloseEvent,
+  } from './lib/updateManager'
 
   // ========== STATE ==========
   const appWindow = WebviewWindow.getCurrent()
@@ -56,6 +60,9 @@
   
   // Resize listener
   let handleResize: () => void
+
+  // Cleanup function array
+  const unsubFns: (() => void)[] = []
 
   // Window dimensions
   const WINDOW_SIZES = {
@@ -125,6 +132,15 @@
 
     isLoading = false
     initError = null
+
+    // Start silent updater (non-blocking — runs after a delay)
+    void initializeSilentUpdater().catch((e) =>
+      console.error('Silent updater initialization failed:', e),
+    )
+
+    // Listen for the update-ready-close event from the Rust backend
+    const unlistenUpdateClose = listenForUpdateCloseEvent()
+    unsubFns.push(unlistenUpdateClose)
 
     // Check elevation status for warning banner
     await checkElevation()
@@ -219,6 +235,12 @@
       moveUnlisten()
       moveUnlisten = null
     }
+
+    // Clean up additional listeners (update close listener, etc.)
+    for (const fn of unsubFns) {
+      try { fn() } catch (e) { console.warn('Cleanup function failed:', e) }
+    }
+    unsubFns.length = 0
     
     // Remove the resize listener
     window.removeEventListener('resize', handleResize)

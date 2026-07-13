@@ -12,8 +12,24 @@ use tauri::{AppHandle, Emitter, Manager, State};
 /// This command terminates the application process after logging the exit event.
 /// Uses Tauri's graceful shutdown mechanism to ensure all cleanup hooks run,
 /// files are flushed, and windows are closed properly.
+/// If an update is ready, it installs the update and restarts instead of exiting.
 #[tauri::command]
 pub fn cmd_exit(app: AppHandle) {
+    if crate::commands::is_update_ready() {
+        tracing::info!("Update ready during exit request, installing update...");
+        if let Some((update, bytes)) = crate::commands::take_ready_update() {
+            match update.install(&bytes) {
+                Ok(()) => {
+                    tracing::info!("Update installed successfully, restarting");
+                    app.restart();
+                    return;
+                }
+                Err(e) => {
+                    tracing::error!("Failed to install update during exit: {}", e);
+                }
+            }
+        }
+    }
     tracing::info!("Exiting application...");
     app.exit(0);
 }

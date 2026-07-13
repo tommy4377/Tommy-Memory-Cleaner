@@ -61,3 +61,36 @@ export async function setAlwaysOnTop(on: boolean): Promise<void> {
 export async function setPriority(priority: 'Low' | 'Normal' | 'High'): Promise<void> {
   await invoke('cmd_set_priority', { priority })
 }
+
+// ========== UPDATER ==========
+
+export interface UpdateCheckResult {
+  available: boolean
+  current_version: string
+  available_version: string | null
+}
+
+/** Check for an available update */
+export async function checkForUpdate(): Promise<UpdateCheckResult> {
+  return await invoke<UpdateCheckResult>('check_for_update')
+}
+
+/** Download an available update without installing */
+export async function downloadUpdate(): Promise<string> {
+  return await invoke<string>('download_update')
+}
+
+/** Install the ready update and restart the app */
+export async function installReadyUpdate(): Promise<void> {
+  await invoke('install_ready_update')
+}
+
+/** Check if a downloaded update is ready to install */
+export async function isUpdateReadyBackend(): Promise<boolean> {
+  return await invoke<boolean>('cmd_is_update_ready')
+}
+
+/** Get the version of the ready update */
+export async function getReadyVersion(): Promise<string | null> {
+  return await invoke<string | null>('cmd_get_ready_version')
+}

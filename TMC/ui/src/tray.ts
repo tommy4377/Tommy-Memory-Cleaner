@@ -144,7 +144,9 @@ async function handleAction(action: string) {
         })
       }
     } else if (action === 'exit') {
-      await invoke('cmd_exit')
+      // Use the centralized exit that respects pending updates
+      const { requestApplicationExit } = await import('./lib/updateManager')
+      await requestApplicationExit()
     }
   } catch (err: any) {
     console.error('Action failed:', err)

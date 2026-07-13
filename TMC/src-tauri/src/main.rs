@@ -1286,7 +1286,10 @@ fn main() {
             cmd_register_hotkey,
             // Commands from updater module
             commands::updater::check_for_update,
-            commands::updater::install_update
+            commands::updater::download_update,
+            commands::updater::install_ready_update,
+            commands::updater::cmd_is_update_ready,
+            commands::updater::cmd_get_ready_version
         ])
         .setup(move |app| {
             let app_handle = app.handle();
@@ -1673,6 +1676,13 @@ fn main() {
                                 tracing::warn!("Failed to hide window: {}", e);
                             }
                             api.prevent_close();
+                        } else if commands::is_update_ready() {
+                            // Prevent default close so frontend can install the update
+                            api.prevent_close();
+                            tracing::info!("Update ready, emitting update-ready-close event");
+                            if let Err(e) = app.emit("update-ready-close", ()) {
+                                tracing::error!("Failed to emit update-ready-close: {}", e);
+                            }
                         } else {
                             // If not minimizing to tray, close app and log shutdown
                             crate::logging::shutdown();

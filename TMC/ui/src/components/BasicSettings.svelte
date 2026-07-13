@@ -5,17 +5,36 @@
   import type { Config, Priority } from '../lib/types'
   import { t, setLanguage } from '../i18n/index'
   import CustomSelect from './CustomSelect.svelte'
+  import { updateStore } from '../stores/updateStore'
+  import type { UpdateState } from '../stores/updateStore'
 
   let cfg: Config | null = null
   let unsub: (() => void) | null = null
+  let updateState: UpdateState | null = null
+  let updateUnsub: (() => void) | null = null
 
   onMount(() => {
     unsub = config.subscribe((v) => (cfg = v))
+    updateUnsub = updateStore.subscribe((v) => (updateState = v))
   })
 
   onDestroy(() => {
     if (unsub) unsub()
+    if (updateUnsub) updateUnsub()
   })
+
+  $: updateStatusText = getUpdateStatusText(updateState)
+  
+  function getUpdateStatusText(state: UpdateState | null): string | null {
+    if (!state || state.status === 'idle') return null
+    switch (state.status) {
+      case 'checking': return 'Checking…'
+      case 'downloading': return 'Downloading…'
+      case 'ready': return 'Ready — installs when the application exits'
+      case 'installing': return 'Installing…'
+      case 'error': return 'Last check failed'
+    }
+  }
 
   async function toggle(key: keyof Config) {
     if (!cfg) return
@@ -97,6 +116,9 @@
       <input type="checkbox" checked={cfg?.auto_update} on:change={() => toggle('auto_update')} />
       {$t('Auto update')}
     </label>
+    {#if updateStatusText}
+      <span class="update-status">{updateStatusText}</span>
+    {/if}
   </div>
 
   <div class="row">
@@ -215,5 +237,12 @@
   }
   .select-wrapper {
     min-width: 110px;
+  }
+
+  .update-status {
+    font-size: 11px;
+    opacity: 0.6;
+    margin-left: auto;
+    white-space: nowrap;
   }
 </style>
