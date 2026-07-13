@@ -6,11 +6,11 @@
 ![Tauri](https://img.shields.io/badge/Tauri-2.0-FFC131?logo=tauri)
 ![Svelte](https://img.shields.io/badge/Svelte-4-FF3E00?logo=svelte)
 
-**Tommy Memory Cleaner (TMC)** is a lightweight Windows desktop utility that frees up RAM on demand or automatically. It purges specific Windows memory areas — working sets, standby lists, file caches, and more — using native NT system calls, wrapped in a modern, themeable UI built with Tauri 2.0 and Svelte.
+**Tommy Memory Cleaner (TMC)** is a lightweight Windows desktop utility that frees up RAM on demand or automatically. It purges specific Windows memory areas - working sets, standby lists, file caches, and more - using native NT system calls, wrapped in a modern, themeable UI built with Tauri 2.0 and Svelte.
 
 ## Key Features
 
-- **Eight targetable memory areas** — Working Set, Modified Page List, Standby List, Low-Priority Standby List, System File Cache, Combined Page List, Modified File Cache, and Registry Cache.
+- **Eight targetable memory areas** - Working Set, Modified Page List, Standby List, Low-Priority Standby List, System File Cache, Combined Page List, Modified File Cache, and Registry Cache.
 - **One-click optimization profiles**:
   | Profile | Memory areas | Best for |
   |---|---|---|
@@ -18,10 +18,10 @@
   | **Balanced** | Normal + full Standby List + file caches | Deep refresh after heavy usage |
   | **Gaming** | Balanced + Modified/Combined Page Lists | Full RAM reset before gaming sessions |
 - **Automatic optimization** on a schedule (interval in hours) or when free memory drops below a configurable threshold.
-- **Live system tray monitor** — the tray icon shows current memory usage percentage with customizable colors and warning/danger levels.
+- **Live system tray monitor** - the tray icon shows current memory usage percentage with customizable colors and warning/danger levels.
 - **Global hotkey** (default `Ctrl+Alt+N`) to optimize from anywhere, even in-game.
 - **Process exclusions** with built-in protection for critical system processes.
-- **Silent admin elevation** — one UAC prompt on first run; subsequent launches elevate silently via a scheduled task.
+- **Silent admin elevation** - one UAC prompt on first run; subsequent launches elevate silently via a scheduled task.
 - **Compact and full view**, light/dark themes with custom accent colors, and 9 UI languages (English, Italian, Spanish, French, Portuguese, German, Arabic, Japanese, Chinese).
 - **Console mode** for scripting and task automation (see [CLI usage](#command-line-usage)).
 
@@ -39,14 +39,14 @@ Download the latest `Tommy Memory Cleaner_x.x.x_x64-setup.exe` installer from th
 
 ### Basic usage
 
-1. Launch the app — grant the UAC prompt so it can optimize system memory.
+1. Launch the app  grant the UAC prompt so it can optimize system memory.
 2. Pick a profile (**Normal**, **Balanced**, or **Gaming**).
 3. Click **Optimize**, press the global hotkey, or right-click the tray icon → *Optimize*.
 4. Optionally enable **Auto Optimization** in Settings to run on an interval or when free memory gets low.
 
 ### Command-line usage
 
-The same executable runs headless when given arguments — handy for scripts and Task Scheduler:
+The same executable runs headless when given arguments - handy for scripts and Task Scheduler:
 
 ```bat
 :: Optimize specific memory areas
@@ -78,15 +78,15 @@ cargo tauri build --bundles nsis
 
 The project layout:
 
-- [`TMC/ui`](TMC/ui) — Svelte 4 + TypeScript frontend (Vite)
-- [`TMC/src-tauri`](TMC/src-tauri) — Rust backend (memory engine, tray, hotkeys, CLI)
-- [`.github/workflows/release.yml`](.github/workflows/release.yml) — CI release pipeline (builds the installer on `v*.*.*` tags)
+- [`TMC/ui`](TMC/ui) - Svelte 4 + TypeScript frontend (Vite)
+- [`TMC/src-tauri`](TMC/src-tauri) - Rust backend (memory engine, tray, hotkeys, CLI)
+- [`.github/workflows/release.yml`](.github/workflows/release.yml) - CI release pipeline (builds the installer on `v*.*.*` tags)
 
 ## Getting Help
 
-- **Bug reports & feature requests** — open an issue on the [GitHub issue tracker](https://github.com/tommy4377/Tommy-Memory-Cleaner/issues).
-- **Questions** — use [GitHub Discussions](https://github.com/tommy4377/Tommy-Memory-Cleaner/discussions).
-- **Diagnostics** — optimization results are logged to the Windows Event Viewer, and application logs are written to `%LOCALAPPDATA%\TommyMemoryCleaner`.
+- **Bug reports & feature requests** - open an issue on the [GitHub issue tracker](https://github.com/tommy4377/Tommy-Memory-Cleaner/issues).
+- **Questions** - use [GitHub Discussions](https://github.com/tommy4377/Tommy-Memory-Cleaner/discussions).
+- **Diagnostics** - optimization results are logged to the Windows Event Viewer, and application logs are written to `%LOCALAPPDATA%\TommyMemoryCleaner`.
 
 ## Maintainers & Contributing
 
@@ -95,7 +95,7 @@ Tommy Memory Cleaner is created and maintained by [**Tommy437** (@tommy4377)](ht
 Contributions are welcome:
 
 1. Fork the repository and create a feature branch.
-2. Make your changes — please keep comments and code in English and run `npm run lint` (frontend) and `cargo check` (backend) before submitting.
+2. Make your changes - please keep comments and code in English and run `npm run lint` (frontend) and `cargo check` (backend) before submitting.
 3. Open a pull request describing what you changed and why.
 
 For anything larger than a small fix, open an issue first so the approach can be discussed.
